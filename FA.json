@@ -1,1 +1,17 @@
-
+{
+  "lang": "fa",
+  "lessons": [
+    {
+      "id": "fa_001",
+      "title": "مقدماتی",
+      "level": 1,
+      "items": [
+        {
+          "type": "WORD",
+          "q": "سلام",
+          "a": "Hello"
+        }
+      ]
+    }
+  ]
+}
