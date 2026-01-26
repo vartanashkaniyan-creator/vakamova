@@ -1,1 +1,17 @@
-
+{
+  "lang": "en",
+  "lessons": [
+    {
+      "id": "en_001",
+      "title": "Basics",
+      "level": 1,
+      "items": [
+        {
+          "type": "WORD",
+          "q": "Hello",
+          "a": "سلام"
+        }
+      ]
+    }
+  ]
+}
