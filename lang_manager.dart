@@ -1,12 +1,13 @@
-
 import 'dart:convert';
+import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:lang_master/core/app_config.dart';
 
 /// 🌍 **Enterprise Language Manager**
-/// مدیریت کامل ۱۲ زبان با قابلیت‌های پیشرفته
+/// مدیریت کامل ۱۴ زبان با قابلیت‌های پیشرفته
 class LanguageManager {
   // Singleton
   static final LanguageManager _instance = LanguageManager._internal();
@@ -23,7 +24,7 @@ class LanguageManager {
   TextDirection _currentDirection = TextDirection.ltr;
   
   // سیستم رویداد برای تغییر زبان
-  final List<Function()> _listeners = [];
+  final List<VoidCallback> _listeners = [];
   
   // ==================== [INITIALIZATION] ====================
   
@@ -42,7 +43,7 @@ class LanguageManager {
     final prefs = await SharedPreferences.getInstance();
     final savedLang = prefs.getString('app_language');
     
-    if (savedLang != null && AppConfig.isLanguageSupported(savedLang)) {
+    if (savedLang != null && _isLanguageSupported(savedLang)) {
       _currentLanguage = savedLang;
     } else {
       _currentLanguage = AppConfig.defaultLanguage;
@@ -51,10 +52,12 @@ class LanguageManager {
   }
   
   Future<void> _loadCoreTranslations() async {
-    // بارگذاری ترجمه‌های پایه برای هر زبان
-    for (final langConfig in AppConfig.supportedLanguages) {
-      if (langConfig.enabled) {
-        await _loadLanguageFile(langConfig.code);
+    // بارگذاری ترجمه‌های پایه برای ۱۴ زبان
+    final List<Map<String, dynamic>> supportedLangs = AppConfig.supportedLanguages;
+    
+    for (final lang in supportedLangs) {
+      if (lang['code'] != null) {
+        await _loadLanguageFile(lang['code']!);
       }
     }
     
@@ -81,45 +84,52 @@ class LanguageManager {
       
       _translations[languageCode] = translations;
     } catch (e) {
-      print('⚠️ Failed to load language $languageCode: $e');
+      if (kDebugMode) {
+        print('⚠️ Failed to load language $languageCode: $e');
+      }
       _translations[languageCode] = {};
     }
   }
   
   Future<void> _loadRemoteTranslations() async {
-    // TODO: Load updated translations from server
     try {
-      // final response = await ApiClient().get('/translations/${_currentLanguage}');
-      // if (response.success) {
-      //   _mergeTranslations(_currentLanguage, response.data);
-      // }
+      // TODO: Load updated translations from server
     } catch (e) {
       // Silent fail - use local translations
     }
   }
   
   Future<void> _autoDetectLanguage() async {
-    final locale = PlatformDispatcher.instance.locale;
-    final systemLang = locale.languageCode;
+    final String systemLang;
+    
+    if (Platform.isAndroid || Platform.isIOS) {
+      final locale = WidgetsBinding.instance.platformDispatcher.locale;
+      systemLang = locale.languageCode;
+    } else {
+      systemLang = 'en';
+    }
     
     // بررسی پشتیبانی از زبان سیستم
-    if (AppConfig.isLanguageSupported(systemLang)) {
+    if (_isLanguageSupported(systemLang)) {
       await changeLanguage(systemLang, notify: false);
     }
     
-    // بررسی تنظیمات منطقه‌ای
-    final countryCode = locale.countryCode;
-    if (countryCode != null) {
-      // برای زبان‌هایی که گونه‌های منطقه‌ای دارند
-      final regionalLang = '$systemLang-$countryCode';
-      if (_isRegionalVariantSupported(regionalLang)) {
-        await changeLanguage(regionalLang, notify: false);
-      }
+    // بررسی گونه‌های منطقه‌ای
+    final String regionalLang;
+    if (systemLang == 'ar') {
+      regionalLang = 'ar-iq'; // عربی عراقی
+    } else if (systemLang == 'pt') {
+      regionalLang = 'pt-br'; // پرتغالی برزیلی
+    } else {
+      regionalLang = systemLang;
+    }
+    
+    if (_isLanguageSupported(regionalLang)) {
+      await changeLanguage(regionalLang, notify: false);
     }
   }
   
   bool _isRegionalVariantSupported(String langCode) {
-    // بررسی گونه‌های منطقه‌ای مانند en-US, pt-BR
     return _translations.containsKey(langCode);
   }
   
@@ -131,7 +141,7 @@ class LanguageManager {
     bool savePreference = true,
     bool notify = true,
   }) async {
-    if (!AppConfig.isLanguageSupported(languageCode)) {
+    if (!_isLanguageSupported(languageCode)) {
       throw Exception('Language $languageCode is not supported');
     }
     
@@ -155,8 +165,14 @@ class LanguageManager {
       _notifyListeners();
     }
     
-    // بارگذاری ترجمه‌های اضافی برای زبان جدید
+    // بارگذاری منابع اضافی
     _loadAdditionalResources(languageCode);
+  }
+  
+  /// بررسی پشتیبانی زبان
+  bool _isLanguageSupported(String code) {
+    final List<Map<String, dynamic>> langs = AppConfig.supportedLanguages;
+    return langs.any((lang) => lang['code'] == code);
   }
   
   /// دریافت ترجمه متن
@@ -165,7 +181,6 @@ class LanguageManager {
     Map<String, String>? params,
     String? defaultValue,
   }) {
-    // جستجو در زبان فعلی
     String? translation = _translations[_currentLanguage]?[key];
     
     // Fallback به زبان پیش‌فرض
@@ -194,7 +209,6 @@ class LanguageManager {
     int count, {
     Map<String, String>? params,
   }) {
-    // کلیدهای plural مانند: 'item' -> 'item_singular', 'item_plural', 'item_zero'
     String pluralKey = key;
     
     if (count == 0 && _hasTranslation('${key}_zero')) {
@@ -203,13 +217,9 @@ class LanguageManager {
       pluralKey = '${key}_singular';
     } else if (count > 1 && _hasTranslation('${key}_plural')) {
       pluralKey = '${key}_plural';
-    } else if (count > 10 && _hasTranslation('${key}_many')) {
-      pluralKey = '${key}_many';
     }
     
     final baseTranslation = translate(pluralKey, defaultValue: key);
-    
-    // جایگزینی شمارش
     return baseTranslation.replaceAll('{{count}}', count.toString());
   }
   
@@ -220,14 +230,16 @@ class LanguageManager {
   
   /// فرمت‌بندی اعداد بر اساس زبان
   String formatNumber(num value) {
-    switch (_currentLanguage) {
-      case 'fa': // فارسی - فرمت فارسی
+    final String langCode = _currentLanguage.split('-').first;
+    
+    switch (langCode) {
+      case 'fa': // فارسی
         final persianDigits = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹'];
         return value.toString().replaceAllMapped(
           RegExp(r'\d'),
           (match) => persianDigits[int.parse(match.group(0)!)],
         );
-      case 'ar': // عربی - فرمت عربی
+      case 'ar': // عربی (عراقی)
         final arabicDigits = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
         return value.toString().replaceAllMapped(
           RegExp(r'\d'),
@@ -240,8 +252,9 @@ class LanguageManager {
   
   /// فرمت‌بندی تاریخ بر اساس زبان
   String formatDate(DateTime date, {String format = 'medium'}) {
-    // TODO: Implement locale-aware date formatting
-    switch (_currentLanguage) {
+    final String langCode = _currentLanguage.split('-').first;
+    
+    switch (langCode) {
       case 'fa':
         return _formatPersianDate(date, format);
       case 'ar':
@@ -252,13 +265,12 @@ class LanguageManager {
   }
   
   String _formatPersianDate(DateTime date, String format) {
-    // تبدیل به تاریخ شمسی
-    // TODO: Implement Persian (Jalali) calendar
+    // TODO: تبدیل به تاریخ شمسی
     return date.toString();
   }
   
   String _formatArabicDate(DateTime date, String format) {
-    // TODO: Implement Hijri calendar for Arabic
+    // TODO: تبدیل به تاریخ هجری قمری
     return date.toString();
   }
   
@@ -276,7 +288,16 @@ class LanguageManager {
     final Map<String, List<String>> monthNames = {
       'en': ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
       'fa': ['فروردین', 'اردیبهشت', 'خرداد', 'تیر', 'مرداد', 'شهریور', 'مهر', 'آبان', 'آذر', 'دی', 'بهمن', 'اسفند'],
-      'ar': ['محرم', 'صفر', 'ربيع الأول', 'ربيع الآخر', 'جمادى الأولى', 'جمادى الآخرة', 'رجب', 'شعبان', 'رمضان', 'شوال', 'ذو القعدة', 'ذو الحجة'],
+      'ar-iq': ['كانون الثاني', 'شباط', 'آذار', 'نيسان', 'أيار', 'حزيران', 'تموز', 'آب', 'أيلول', 'تشرين الأول', 'تشرين الثاني', 'كانون الأول'],
+      'de': ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'],
+      'tr': ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'],
+      'ru': ['янв', 'фев', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'],
+      'fr': ['janv', 'févr', 'mars', 'avr', 'mai', 'juin', 'juil', 'août', 'sept', 'oct', 'nov', 'déc'],
+      'es': ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'],
+      'pt-br': ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'],
+      'it': ['gen', 'feb', 'mar', 'apr', 'mag', 'giu', 'lug', 'ago', 'set', 'ott', 'nov', 'dic'],
+      'nl': ['jan', 'feb', 'mrt', 'apr', 'mei', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'],
+      'sv': ['jan', 'feb', 'mar', 'apr', 'maj', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'],
     };
     
     return monthNames[_currentLanguage]?[month - 1] ?? month.toString();
@@ -286,7 +307,16 @@ class LanguageManager {
     final Map<String, List<String>> weekdayNames = {
       'en': ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
       'fa': ['دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنجشنبه', 'جمعه', 'شنبه', 'یکشنبه'],
-      'ar': ['الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت', 'الأحد'],
+      'ar-iq': ['الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت', 'الأحد'],
+      'de': ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'],
+      'tr': ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'],
+      'ru': ['пн', 'вт', 'ср', 'чт', 'пт', 'сб', 'вс'],
+      'fr': ['lun', 'mar', 'mer', 'jeu', 'ven', 'sam', 'dim'],
+      'es': ['lun', 'mar', 'mié', 'jue', 'vie', 'sáb', 'dom'],
+      'pt-br': ['seg', 'ter', 'qua', 'qui', 'sex', 'sáb', 'dom'],
+      'it': ['lun', 'mar', 'mer', 'gio', 'ven', 'sab', 'dom'],
+      'nl': ['ma', 'di', 'wo', 'do', 'vr', 'za', 'zo'],
+      'sv': ['mån', 'tis', 'ons', 'tor', 'fre', 'lör', 'sön'],
     };
     
     return weekdayNames[_currentLanguage]?[weekday - 1] ?? '';
@@ -295,8 +325,8 @@ class LanguageManager {
   // ==================== [TEXT DIRECTION] ====================
   
   void _updateTextDirection() {
-    final langConfig = AppConfig.getLanguageConfig(_currentLanguage);
-    _currentDirection = (langConfig?.rtl == true || AppConfig._forceRTL)
+    final List<String> rtlLanguages = ['ar-iq', 'fa'];
+    _currentDirection = rtlLanguages.contains(_currentLanguage)
         ? TextDirection.rtl
         : TextDirection.ltr;
   }
@@ -311,15 +341,17 @@ class LanguageManager {
   // ==================== [LANGUAGE INFO] ====================
   
   /// دریافت اطلاعات زبان فعلی
-  LanguageConfig? get currentLanguageConfig {
-    return AppConfig.getLanguageConfig(_currentLanguage);
+  Map<String, dynamic>? get currentLanguageInfo {
+    final List<Map<String, dynamic>> langs = AppConfig.supportedLanguages;
+    return langs.firstWhere(
+      (lang) => lang['code'] == _currentLanguage,
+      orElse: () => <String, dynamic>{},
+    );
   }
   
   /// دریافت لیست زبان‌های فعال
-  List<LanguageConfig> get availableLanguages {
-    return AppConfig.supportedLanguages
-        .where((lang) => lang.enabled)
-        .toList();
+  List<Map<String, dynamic>> get availableLanguages {
+    return AppConfig.supportedLanguages;
   }
   
   /// دریافت درصد یادگیری هر زبان
@@ -327,8 +359,7 @@ class LanguageManager {
     final Map<String, double> progress = {};
     
     for (final lang in availableLanguages) {
-      // TODO: Fetch from database
-      progress[lang.code] = 0.0;
+      progress[lang['code'] ?? 'unknown'] = 0.0;
     }
     
     return progress;
@@ -336,11 +367,11 @@ class LanguageManager {
   
   /// بررسی پشتیبانی از ویژگی‌های زبان
   bool supportsFeature(String languageCode, String feature) {
-    const featureSupport = {
-      'speech_synthesis': ['en', 'fa', 'es', 'fr', 'de', 'it', 'pt', 'ru'],
-      'voice_recognition': ['en', 'fa', 'es', 'fr', 'de'],
-      'handwriting': ['zh', 'ja', 'ko', 'ar', 'fa'],
-      'grammar_check': ['en', 'es', 'fr', 'de'],
+    const Map<String, List<String>> featureSupport = {
+      'speech_synthesis': ['en', 'fa', 'es', 'fr', 'de', 'it', 'pt-br', 'ru', 'ar-iq', 'tr'],
+      'voice_recognition': ['en', 'fa', 'es', 'fr', 'de', 'it', 'ru'],
+      'handwriting': ['ar-iq', 'fa', 'ru', 'tr'],
+      'grammar_check': ['en', 'de', 'fr', 'es', 'it', 'ru'],
     };
     
     return featureSupport[feature]?.contains(languageCode) ?? false;
@@ -349,44 +380,42 @@ class LanguageManager {
   // ==================== [RESOURCE MANAGEMENT] ====================
   
   Future<void> _loadAdditionalResources(String languageCode) async {
-    // بارگذاری فونت‌های خاص زبان
-    if (languageCode == 'fa' || languageCode == 'ar') {
+    final String langCode = languageCode.split('-').first;
+    
+    if (langCode == 'fa' || langCode == 'ar') {
       await _loadRTLFonts();
     }
     
-    // بارگذاری فایل‌های صوتی پایه
     await _preloadAudioResources(languageCode);
     
-    // بارگذاری محتوای آفلاین اولویت‌دار
     if (_shouldPreloadContent(languageCode)) {
       await _preloadLanguageContent(languageCode);
     }
   }
   
   Future<void> _loadRTLFonts() async {
-    // TODO: Load RTL fonts if not already loaded
+    // TODO: Load RTL fonts
   }
   
   Future<void> _preloadAudioResources(String languageCode) async {
-    // Preload common audio files for better UX
+    // TODO: Preload audio
   }
   
   Future<void> _preloadLanguageContent(String languageCode) async {
-    // Preload first 5 lessons for instant access
+    // TODO: Preload lessons
   }
   
   bool _shouldPreloadContent(String languageCode) {
-    // Preload if language is selected or user has progress in it
     return languageCode == _currentLanguage;
   }
   
   // ==================== [EVENT SYSTEM] ====================
   
-  void addListener(Function() listener) {
+  void addListener(VoidCallback listener) {
     _listeners.add(listener);
   }
   
-  void removeListener(Function() listener) {
+  void removeListener(VoidCallback listener) {
     _listeners.remove(listener);
   }
   
@@ -399,7 +428,6 @@ class LanguageManager {
   // ==================== [UTILITIES] ====================
   
   bool _hasInternetConnection() {
-    // TODO: Check connectivity
     return true;
   }
   
@@ -423,7 +451,7 @@ class LanguageManager {
       'current_language': _currentLanguage,
       'text_direction': isRTL ? 'RTL' : 'LTR',
       'translations_loaded': _translations.length,
-      'available_languages': availableLanguages.map((lang) => lang.code).toList(),
+      'available_languages': availableLanguages.map((lang) => lang['code']).toList(),
       'listeners_count': _listeners.length,
     };
   }
@@ -433,7 +461,7 @@ class LanguageManager {
     _translations.clear();
   }
   
-  /// افزودن ترجمه‌های سفارشی (برای تست یا توسعه)
+  /// افزودن ترجمه‌های سفارشی
   void addCustomTranslations(String languageCode, Map<String, String> translations) {
     if (!_translations.containsKey(languageCode)) {
       _translations[languageCode] = {};
@@ -452,12 +480,9 @@ class LanguageManager {
     
     _notifyListeners();
   }
+  
+  /// دریافت کد زبان ساده‌شده (بدون منطقه)
+  String get simpleLanguageCode {
+    return _currentLanguage.split('-').first;
+  }
 }
-
-/// 🎯 استفاده آسان در کل برنامه:
-/// 
-/// ```dart
-/// Text(LanguageManager().translate('welcome_message')),
-/// Text(LanguageManager().translatePlural('items', 5)),
-/// Text(LanguageManager().formatNumber(1234)),
-/// ```
