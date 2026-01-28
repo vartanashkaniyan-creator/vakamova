@@ -1,0 +1,68 @@
+{
+  "metadata": {
+    "level": "مبتدی",
+    "duration_minutes": 20,
+    "learning_objectives": [
+      "یادگیری جملات ساده برای خرید",
+      "آشنایی با واژگان پایه فروشگاه",
+      "تمرین مکالمه کوتاه روزمره"
+    ]
+  },
+  "dialogue": [
+    {
+      "speaker": "Customer",
+      "en": "Hello, how much is this?",
+      "fa": "سلام، قیمت این چقدر است؟"
+    },
+    {
+      "speaker": "Shopkeeper",
+      "en": "It is ten dollars.",
+      "fa": "ده دلار است."
+    },
+    {
+      "speaker": "Customer",
+      "en": "Can I pay by card?",
+      "fa": "می‌توانم با کارت پرداخت کنم؟"
+    },
+    {
+      "speaker": "Shopkeeper",
+      "en": "Yes, of course.",
+      "fa": "بله، حتماً."
+    }
+  ],
+  "vocabulary": [
+    { "word": "price", "fa": "قیمت" },
+    { "word": "shop", "fa": "فروشگاه" },
+    { "word": "buy", "fa": "خریدن" },
+    { "word": "sell", "fa": "فروختن" },
+    { "word": "card", "fa": "کارت" },
+    { "word": "cash", "fa": "پول نقد" }
+  ],
+  "grammar": {
+    "title": "سوال با How much",
+    "rule_en": "Use 'How much is/are' to ask about the price of something.",
+    "rule_fa": "برای پرسیدن قیمت از «How much is / are» استفاده می‌کنیم.",
+    "example": {
+      "en": "How much is this shirt?",
+      "fa": "قیمت این پیراهن چقدر است؟"
+    }
+  },
+  "exercises": [
+    {
+      "type": "translation",
+      "question": "How much is this?",
+      "answer": "قیمت این چقدر است؟"
+    },
+    {
+      "type": "fill_in_the_blank",
+      "question": "_____ I pay by card?",
+      "answer": "Can"
+    },
+    {
+      "type": "multiple_choice",
+      "question": "Which word means «فروشگاه»?",
+      "options": ["Buy", "Shop", "Price"],
+      "answer": "Shop"
+    }
+  ]
+}
