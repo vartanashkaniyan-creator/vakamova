@@ -1,4 +1,37 @@
+
 {
-  "name": "HyperLang",
-  "short_name": "HyperLang"
+  "name": "HyperLang Pro",
+  "short_name": "HyperLang",
+  "description": "اپلیکیشن آموزش ۱۲ زبان با قابلیت آفلاین و پرداخت دوگانه",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "background_color": "#1a237e",
+  "theme_color": "#311b92",
+  "orientation": "portrait",
+  "dir": "rtl",
+  "lang": "fa",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["education", "productivity"],
+  "shortcuts": [
+    {
+      "name": "شروع یادگیری",
+      "short_name": "شروع",
+      "description": "شروع یادگیری زبان جدید",
+      "url": "./?start=true"
+    }
+  ]
 }
