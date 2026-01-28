@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
@@ -7,14 +6,9 @@
     <title>HyperLang Pro - آموزش حرفه‌ای زبان</title>
     <meta name="description" content="اپلیکیشن آموزش ۱۲ زبان با قابلیت آفلاین و پرداخت دوگانه">
     
-    <!-- PWA -->
-    <link rel="manifest" href="manifest.json">
-    
     <style>
-        /* RESET */
         * { margin: 0; padding: 0; box-sizing: border-box; }
         
-        /* BASE */
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: linear-gradient(135deg, #1a237e 0%, #311b92 100%);
@@ -24,12 +18,8 @@
             padding: 20px;
         }
         
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-        }
+        .container { max-width: 1200px; margin: 0 auto; }
         
-        /* HEADER */
         header {
             text-align: center;
             padding: 40px 0 30px;
@@ -45,13 +35,8 @@
             -webkit-text-fill-color: transparent;
         }
         
-        .subtitle {
-            font-size: 1.2rem;
-            opacity: 0.9;
-            margin-bottom: 20px;
-        }
+        .subtitle { font-size: 1.2rem; opacity: 0.9; margin-bottom: 20px; }
         
-        /* STATS */
         .stats {
             display: flex;
             justify-content: center;
@@ -74,7 +59,6 @@
             color: #4CAF50;
         }
         
-        /* LANGUAGES */
         .languages-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
@@ -97,23 +81,10 @@
             box-shadow: 0 10px 30px rgba(0,0,0,0.2);
         }
         
-        .flag {
-            font-size: 3rem;
-            margin-bottom: 15px;
-        }
+        .flag { font-size: 3rem; margin-bottom: 15px; }
+        .language-name { font-size: 1.3rem; font-weight: 600; margin-bottom: 8px; }
+        .language-native { font-size: 1.1rem; opacity: 0.8; }
         
-        .language-name {
-            font-size: 1.3rem;
-            font-weight: 600;
-            margin-bottom: 8px;
-        }
-        
-        .language-native {
-            font-size: 1.1rem;
-            opacity: 0.8;
-        }
-        
-        /* LESSONS SECTION */
         .lessons-header {
             text-align: center;
             margin: 60px 0 30px;
@@ -197,20 +168,10 @@
             border-bottom: 1px solid rgba(255,255,255,0.1);
         }
         
-        .word-item:last-child {
-            border-bottom: none;
-        }
+        .word-item:last-child { border-bottom: none; }
+        .english-word { color: #4CAF50; font-weight: bold; }
+        .farsi-word { color: #FFC107; }
         
-        .english-word {
-            color: #4CAF50;
-            font-weight: bold;
-        }
-        
-        .farsi-word {
-            color: #FFC107;
-        }
-        
-        /* FEATURES */
         .features {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -225,47 +186,10 @@
             border-left: 4px solid #4CAF50;
         }
         
-        .feature-icon {
-            font-size: 2rem;
-            margin-bottom: 15px;
-        }
+        .feature-icon { font-size: 2rem; margin-bottom: 15px; }
         
-        /* STATUS MESSAGE */
-        .status-message {
-            text-align: center;
-            padding: 20px;
-            margin: 20px 0;
-            border-radius: 10px;
-            background: rgba(255, 193, 7, 0.1);
-            border: 1px solid rgba(255, 193, 7, 0.3);
-        }
+        .loading { text-align: center; padding: 40px; color: #4CAF50; }
         
-        /* BUTTONS */
-        .btn {
-            display: inline-block;
-            background: linear-gradient(45deg, #4CAF50, #2E7D32);
-            color: white;
-            border: none;
-            padding: 15px 40px;
-            font-size: 1.1rem;
-            border-radius: 50px;
-            text-decoration: none;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            margin: 10px;
-        }
-        
-        .btn:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 10px 20px rgba(76, 175, 80, 0.3);
-        }
-        
-        .btn-secondary {
-            background: transparent;
-            border: 2px solid rgba(255,255,255,0.3);
-        }
-        
-        /* FOOTER */
         footer {
             text-align: center;
             padding: 40px 0 30px;
@@ -274,36 +198,23 @@
             opacity: 0.8;
         }
         
-        /* LOADING */
-        .loading {
-            text-align: center;
-            padding: 40px;
-            color: #4CAF50;
-        }
-        
-        /* RESPONSIVE */
         @media (max-width: 768px) {
             h1 { font-size: 2.2rem; }
-            .languages-grid { grid-template-columns: 1fr; }
-            .lessons-container { grid-template-columns: 1fr; }
+            .languages-grid, .lessons-container { grid-template-columns: 1fr; }
             .stats { gap: 15px; }
             .stat-item { min-width: 120px; }
         }
         
-        /* ANIMATIONS */
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(20px); }
             to { opacity: 1; transform: translateY(0); }
         }
         
-        .animate {
-            animation: fadeIn 0.6s ease-out forwards;
-        }
+        .animate { animation: fadeIn 0.6s ease-out forwards; }
     </style>
 </head>
 <body>
     <div class="container">
-        <!-- Header -->
         <header class="animate">
             <h1>🌐 HyperLang Pro</h1>
             <p class="subtitle">آموزش حرفه‌ای ۱۲ زبان زنده دنیا • نسخه وب</p>
@@ -328,130 +239,47 @@
             </div>
         </header>
 
-        <!-- Languages -->
         <section class="animate" style="animation-delay: 0.2s">
             <h2 style="text-align: center; margin-bottom: 30px;">📚 زبان‌های پشتیبانی شده</h2>
             
             <div class="languages-grid">
-                <!-- زبان‌ها همون قبلی -->
-                <div class="language-card">
-                    <div class="flag">🇮🇷</div>
-                    <div class="language-name">فارسی</div>
-                    <div class="language-native">Persian</div>
-                </div>
-                <div class="language-card">
-                    <div class="flag">🇮🇶</div>
-                    <div class="language-name">عربی عراقی</div>
-                    <div class="language-native">العربية العراقية</div>
-                </div>
-                <div class="language-card">
-                    <div class="flag">🇺🇸</div>
-                    <div class="language-name">انگلیسی</div>
-                    <div class="language-native">English</div>
-                </div>
-                <div class="language-card">
-                    <div class="flag">🇩🇪</div>
-                    <div class="language-name">آلمانی</div>
-                    <div class="language-native">Deutsch</div>
-                </div>
-                <div class="language-card">
-                    <div class="flag">🇹🇷</div>
-                    <div class="language-name">ترکی استانبولی</div>
-                    <div class="language-native">Türkçe</div>
-                </div>
-                <div class="language-card">
-                    <div class="flag">🇷🇺</div>
-                    <div class="language-name">روسی</div>
-                    <div class="language-native">Русский</div>
-                </div>
-                <div class="language-card">
-                    <div class="flag">🇫🇷</div>
-                    <div class="language-name">فرانسوی</div>
-                    <div class="language-native">Français</div>
-                </div>
-                <div class="language-card">
-                    <div class="flag">🇪🇸</div>
-                    <div class="language-name">اسپانیایی</div>
-                    <div class="language-native">Español</div>
-                </div>
-                <div class="language-card">
-                    <div class="flag">🇧🇷</div>
-                    <div class="language-name">پرتغالی برزیلی</div>
-                    <div class="language-native">Português Brasileiro</div>
-                </div>
-                <div class="language-card">
-                    <div class="flag">🇮🇹</div>
-                    <div class="language-name">ایتالیایی</div>
-                    <div class="language-native">Italiano</div>
-                </div>
-                <div class="language-card">
-                    <div class="flag">🇳🇱</div>
-                    <div class="language-name">هلندی</div>
-                    <div class="language-native">Nederlands</div>
-                </div>
-                <div class="language-card">
-                    <div class="flag">🇸🇪</div>
-                    <div class="language-name">سوئدی</div>
-                    <div class="language-native">Svenska</div>
-                </div>
+                <div class="language-card"><div class="flag">🇮🇷</div><div class="language-name">فارسی</div><div class="language-native">Persian</div></div>
+                <div class="language-card"><div class="flag">🇮🇶</div><div class="language-name">عربی عراقی</div><div class="language-native">العربية العراقية</div></div>
+                <div class="language-card"><div class="flag">🇺🇸</div><div class="language-name">انگلیسی</div><div class="language-native">English</div></div>
+                <div class="language-card"><div class="flag">🇩🇪</div><div class="language-name">آلمانی</div><div class="language-native">Deutsch</div></div>
+                <div class="language-card"><div class="flag">🇹🇷</div><div class="language-name">ترکی استانبولی</div><div class="language-native">Türkçe</div></div>
+                <div class="language-card"><div class="flag">🇷🇺</div><div class="language-name">روسی</div><div class="language-native">Русский</div></div>
+                <div class="language-card"><div class="flag">🇫🇷</div><div class="language-name">فرانسوی</div><div class="language-native">Français</div></div>
+                <div class="language-card"><div class="flag">🇪🇸</div><div class="language-name">اسپانیایی</div><div class="language-native">Español</div></div>
+                <div class="language-card"><div class="flag">🇧🇷</div><div class="language-name">پرتغالی برزیلی</div><div class="language-native">Português Brasileiro</div></div>
+                <div class="language-card"><div class="flag">🇮🇹</div><div class="language-name">ایتالیایی</div><div class="language-native">Italiano</div></div>
+                <div class="language-card"><div class="flag">🇳🇱</div><div class="language-name">هلندی</div><div class="language-native">Nederlands</div></div>
+                <div class="language-card"><div class="flag">🇸🇪</div><div class="language-name">سوئدی</div><div class="language-native">Svenska</div></div>
             </div>
         </section>
 
-        <!-- Lessons Section -->
         <section class="lessons-header animate" style="animation-delay: 0.3s">
             <h2>🎯 محتوای آموزشی (بارگذاری خودکار از فایل‌های JSON)</h2>
             <p id="lessons-status">در حال بارگذاری درس‌ها...</p>
         </section>
 
-        <!-- Lessons Container -->
         <section>
             <div id="lessonsContainer" class="lessons-container">
-                <!-- درس‌ها اینجا به صورت خودکار ساخته می‌شوند -->
-                <div class="loading">
-                    🔄 در حال بارگذاری درس‌ها...
-                </div>
+                <div class="loading">🔄 در حال بارگذاری درس‌ها...</div>
             </div>
         </section>
 
-        <!-- Features -->
         <section class="animate" style="animation-delay: 0.4s">
             <h2 style="text-align: center; margin-bottom: 30px;">⚡ ویژگی‌های پیشرفته</h2>
             
             <div class="features">
-                <div class="feature-card">
-                    <div class="feature-icon">📱</div>
-                    <h3>چند پلتفرمی</h3>
-                    <p>اندروید و وب با یک کدبیس • PWA با قابلیت آفلاین</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">🔐</div>
-                    <h3>امنیت نظامی</h3>
-                    <p>رمزنگاری AES-256 • سیستم ضد کرک • Certificate Pinning</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">💳</div>
-                    <h3>پرداخت دوگانه</h3>
-                    <p>زرین‌پال (ایران) • PayPal/Stripe (بین‌الملل)</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">🧠</div>
-                    <h3>هوش مصنوعی</h3>
-                    <p>Spaced Repetition • تمرین‌های هوشمند • آنالیز پیشرفت</p>
-                </div>
+                <div class="feature-card"><div class="feature-icon">📱</div><h3>چند پلتفرمی</h3><p>اندروید و وب با یک کدبیس • PWA با قابلیت آفلاین</p></div>
+                <div class="feature-card"><div class="feature-icon">🔐</div><h3>امنیت نظامی</h3><p>رمزنگاری AES-256 • سیستم ضد کرک • Certificate Pinning</p></div>
+                <div class="feature-card"><div class="feature-icon">💳</div><h3>پرداخت دوگانه</h3><p>زرین‌پال (ایران) • PayPal/Stripe (بین‌الملل)</p></div>
+                <div class="feature-card"><div class="feature-icon">🧠</div><h3>هوش مصنوعی</h3><p>Spaced Repetition • تمرین‌های هوشمند • آنالیز پیشرفت</p></div>
             </div>
         </section>
 
-        <!-- CTA -->
-        <section class="animate" style="text-align: center; margin: 60px 0; animation-delay: 0.6s">
-            <button class="btn" onclick="installPWA()" id="installBtn">
-                📥 نصب اپلیکیشن (PWA)
-            </button>
-            <button class="btn btn-secondary" onclick="refreshLessons()">
-                🔄 بارگذاری مجدد درس‌ها
-            </button>
-        </section>
-
-        <!-- Footer -->
         <footer class="animate" style="animation-delay: 0.8s">
             <p>© ۲۰۲۴ HyperLang Pro - تمامی حقوق محفوظ است</p>
             <p style="margin-top: 10px; font-size: 0.9rem;">
@@ -460,9 +288,9 @@
         </footer>
     </div>
 
-    <!-- JavaScript -->
+    <!-- JavaScript اصلی -->
     <script>
-        // ==================== درس‌ها ====================
+        // ==================== بارگذاری خودکار همه درس‌ها ====================
         async function loadAllLessons() {
             const container = document.getElementById('lessonsContainer');
             const status = document.getElementById('lessons-status');
@@ -473,145 +301,107 @@
             container.innerHTML = '<div class="loading">🔄 در حال بارگذاری درس‌ها...</div>';
             status.textContent = 'در حال جستجوی فایل‌های JSON...';
             
-            let totalLessons = 0;
-            let totalWords = 0;
             let foundLessons = 0;
+            let totalWords = 0;
+            let lessonHTML = '';
             
-            // جستجوی خودکار از درس ۱ تا ۲۰
-            for (let i = 1; i <= 20; i++) {
+            // جستجوی خودکار از درس ۱ تا ۱۰
+            for (let i = 1; i <= 10; i++) {
                 try {
                     const fileName = `english_lesson_${i}.json`;
                     const response = await fetch(fileName);
                     
-                    if (!response.ok) {
-                        // فایل وجود ندارد، ادامه می‌دهیم
-                        continue;
-                    }
+                    if (!response.ok) continue; // فایل وجود ندارد
                     
                     const data = await response.json();
                     foundLessons++;
                     
-                    // ساخت کارت درس
-                    const lessonCard = document.createElement('div');
-                    lessonCard.className = 'lesson-card animate';
-                    lessonCard.style.animationDelay = `${foundLessons * 0.1}s`;
-                    
-                    // نمایش واژگان (حداکثر ۵ کلمه)
+                    // نمایش واژگان (حداکثر ۳ کلمه)
                     const vocabWords = data.content.vocabulary?.words || [];
-                    const vocabPreview = vocabWords.slice(0, 5).map(word => 
+                    const vocabPreview = vocabWords.slice(0, 3).map(word => 
                         `<div class="word-item">
                             <span class="english-word">${word.english}</span>
                             <span class="farsi-word">${word.farsi}</span>
                         </div>`
                     ).join('');
                     
-                    lessonCard.innerHTML = `
-                        <h3>📘 ${data.metadata.title}</h3>
-                        <p class="subtitle">${data.metadata.subtitle}</p>
-                        
-                        <div class="objectives">
-                            ${data.metadata.learning_objectives.map(obj => 
-                                `<span class="objective">${obj}</span>`
-                            ).join('')}
-                        </div>
-                        
-                        ${vocabWords.length > 0 ? `
-                            <div class="vocabulary-preview">
-                                <h4>📝 واژگان این درس:</h4>
-                                ${vocabPreview}
-                                ${vocabWords.length > 5 ? 
-                                    `<p style="text-align: center; margin-top: 10px; opacity: 0.7;">
-                                        + ${vocabWords.length - 5} کلمه دیگر
-                                    </p>` : ''}
+                    lessonHTML += `
+                        <div class="lesson-card animate" style="animation-delay: ${foundLessons * 0.1}s">
+                            <h3>📘 ${data.metadata.title}</h3>
+                            <p class="subtitle">${data.metadata.subtitle}</p>
+                            
+                            <div class="objectives">
+                                ${data.metadata.learning_objectives.map(obj => 
+                                    `<span class="objective">${obj}</span>`
+                                ).join('')}
                             </div>
-                        ` : ''}
-                        
-                        <div style="margin-top: 15px; font-size: 0.9rem; opacity: 0.8;">
-                            <span>🕒 ${data.metadata.estimated_time} دقیقه</span> • 
-                            <span>📊 سطح: ${data.metadata.level}</span>
+                            
+                            ${vocabWords.length > 0 ? `
+                                <div class="vocabulary-preview">
+                                    <h4>📝 واژگان این درس:</h4>
+                                    ${vocabPreview}
+                                    ${vocabWords.length > 3 ? 
+                                        `<p style="text-align: center; margin-top: 10px; opacity: 0.7;">
+                                            + ${vocabWords.length - 3} کلمه دیگر
+                                        </p>` : ''}
+                                </div>
+                            ` : ''}
+                            
+                            <div style="margin-top: 15px; font-size: 0.9rem; opacity: 0.8;">
+                                <span>🕒 ${data.metadata.estimated_time || 15} دقیقه</span> • 
+                                <span>📊 سطح: ${data.metadata.level}</span>
+                            </div>
                         </div>
                     `;
                     
-                    container.appendChild(lessonCard);
                     totalWords += vocabWords.length;
                     
                 } catch (error) {
-                    console.log(`درس ${i} پیدا نشد`);
+                    // فایل وجود ندارد یا خطا دارد - رد می‌شویم
                 }
             }
             
-            // به‌روزرسانی آمار
+            // نمایش نتایج
             if (foundLessons === 0) {
                 container.innerHTML = `
-                    <div class="status-message" style="grid-column: 1/-1;">
+                    <div style="grid-column: 1/-1; text-align: center; padding: 40px; background: rgba(255,0,0,0.1); border-radius: 15px;">
                         <h3>📭 هیچ درسی پیدا نشد</h3>
-                        <p>لطفاً مطمئن شوید فایل‌های JSON (مانند english_lesson_1.json) در سرور آپلود شده‌اند.</p>
+                        <p>فایل‌های JSON درس‌ها (مانند english_lesson_1.json) را در سرور آپلود کنید.</p>
                     </div>
                 `;
                 status.textContent = '❌ هیچ فایل درسی پیدا نشد';
             } else {
+                container.innerHTML = lessonHTML;
                 status.textContent = `✅ ${foundLessons} درس با موفقیت بارگذاری شد`;
+                lessonsCount.textContent = foundLessons;
+                wordsCount.textContent = totalWords;
+                activeLessons.textContent = `${foundLessons} درس فعال`;
             }
-            
-            lessonsCount.textContent = foundLessons;
-            wordsCount.textContent = totalWords;
-            activeLessons.textContent = `${foundLessons} درس فعال`;
         }
         
-        // ==================== PWA ====================
-        let deferredPrompt;
-        
-        window.addEventListener('beforeinstallprompt', (e) => {
-            e.preventDefault();
-            deferredPrompt = e;
-            document.getElementById('installBtn').style.display = 'inline-block';
-        });
-        
-        async function installPWA() {
-            if (!deferredPrompt) {
-                alert('برای نصب از منوی مرورگر استفاده کنید');
-                return;
-            }
-            
-            deferredPrompt.prompt();
-            const { outcome } = await deferredPrompt.userChoice;
-            
-            if (outcome === 'accepted') {
-                alert('✅ اپلیکیشن با موفقیت نصب شد!');
-            }
-            
-            deferredPrompt = null;
-        }
-        
-        // ==================== UTILITIES ====================
-        function refreshLessons() {
-            const container = document.getElementById('lessonsContainer');
-            container.innerHTML = '<div class="loading">🔄 در حال بارگذاری مجدد...</div>';
-            setTimeout(loadAllLessons, 500);
-        }
-        
-        // ==================== INITIALIZATION ====================
+        // ==================== راه‌اندازی ====================
         document.addEventListener('DOMContentLoaded', () => {
-            // اضافه کردن کلاس انیمیشن
+            // بارگذاری درس‌ها با تاخیر ۱ ثانیه
+            setTimeout(loadAllLessons, 1000);
+            
+            // انیمیشن بخش‌ها
             document.querySelectorAll('section').forEach((section, index) => {
                 section.classList.add('animate');
                 section.style.animationDelay = `${index * 0.2}s`;
             });
             
-            // بارگذاری اولیه درس‌ها
-            setTimeout(loadAllLessons, 1000);
-            
-            // لاگ وضعیت
             console.log('🚀 HyperLang Pro با سیستم بارگذاری خودکار راه‌اندازی شد');
         });
         
-        // پشتیبانی Service Worker
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('service-worker.js')
-                    .catch(error => console.log('Service Worker ثبت نشد:', error));
-            });
+        // ==================== تابع کمکی برای بارگذاری مجدد ====================
+        function refreshLessons() {
+            const container = document.getElementById('lessonsContainer');
+            container.innerHTML = '<div class="loading">🔄 در حال بارگذاری مجدد...</div>';
+            setTimeout(loadAllLessons, 500);
         }
     </script>
+
+    <!-- فایل fix.js برای رفع مشکل درس ۴ -->
+    <script src="fix.js"></script>
 </body>
-  </html>
+</html>
