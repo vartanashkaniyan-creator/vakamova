@@ -1,22 +1,20 @@
-
 Future<List<Lesson>> loadAllLessons() async {
   final lessons = <Lesson>[];
-  final manifest = await DefaultAssetBundle.of(context).loadString('AssetManifest.json');
-  final Map<String, dynamic> manifestMap = json.decode(manifest);
   
-  // پیدا کردن همه فایل‌های JSON درس‌ها
-  final lessonFiles = manifestMap.keys
-      .where((path) => path.startsWith('assets/lessons/') && path.endsWith('.json'))
-      .toList()
-      ..sort(); // مرتب سازی خودکار
+  // لیست مستقیم فایل‌های JSON (چون پوشه‌ای نداریم)
+  final lessonFiles = [
+    'english_lesson_1.json',
+    'english_lesson_2.json',
+    'english_lesson_3.json',
+  ];
   
-  for (final path in lessonFiles) {
+  for (final fileName in lessonFiles) {
     try {
-      final data = await rootBundle.loadString(path);
+      final data = await rootBundle.loadString(fileName);
       final lesson = Lesson.fromJson(json.decode(data));
       lessons.add(lesson);
     } catch (e) {
-      print('خطا در بارگذاری درس از $path: $e');
+      print('خطا در بارگذاری $fileName: $e');
     }
   }
   
