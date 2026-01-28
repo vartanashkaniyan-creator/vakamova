@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<body>
+  <h2>تست نهایی HyperLang</h2>
+  <button onclick="runTest()">آزمایش سیستم</button>
+  <div id="result"></div>
+  
+  <script>
+  async function runTest() {
+    const files = ['english_lesson_1.json', 'english_lesson_2.json'];
+    const result = document.getElementById('result');
+    result.innerHTML = '';
+    
+    for (const file of files) {
+      try {
+        const response = await fetch(file);
+        const data = await response.json();
+        result.innerHTML += `<p style="color:green">✅ ${file} - ${data.metadata.title}</p>`;
+      } catch (e) {
+        result.innerHTML += `<p style="color:red">❌ ${file} - خطا: ${e.message}</p>`;
+      }
+    }
+  }
+  </script>
+</body>
+</html>
