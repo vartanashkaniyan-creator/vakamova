@@ -1,1 +1,163 @@
-
+{
+  "metadata": {
+    "lesson_id": "en_lesson_004",
+    "title": "خرید و فروشگاه",
+    "subtitle": "آموزش مکالمات خرید از فروشگاه",
+    "language": "english",
+    "target_language": "farsi",
+    "level": "beginner",
+    "difficulty": 1,
+    "estimated_time": 20,
+    "version": "1.0.0",
+    "created": "2024-01-18",
+    "author": "HyperLang Team",
+    "prerequisites": ["en_lesson_001", "en_lesson_002", "en_lesson_003"],
+    "learning_objectives": [
+      "پرسیدن قیمت کالاها",
+      "سفارش دادن در فروشگاه",
+      "پرداخت با کارت و نقد",
+      "درخواست کمک از فروشنده"
+    ]
+  },
+  "content": {
+    "introduction": {
+      "text": "در این درس با مکالمات ضروری برای خرید از فروشگاه آشنا می‌شوید.",
+      "audio_url": "audio/lessons/en_004/intro.mp3"
+    },
+    "dialogs": [
+      {
+        "id": "dialog_1",
+        "title": "خرید از سوپرمارکت",
+        "characters": [
+          {"name": "Customer", "role": "buyer"},
+          {"name": "Shopkeeper", "role": "seller"}
+        ],
+        "lines": [
+          {
+            "character": "Customer",
+            "english": "Excuse me, how much is this?",
+            "farsi": "ببخشید، قیمت این چقدر است؟",
+            "phonetic": "/ɪkˈskjuːz miː haʊ mʌtʃ ɪz ðɪs/",
+            "audio_url": "audio/dialogs/en_004/excuse_me.mp3"
+          },
+          {
+            "character": "Shopkeeper",
+            "english": "It's five dollars.",
+            "farsi": "پنج دلار است.",
+            "phonetic": "/ɪts faɪv ˈdɒlərz/",
+            "audio_url": "audio/dialogs/en_004/five_dollars.mp3"
+          },
+          {
+            "character": "Customer",
+            "english": "Can I pay by card?",
+            "farsi": "می‌توانم با کارت پرداخت کنم؟",
+            "phonetic": "/kæn aɪ peɪ baɪ kɑːrd/",
+            "audio_url": "audio/dialogs/en_004/pay_by_card.mp3"
+          },
+          {
+            "character": "Shopkeeper",
+            "english": "Yes, of course.",
+            "farsi": "بله، حتماً.",
+            "phonetic": "/jes əv kɔːrs/",
+            "audio_url": "audio/dialogs/en_004/yes_of_course.mp3"
+          }
+        ],
+        "summary": {
+          "english": "A conversation in a shop asking about price and payment.",
+          "farsi": "مکالمه در فروشگاه درباره قیمت و روش پرداخت."
+        }
+      }
+    ],
+    "vocabulary": {
+      "title": "واژگان خرید و فروش",
+      "words": [
+        {
+          "english": "price",
+          "farsi": "قیمت",
+          "usage": "asking cost of something",
+          "example": "What is the price of this?"
+        },
+        {
+          "english": "buy",
+          "farsi": "خریدن",
+          "usage": "purchasing something",
+          "example": "I want to buy this shirt."
+        },
+        {
+          "english": "shop",
+          "farsi": "فروشگاه",
+          "usage": "place for buying things",
+          "example": "I go to the shop every day."
+        },
+        {
+          "english": "money",
+          "farsi": "پول",
+          "usage": "currency for payment",
+          "example": "I don't have enough money."
+        },
+        {
+          "english": "cheap",
+          "farsi": "ارزان",
+          "usage": "low price",
+          "example": "This is very cheap."
+        },
+        {
+          "english": "expensive",
+          "farsi": "گران",
+          "usage": "high price",
+          "example": "That car is too expensive."
+        }
+      ]
+    },
+    "grammar": {
+      "title": "نکات دستوری",
+      "points": [
+        {
+          "title": "سوال با How much",
+          "description": "برای پرسیدن قیمت از How much استفاده می‌کنیم.",
+          "examples": ["How much is this?", "How much are these apples?"],
+          "pattern": "How much + is/are + noun?"
+        },
+        {
+          "title": "Can برای درخواست",
+          "description": "از Can برای پرسیدن اجازه یا امکان استفاده می‌کنیم.",
+          "examples": ["Can I pay by card?", "Can you help me?"]
+        }
+      ]
+    },
+    "practice": {
+      "title": "تمرین‌ها",
+      "exercises": [
+        {
+          "type": "multiple_choice",
+          "question": "معنی 'How much is this?' چیست؟",
+          "options": ["این چیست؟", "قیمت این چقدر است؟", "کجا است؟", "چند تا است؟"],
+          "correct_answer": 1,
+          "explanation": "'How much' برای پرسیدن قیمت استفاده می‌شود."
+        },
+        {
+          "type": "fill_in_blank",
+          "sentence": "Can I ... by card?",
+          "correct_answer": "pay",
+          "hint": "فعل پرداخت کردن",
+          "explanation": "Can I pay by card? (می‌توانم با کارت پرداخت کنم؟)"
+        }
+      ]
+    }
+  },
+  "assessment": {
+    "passing_score": 70,
+    "questions_count": 5,
+    "time_limit": 300
+  },
+  "resources": {
+    "audio_files": ["audio/lessons/en_004/full_dialog.mp3"]
+  },
+  "next_lesson": "en_lesson_005",
+  "prerequisite_for": ["en_lesson_005"],
+  "statistics": {
+    "word_count": 65,
+    "sentence_count": 18,
+    "audio_duration": 140
+  }
+}
