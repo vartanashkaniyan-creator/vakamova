@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>HyperLang Real App</title>
+    <style>
+        body { font-family: Tahoma; padding: 20px; background: #f5f5f5; }
+        .lesson { background: white; padding: 15px; margin: 10px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .lesson h3 { color: #2c7e3e; margin: 0 0 10px 0; }
+        .loading { text-align: center; padding: 40px; }
+    </style>
+</head>
+<body>
+    <h1>📚 درس‌های HyperLang</h1>
+    <div id="lessons"></div>
+    
+    <script>
+    async function loadLessons() {
+        const container = document.getElementById('lessons');
+        container.innerHTML = '<div class="loading">در حال بارگذاری درس‌ها...</div>';
+        
+        // لیست خودکار همه درس‌ها
+        const lessons = [];
+        for (let i = 1; i <= 20; i++) {
+            lessons.push(`english_lesson_${i}.json`);
+        }
+        
+        let loaded = 0;
+        for (const fileName of lessons) {
+            try {
+                const response = await fetch(fileName);
+                if (!response.ok) continue;
+                
+                const data = await response.json();
+                
+                const lessonDiv = document.createElement('div');
+                lessonDiv.className = 'lesson';
+                lessonDiv.innerHTML = `
+                    <h3>${data.metadata.title}</h3>
+                    <p><strong>سطح:</strong> ${data.metadata.level}</p>
+                    <p><strong>اهداف:</strong> ${data.metadata.learning_objectives.join('، ')}</p>
+                    <p><strong>واژگان:</strong> ${data.content.vocabulary?.words?.map(w => w.english).join(', ') || 'ندارد'}</p>
+                `;
+                
+                container.appendChild(lessonDiv);
+                loaded++;
+            } catch (e) {
+                // فایل وجود ندارد - رد می‌شویم
+            }
+        }
+        
+        if (loaded === 0) {
+            container.innerHTML = '<div class="loading">❌ هیچ درسی پیدا نشد. مطمئن شوید فایل‌های JSON آپلود شده‌اند.</div>';
+        }
+    }
+    
+    // اجرای خودکار
+    loadLessons();
+    </script>
+</body>
+</html>
