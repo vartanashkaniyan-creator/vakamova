@@ -1,1 +1,251 @@
 
+{
+  "metadata": {
+    "language": "english",
+    "target_language": "farsi",
+    "version": "1.0.0",
+    "created": "2024-01-15",
+    "level": "beginner",
+    "word_count": 100,
+    "category": "basic_vocabulary",
+    "author": "HyperLang Team"
+  },
+  "words": [
+    {
+      "id": "en_001",
+      "english": "hello",
+      "farsi": "سلام",
+      "phonetic": "/həˈləʊ/",
+      "part_of_speech": "interjection",
+      "difficulty": 1,
+      "category": "greetings",
+      "examples": [
+        {
+          "english": "Hello, how are you?",
+          "farsi": "سلام، حالت چطوره؟",
+          "audio_url": "audio/greetings/hello.mp3"
+        }
+      ],
+      "synonyms": ["hi", "hey"],
+      "antonyms": ["goodbye"],
+      "image_url": "images/words/hello.png",
+      "last_reviewed": null,
+      "mastery_level": 0,
+      "tags": ["basic", "essential", "greeting"]
+    },
+    {
+      "id": "en_002",
+      "english": "goodbye",
+      "farsi": "خداحافظ",
+      "phonetic": "/ˌɡʊdˈbaɪ/",
+      "part_of_speech": "interjection",
+      "difficulty": 1,
+      "category": "greetings",
+      "examples": [
+        {
+          "english": "Goodbye, see you tomorrow!",
+          "farsi": "خداحافظ، فردا می‌بینمت!",
+          "audio_url": "audio/greetings/goodbye.mp3"
+        }
+      ],
+      "synonyms": ["bye", "see you"],
+      "antonyms": ["hello"],
+      "image_url": "images/words/goodbye.png",
+      "last_reviewed": null,
+      "mastery_level": 0,
+      "tags": ["basic", "essential", "greeting"]
+    },
+    {
+      "id": "en_003",
+      "english": "thank you",
+      "farsi": "متشکرم",
+      "phonetic": "/ˈθæŋk juː/",
+      "part_of_speech": "phrase",
+      "difficulty": 1,
+      "category": "politeness",
+      "examples": [
+        {
+          "english": "Thank you for your help.",
+          "farsi": "متشکرم برای کمکت.",
+          "audio_url": "audio/politeness/thank_you.mp3"
+        }
+      ],
+      "synonyms": ["thanks", "much obliged"],
+      "antonyms": ["no thanks"],
+      "image_url": "images/words/thank_you.png",
+      "last_reviewed": null,
+      "mastery_level": 0,
+      "tags": ["basic", "polite", "essential"]
+    },
+    {
+      "id": "en_004",
+      "english": "please",
+      "farsi": "لطفاً",
+      "phonetic": "/pliːz/",
+      "part_of_speech": "adverb",
+      "difficulty": 1,
+      "category": "politeness",
+      "examples": [
+        {
+          "english": "Please sit down.",
+          "farsi": "لطفاً بنشینید.",
+          "audio_url": "audio/politeness/please.mp3"
+        }
+      ],
+      "synonyms": ["kindly", "if you please"],
+      "antonyms": ["demand"],
+      "image_url": "images/words/please.png",
+      "last_reviewed": null,
+      "mastery_level": 0,
+      "tags": ["basic", "polite", "request"]
+    },
+    {
+      "id": "en_005",
+      "english": "yes",
+      "farsi": "بله",
+      "phonetic": "/jes/",
+      "part_of_speech": "adverb",
+      "difficulty": 1,
+      "category": "basic_words",
+      "examples": [
+        {
+          "english": "Yes, I understand.",
+          "farsi": "بله، متوجه شدم.",
+          "audio_url": "audio/basic/yes.mp3"
+        }
+      ],
+      "synonyms": ["yeah", "sure", "okay"],
+      "antonyms": ["no"],
+      "image_url": "images/words/yes.png",
+      "last_reviewed": null,
+      "mastery_level": 0,
+      "tags": ["basic", "affirmation", "essential"]
+    },
+    {
+      "id": "en_006",
+      "english": "no",
+      "farsi": "نه",
+      "phonetic": "/nəʊ/",
+      "part_of_speech": "adverb",
+      "difficulty": 1,
+      "category": "basic_words",
+      "examples": [
+        {
+          "english": "No, thank you.",
+          "farsi": "نه، متشکرم.",
+          "audio_url": "audio/basic/no.mp3"
+        }
+      ],
+      "synonyms": ["nope", "negative"],
+      "antonyms": ["yes"],
+      "image_url": "images/words/no.png",
+      "last_reviewed": null,
+      "mastery_level": 0,
+      "tags": ["basic", "negation", "essential"]
+    },
+    {
+      "id": "en_007",
+      "english": "water",
+      "farsi": "آب",
+      "phonetic": "/ˈwɔːtər/",
+      "part_of_speech": "noun",
+      "difficulty": 1,
+      "category": "food_drink",
+      "examples": [
+        {
+          "english": "I drink water every day.",
+          "farsi": "من هر روز آب می‌خورم.",
+          "audio_url": "audio/food/water.mp3"
+        }
+      ],
+      "synonyms": ["H2O", "aqua"],
+      "antonyms": [],
+      "image_url": "images/words/water.png",
+      "last_reviewed": null,
+      "mastery_level": 0,
+      "tags": ["basic", "essential", "drink"]
+    },
+    {
+      "id": "en_008",
+      "english": "food",
+      "farsi": "غذا",
+      "phonetic": "/fuːd/",
+      "part_of_speech": "noun",
+      "difficulty": 1,
+      "category": "food_drink",
+      "examples": [
+        {
+          "english": "The food is delicious.",
+          "farsi": "غذا خوشمزه است.",
+          "audio_url": "audio/food/food.mp3"
+        }
+      ],
+      "synonyms": ["meal", "cuisine"],
+      "antonyms": [],
+      "image_url": "images/words/food.png",
+      "last_reviewed": null,
+      "mastery_level": 0,
+      "tags": ["basic", "essential", "nourishment"]
+    },
+    {
+      "id": "en_009",
+      "english": "house",
+      "farsi": "خانه",
+      "phonetic": "/haʊs/",
+      "part_of_speech": "noun",
+      "difficulty": 1,
+      "category": "home",
+      "examples": [
+        {
+          "english": "My house is near the park.",
+          "farsi": "خانه من نزدیک پارک است.",
+          "audio_url": "audio/home/house.mp3"
+        }
+      ],
+      "synonyms": ["home", "residence"],
+      "antonyms": [],
+      "image_url": "images/words/house.png",
+      "last_reviewed": null,
+      "mastery_level": 0,
+      "tags": ["basic", "home", "building"]
+    },
+    {
+      "id": "en_010",
+      "english": "family",
+      "farsi": "خانواده",
+      "phonetic": "/ˈfæməli/",
+      "part_of_speech": "noun",
+      "difficulty": 1,
+      "category": "people",
+      "examples": [
+        {
+          "english": "I love my family.",
+          "farsi": "من خانواده‌ام را دوست دارم.",
+          "audio_url": "audio/people/family.mp3"
+        }
+      ],
+      "synonyms": ["relatives", "kin"],
+      "antonyms": [],
+      "image_url": "images/words/family.png",
+      "last_reviewed": null,
+      "mastery_level": 0,
+      "tags": ["basic", "people", "relationships"]
+    }
+  ],
+  "categories": [
+    {"id": "greetings", "name": "احوالپرسی", "count": 2},
+    {"id": "politeness", "name": "ادب", "count": 2},
+    {"id": "basic_words", "name": "کلمات پایه", "count": 2},
+    {"id": "food_drink", "name": "غذا و نوشیدنی", "count": 2},
+    {"id": "home", "name": "خانه", "count": 1},
+    {"id": "people", "name": "افراد", "count": 1}
+  ],
+  "statistics": {
+    "total_words": 10,
+    "categories_count": 6,
+    "average_difficulty": 1.0,
+    "words_with_audio": 10,
+    "words_with_images": 10,
+    "last_updated": "2024-01-15T10:00:00Z"
+  }
+}
