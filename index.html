@@ -172,15 +172,6 @@
         // Languages data will be loaded dynamically
     </script>
     
-    <!-- ==================== MAIN APPLICATION ==================== -->
-    <script>
-        // Global Application Instance
-        window.HyperLang = {
-            version: '1.0.0',
-            config: null,
-            db: null,
-            state: null,
-            router: null,
             lessonManager: null,
             renderer: null,
             
@@ -188,7 +179,7 @@
             async init() {
                 try {
                     this.updateLoadingStatus('بارگذاری تنظیمات...');
-                    
+                    <script src="app.js"></script>
                     // 1. Load configuration
                     if (typeof AppConfig === 'undefined') {
                         throw new Error('فایل config.js بارگذاری نشد');
