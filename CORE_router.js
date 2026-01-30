@@ -1110,3 +1110,8 @@ if (typeof window !== 'undefined') {
 }
 
 console.log('[HyperRouter] ماژول مسیریابی بارگذاری شد');
+window.addEventListener('load', () => {
+  if (window.location.pathname === '/' || window.location.pathname === '/index.html') {
+    HomePageInstance.init();
+  }
+});
