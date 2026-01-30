@@ -1,114 +1,53 @@
 <!DOCTYPE html>
-<html lang="fa" dir="rtl">
+<html lang="fa">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>تست یکپارچه‌سازی فاز ۱ - HyperLang</title>
-    <style>
-        body { font-family: 'Segoe UI', Tahoma, sans-serif; padding: 20px; max-width: 800px; margin: 0 auto; }
-        .status { padding: 15px; border-radius: 8px; margin: 15px 0; display: none; }
-        .success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
-        .error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
-        .loading { background: #fff3cd; color: #856404; border: 1px solid #ffeaa7; }
-        button { background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; }
-        button:hover { background: #0056b3; }
-        .module { margin: 5px 0; padding: 8px; background: #f8f9fa; border-radius: 4px; }
-    </style>
+    <title>تست فایل‌های HyperLang</title>
 </head>
 <body>
-    <h2>🔧 تست یکپارچه‌سازی فاز ۱ - HyperLang</h2>
-    <p>این صفحه ۱۵ فایل هسته اصلی را بررسی می‌کند.</p>
-    
-    <div id="status" class="status loading">در حال بررسی ماژول‌ها...</div>
-    
-    <div id="moduleList"></div>
-    
-    <button onclick="runIntegrationTest()">اجرای تست</button>
-    <button onclick="clearConsole()">پاک کردن کنسول</button>
-    
-    <script type="module">
-        async function runIntegrationTest() {
-            const status = document.getElementById('status');
-            const moduleList = document.getElementById('moduleList');
-            
-            status.className = 'status loading';
-            status.style.display = 'block';
-            status.textContent = 'در حال بررسی ماژول‌ها...';
-            moduleList.innerHTML = '';
-            
-            const modules = [
-                { name: 'مدیریت وضعیت', path: './core/state-manager.js' },
-                { name: 'مدیریت نشست', path: './core/session-manager.js' },
-                { name: 'تزریق سرویس‌ها', path: './core/context-provider.js' },
-                { name: 'سیستم رویداد', path: './core/event-bus.js' },
-                { name: 'ذخیره وضعیت', path: './core/state-persistence.js' },
-                { name: 'مهاجرت وضعیت', path: './core/state-migrations.js' },
-                { name: 'صف آفلاین', path: './core/offline-queue.js' },
-                { name: 'همگام‌سازی', path: './core/real-time-sync.js' },
-                { name: 'اعتبارسنجی وضعیت', path: './core/state-validator.js' },
-                { name: 'مانیتورینگ', path: './core/state-monitor.js' },
-                { name: 'پشتیبان‌گیری', path: './core/state-backup.js' },
-                { name: 'ابزار دیباگ', path: './core/state-debug.js' },
-                { name: 'بهینه‌ساز', path: './core/state-optimizer.js' },
-                { name: 'امنیت وضعیت', path: './core/state-security.js' },
-                { name: 'ابزارهای کمکی', path: './core/state-utils.js' }
-            ];
-            
-            let successCount = 0;
-            let errorCount = 0;
-            
-            for (const module of modules) {
-                const moduleDiv = document.createElement('div');
-                moduleDiv.className = 'module';
-                moduleDiv.textContent = `📦 ${module.name}...`;
-                moduleList.appendChild(moduleDiv);
-                
-                try {
-                    // تلاش برای import ماژول
-                    const moduleObj = await import(module.path);
-                    moduleDiv.textContent = `✅ ${module.name} - لود شد`;
-                    console.log(`✅ ${module.name}:`, moduleObj);
-                    successCount++;
-                } catch (error) {
-                    moduleDiv.textContent = `❌ ${module.name} - خطا: ${error.message}`;
-                    console.error(`❌ ${module.name}:`, error);
-                    errorCount++;
+    <h2>بررسی وجود فایل‌های فاز ۱</h2>
+    <button onclick="checkFiles()">بررسی کن</button>
+    <div id="result" style="margin-top:20px;"></div>
+
+    <script>
+    async function checkFiles() {
+        const files = [
+            'core/state-manager.js',
+            'core/session-manager.js', 
+            'core/context-provider.js',
+            'core/event-bus.js',
+            'core/state-persistence.js',
+            'core/state-migrations.js',
+            'core/offline-queue.js',
+            'core/real-time-sync.js',
+            'core/state-validator.js',
+            'core/state-monitor.js',
+            'core/state-backup.js',
+            'core/state-debug.js',
+            'core/state-optimizer.js',
+            'core/state-security.js',
+            'core/state-utils.js'
+        ];
+        
+        const resultDiv = document.getElementById('result');
+        resultDiv.innerHTML = 'در حال بررسی...';
+        
+        let html = '';
+        for (const file of files) {
+            try {
+                const response = await fetch(file);
+                if (response.ok) {
+                    html += `<div style="color:green;">✅ ${file} - موجود است</div>`;
+                } else {
+                    html += `<div style="color:red;">❌ ${file} - یافت نشد</div>`;
                 }
-            }
-            
-            if (errorCount === 0) {
-                status.className = 'status success';
-                status.innerHTML = `
-                    ✅ تست یکپارچه‌سازی موفق!
-                    <br>تمام ${successCount} ماژول به درستی لود شدند.
-                    <br>می‌توانید به فاز بعدی بروید.
-                `;
-                
-                // تست اولیه عملکرد
-                setTimeout(() => {
-                    console.log('🎉 تست کامل شد! می‌توانید به ساخت فایل‌های بعدی ادامه دهید.');
-                    alert('✅ تست یکپارچه‌سازی با موفقیت انجام شد!');
-                }, 500);
-            } else {
-                status.className = 'status error';
-                status.innerHTML = `
-                    ❌ ${errorCount} ماژول با خطا مواجه شدند.
-                    <br>${successCount} ماژول موفق، ${errorCount} ماژول ناموفق.
-                    <br>لطفا خطاهای کنسول را بررسی کنید.
-                `;
+            } catch (error) {
+                html += `<div style="color:red;">❌ ${file} - خطا در دسترسی</div>`;
             }
         }
         
-        function clearConsole() {
-            console.clear();
-            console.log('🚀 کنسول پاک شد. آماده تست...');
-        }
-        
-        // اجرای خودکار تست بعد از لود صفحه
-        document.addEventListener('DOMContentLoaded', () => {
-            console.log('🌐 صفحه تست یکپارچه‌سازی HyperLang آماده است.');
-            console.log('برای شروع تست دکمه "اجرای تست" را بزنید.');
-        });
+        resultDiv.innerHTML = html;
+    }
     </script>
 </body>
 </html>
