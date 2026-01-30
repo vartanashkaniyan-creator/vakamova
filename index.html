@@ -1,53 +1,144 @@
 <!DOCTYPE html>
-<html lang="fa">
+<html lang="fa" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>تست فایل‌های HyperLang</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HyperLang - آموزش زبان ۱۲ زبانه</title>
+    <meta name="description" content="اپلیکیشن پیشرفته آموزش زبان‌های خارجی">
+    <link rel="manifest" href="/manifest.json">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a237e 0%, #3949ab 100%);
+            color: white;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            text-align: center;
+            padding-top: 50px;
+        }
+        .logo {
+            font-size: 3rem;
+            margin-bottom: 20px;
+            animation: pulse 2s infinite;
+        }
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+        .subtitle {
+            font-size: 1.2rem;
+            opacity: 0.9;
+            margin-bottom: 40px;
+        }
+        .status {
+            background: rgba(255,255,255,0.1);
+            padding: 20px;
+            border-radius: 10px;
+            margin: 30px auto;
+            max-width: 500px;
+            backdrop-filter: blur(10px);
+        }
+        #app {
+            margin-top: 40px;
+            padding: 20px;
+        }
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+    </style>
 </head>
 <body>
-    <h2>بررسی وجود فایل‌های فاز ۱</h2>
-    <button onclick="checkFiles()">بررسی کن</button>
-    <div id="result" style="margin-top:20px;"></div>
+    <div class="container">
+        <div class="logo">🌐</div>
+        <h1>HyperLang</h1>
+        <div class="subtitle">آموزش ۱۲ زبان زنده دنیا - نسخه آزمایشی</div>
+        
+        <div class="status">
+            <p id="load-status">در حال راه‌اندازی سیستم...</p>
+            <div id="module-status"></div>
+        </div>
+        
+        <div id="app">
+            <!-- اپلیکیشن اینجا رندر می‌شود -->
+        </div>
+    </div>
 
-    <script>
-    async function checkFiles() {
-        const files = [
-            'core/state-manager.js',
-            'core/session-manager.js', 
-            'core/context-provider.js',
-            'core/event-bus.js',
-            'core/state-persistence.js',
-            'core/state-migrations.js',
-            'core/offline-queue.js',
-            'core/real-time-sync.js',
-            'core/state-validator.js',
-            'core/state-monitor.js',
-            'core/state-backup.js',
-            'core/state-debug.js',
-            'core/state-optimizer.js',
-            'core/state-security.js',
-            'core/state-utils.js'
-        ];
-        
-        const resultDiv = document.getElementById('result');
-        resultDiv.innerHTML = 'در حال بررسی...';
-        
-        let html = '';
-        for (const file of files) {
+    <!-- بارگذاری ماژول‌های اصلی -->
+    <script type="module">
+        async function initApp() {
+            const statusEl = document.getElementById('load-status');
+            const moduleStatusEl = document.getElementById('module-status');
+            
             try {
-                const response = await fetch(file);
-                if (response.ok) {
-                    html += `<div style="color:green;">✅ ${file} - موجود است</div>`;
-                } else {
-                    html += `<div style="color:red;">❌ ${file} - یافت نشد</div>`;
-                }
+                // ۱. بارگذاری config
+                statusEl.textContent = 'بارگذاری تنظیمات...';
+                const config = await import('./core/config.js');
+                moduleStatusEl.innerHTML += '<div>✅ تنظیمات بارگذاری شد</div>';
+                
+                // ۲. بارگذاری event bus
+                statusEl.textContent = 'راه‌اندازی سیستم رویداد...';
+                const eventBus = await import('./core/event-bus.js');
+                moduleStatusEl.innerHTML += '<div>✅ سیستم رویداد آماده</div>';
+                
+                // ۳. بارگذاری context
+                statusEl.textContent = 'راه‌اندازی تزریق وابستگی...';
+                const context = await import('./core/context-provider.js');
+                moduleStatusEl.innerHTML += '<div>✅ سیستم وابستگی آماده</div>';
+                
+                // ۴. بارگذاری state manager
+                statusEl.textContent = 'راه‌اندازی مدیریت وضعیت...';
+                const stateManager = await import('./core/state-manager.js');
+                moduleStatusEl.innerHTML += '<div>✅ مدیریت وضعیت آماده</div>';
+                
+                // ۵. اپلیکیشن آماده است
+                statusEl.innerHTML = '<strong style="color:#4caf50;">✅ سیستم HyperLang آماده است!</strong>';
+                
+                // ذخیره global references برای دیباگ
+                window.App = {
+                    config,
+                    eventBus,
+                    context,
+                    stateManager
+                };
+                
+                console.log('🚀 HyperLang successfully bootstrapped!');
+                
+                // می‌توانید صفحه اصلی را اینجا رندر کنید
+                document.getElementById('app').innerHTML = `
+                    <h2>خوش آمدید!</h2>
+                    <p>سیستم با موفقیت راه‌اندازی شد.</p>
+                    <button onclick="startApp()" style="
+                        background: #4caf50;
+                        color: white;
+                        border: none;
+                        padding: 12px 30px;
+                        border-radius: 25px;
+                        font-size: 1.1rem;
+                        margin-top: 20px;
+                        cursor: pointer;
+                    ">شروع یادگیری</button>
+                `;
+                
             } catch (error) {
-                html += `<div style="color:red;">❌ ${file} - خطا در دسترسی</div>`;
+                statusEl.innerHTML = `<strong style="color:#ff5252;">❌ خطا در راه‌اندازی</strong>`;
+                moduleStatusEl.innerHTML += `<div style="color:#ff5252;">${error.message}</div>`;
+                console.error('Bootstrapping failed:', error);
             }
         }
         
-        resultDiv.innerHTML = html;
-    }
+        window.startApp = function() {
+            alert('آماده‌ای برای یادگیری زبان؟ به زودی...');
+            // در آینده به صفحه اصلی هدایت می‌شود
+        };
+        
+        // راه‌اندازی هنگام لود صفحه
+        document.addEventListener('DOMContentLoaded', initApp);
     </script>
 </body>
 </html>
