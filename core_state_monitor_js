@@ -1,0 +1,1104 @@
+/**
+ * HyperLang - State Monitoring System
+ * Version: 1.0.0
+ * Principles: Dependency Injection + Event-Driven + Interface Contract
+ */
+
+import { CONFIG } from './core_config.js';
+import { context } from './core_context_provider.js';
+import { eventBus } from './core_event_bus.js';
+
+// Monitor Contract Interface
+export const MONITOR_CONTRACT = {
+    metric: {
+        name: 'string',
+        value: 'number|string|boolean|object',
+        timestamp: 'number',
+        unit: 'string?',
+        tags: 'object?'
+    },
+    alert: {
+        id: 'string',
+        type: 'string',
+        severity: 'string', // 'critical', 'warning', 'info'
+        message: 'string',
+        data: 'object?',
+        timestamp: 'number',
+        resolved: 'boolean?'
+    },
+    report: {
+        id: 'string',
+        type: 'string',
+        data: 'object',
+        timestamp: 'number',
+        duration: 'number?'
+    }
+};
+
+export class StateMonitor {
+    constructor(options = {}) {
+        // Dependency Injection
+        this.config = context.get('config');
+        this.logger = context.get('logger');
+        this.eventBus = context.get('eventBus') || eventBus;
+        this.stateManager = context.get('stateManager');
+        
+        // Configuration
+        this.options = {
+            enabled: options.enabled ?? true,
+            samplingInterval: options.samplingInterval || 60000, // 1 minute
+            metricsRetention: options.metricsRetention || 1000,
+            alertThresholds: options.alertThresholds || {
+                memory: { warning: 70, critical: 90 },
+                latency: { warning: 1000, critical: 5000 },
+                errors: { warning: 5, critical: 20 }
+            },
+            autoGenerateReports: options.autoGenerateReports ?? true,
+            reportInterval: options.reportInterval || 3600000, // 1 hour
+            ...options
+        };
+        
+        // Monitoring State
+        this.metrics = new Map();
+        this.alerts = new Map();
+        this.reports = [];
+        this.snapshots = [];
+        this.isMonitoring = false;
+        
+        // Performance Tracking
+        this.performanceEntries = [];
+        this.resourceTiming = [];
+        this.userInteractions = [];
+        
+        // Setup
+        this.setupPerformanceObserver();
+        
+        if (this.options.enabled) {
+            this.startMonitoring();
+        }
+        
+        // Register with context
+        context.register('stateMonitor', {
+            factory: () => this,
+            dependencies: ['config', 'logger', 'eventBus', 'stateManager'],
+            lifecycle: 'singleton'
+        });
+        
+        this.logger?.log('StateMonitor initialized');
+    }
+    
+    // ==================== MONITORING CONTROL ====================
+    
+    startMonitoring() {
+        if (this.isMonitoring) return;
+        
+        this.isMonitoring = true;
+        
+        // Start metrics collection
+        this.metricsInterval = setInterval(() => {
+            this.collectMetrics();
+        }, this.options.samplingInterval);
+        
+        // Start report generation
+        if (this.options.autoGenerateReports) {
+            this.reportInterval = setInterval(() => {
+                this.generateReport('periodic');
+            }, this.options.reportInterval);
+        }
+        
+        // Listen for state changes
+        this.stateManager?.subscribe(this.onStateChange.bind(this));
+        
+        // Initial metrics collection
+        this.collectMetrics();
+        
+        this.eventBus.emit('monitor:started', {
+            timestamp: Date.now(),
+            config: this.options
+        });
+        
+        this.logger?.log('State monitoring started');
+    }
+    
+    stopMonitoring() {
+        if (!this.isMonitoring) return;
+        
+        this.isMonitoring = false;
+        
+        // Clear intervals
+        if (this.metricsInterval) {
+            clearInterval(this.metricsInterval);
+            this.metricsInterval = null;
+        }
+        
+        if (this.reportInterval) {
+            clearInterval(this.reportInterval);
+            this.reportInterval = null;
+        }
+        
+        this.eventBus.emit('monitor:stopped', {
+            timestamp: Date.now()
+        });
+        
+        this.logger?.log('State monitoring stopped');
+    }
+    
+    // ==================== METRICS COLLECTION ====================
+    
+    async collectMetrics() {
+        const timestamp = Date.now();
+        const metrics = {};
+        
+        try {
+            // 1. System Metrics
+            metrics.system = await this.collectSystemMetrics(timestamp);
+            
+            // 2. Application Metrics
+            metrics.application = this.collectApplicationMetrics(timestamp);
+            
+            // 3. Performance Metrics
+            metrics.performance = this.collectPerformanceMetrics(timestamp);
+            
+            // 4. Business Metrics
+            metrics.business = this.collectBusinessMetrics(timestamp);
+            
+            // 5. User Metrics
+            metrics.user = this.collectUserMetrics(timestamp);
+            
+            // Store metrics
+            this.storeMetrics(metrics, timestamp);
+            
+            // Check thresholds and generate alerts
+            this.checkThresholds(metrics, timestamp);
+            
+            // Emit metrics collected event
+            this.eventBus.emit('monitor:metrics_collected', {
+                timestamp,
+                metricsCount: Object.keys(metrics).length,
+                metrics
+            });
+            
+            return metrics;
+            
+        } catch (error) {
+            this.logger?.error('Failed to collect metrics:', error);
+            
+            this.eventBus.emit('monitor:metrics_error', {
+                timestamp,
+                error: error.message
+            });
+            
+            return null;
+        }
+    }
+    
+    async collectSystemMetrics(timestamp) {
+        return {
+            memory: {
+                usedJSHeapSize: performance.memory?.usedJSHeapSize || 0,
+                totalJSHeapSize: performance.memory?.totalJSHeapSize || 0,
+                jsHeapSizeLimit: performance.memory?.jsHeapSizeLimit || 0
+            },
+            network: {
+                effectiveType: navigator.connection?.effectiveType || 'unknown',
+                downlink: navigator.connection?.downlink || 0,
+                rtt: navigator.connection?.rtt || 0,
+                saveData: navigator.connection?.saveData || false
+            },
+            device: {
+                cores: navigator.hardwareConcurrency || 0,
+                memory: navigator.deviceMemory || 'unknown',
+                battery: await this.getBatteryInfo()
+            },
+            timestamp
+        };
+    }
+    
+    collectApplicationMetrics(timestamp) {
+        const state = this.stateManager?.getState() || {};
+        
+        return {
+            stateSize: JSON.stringify(state).length,
+            stateComplexity: this.calculateStateComplexity(state),
+            sessionDuration: this.calculateSessionDuration(),
+            ui: {
+                components: this.countComponents(),
+                pages: this.countPages(),
+                activeModals: document.querySelectorAll('.modal.show').length
+            },
+            errors: this.metrics.get('errors')?.length || 0,
+            timestamp
+        };
+    }
+    
+    collectPerformanceMetrics(timestamp) {
+        const entries = [...this.performanceEntries];
+        this.performanceEntries = []; // Clear for next collection
+        
+        return {
+            navigation: performance.getEntriesByType('navigation')[0] || {},
+            resource: performance.getEntriesByType('resource').slice(-10),
+            paint: performance.getEntriesByType('paint'),
+            longTasks: performance.getEntriesByType('longtask').slice(-5),
+            userInteractions: this.userInteractions.slice(-20),
+            timestamp
+        };
+    }
+    
+    collectBusinessMetrics(timestamp) {
+        const state = this.stateManager?.getState() || {};
+        
+        return {
+            users: {
+                total: state.users?.length || 0,
+                active: state.users?.filter(u => u.lastActive > Date.now() - 3600000).length || 0
+            },
+            lessons: {
+                total: state.lessons?.length || 0,
+                completed: state.progress?.filter(p => p.completed).length || 0,
+                averageScore: this.calculateAverageScore(state)
+            },
+            engagement: {
+                dailyActiveUsers: this.calculateDAU(state),
+                sessionLength: this.calculateAverageSessionLength(state),
+                retention: this.calculateRetention(state)
+            },
+            timestamp
+        };
+    }
+    
+    collectUserMetrics(timestamp) {
+        const state = this.stateManager?.getState() || {};
+        const user = state.user || {};
+        
+        return {
+            currentUser: {
+                id: user.id,
+                level: user.level,
+                streak: user.streak || 0,
+                totalTime: user.totalTime || 0
+            },
+            behavior: {
+                clicks: this.metrics.get('clicks') || 0,
+                scrolls: this.metrics.get('scrolls') || 0,
+                keypresses: this.metrics.get('keypresses') || 0
+            },
+            preferences: {
+                theme: user.settings?.theme || 'default',
+                language: user.settings?.language || 'en',
+                notifications: user.settings?.notifications || false
+            },
+            timestamp
+        };
+    }
+    
+    // ==================== METRICS STORAGE ====================
+    
+    storeMetrics(metrics, timestamp) {
+        // Store by category
+        Object.entries(metrics).forEach(([category, data]) => {
+            if (!this.metrics.has(category)) {
+                this.metrics.set(category, []);
+            }
+            
+            const categoryMetrics = this.metrics.get(category);
+            categoryMetrics.push({
+                ...data,
+                _id: `${category}_${timestamp}`,
+                _timestamp: timestamp
+            });
+            
+            // Limit retention
+            if (categoryMetrics.length > this.options.metricsRetention) {
+                categoryMetrics.shift();
+            }
+        });
+        
+        // Also store in localStorage for persistence
+        this.persistMetrics();
+    }
+    
+    persistMetrics() {
+        try {
+            const metricsData = {};
+            for (const [category, data] of this.metrics) {
+                metricsData[category] = data.slice(-100); // Keep last 100 entries
+            }
+            
+            localStorage.setItem('hyperlang_monitor_metrics', JSON.stringify({
+                metrics: metricsData,
+                savedAt: Date.now(),
+                version: '1.0.0'
+            }));
+        } catch (error) {
+            this.logger?.warn('Failed to persist metrics:', error);
+        }
+    }
+    
+    loadMetrics() {
+        try {
+            const stored = localStorage.getItem('hyperlang_monitor_metrics');
+            if (!stored) return false;
+            
+            const data = JSON.parse(stored);
+            if (data.version !== '1.0.0') return false;
+            
+            for (const [category, metrics] of Object.entries(data.metrics)) {
+                this.metrics.set(category, metrics);
+            }
+            
+            return true;
+        } catch (error) {
+            return false;
+        }
+    }
+    
+    // ==================== ALERT MANAGEMENT ====================
+    
+    checkThresholds(metrics, timestamp) {
+        const alerts = [];
+        
+        // Check memory usage
+        if (metrics.system?.memory) {
+            const memoryUsage = (metrics.system.memory.usedJSHeapSize / 
+                               metrics.system.memory.totalJSHeapSize) * 100;
+            
+            if (memoryUsage > this.options.alertThresholds.memory.critical) {
+                alerts.push(this.createAlert(
+                    'memory_critical',
+                    'critical',
+                    `Memory usage critical: ${memoryUsage.toFixed(1)}%`,
+                    { memoryUsage, ...metrics.system.memory },
+                    timestamp
+                ));
+            } else if (memoryUsage > this.options.alertThresholds.memory.warning) {
+                alerts.push(this.createAlert(
+                    'memory_warning',
+                    'warning',
+                    `Memory usage high: ${memoryUsage.toFixed(1)}%`,
+                    { memoryUsage, ...metrics.system.memory },
+                    timestamp
+                ));
+            }
+        }
+        
+        // Check latency
+        if (metrics.system?.network?.rtt) {
+            const latency = metrics.system.network.rtt;
+            
+            if (latency > this.options.alertThresholds.latency.critical) {
+                alerts.push(this.createAlert(
+                    'latency_critical',
+                    'critical',
+                    `Network latency critical: ${latency}ms`,
+                    { latency, ...metrics.system.network },
+                    timestamp
+                ));
+            } else if (latency > this.options.alertThresholds.latency.warning) {
+                alerts.push(this.createAlert(
+                    'latency_warning',
+                    'warning',
+                    `Network latency high: ${latency}ms`,
+                    { latency, ...metrics.system.network },
+                    timestamp
+                ));
+            }
+        }
+        
+        // Check error rate
+        const errorCount = metrics.application?.errors || 0;
+        if (errorCount > this.options.alertThresholds.errors.critical) {
+            alerts.push(this.createAlert(
+                'errors_critical',
+                'critical',
+                `High error count: ${errorCount} errors`,
+                { errorCount },
+                timestamp
+            ));
+        } else if (errorCount > this.options.alertThresholds.errors.warning) {
+            alerts.push(this.createAlert(
+                'errors_warning',
+                'warning',
+                `Error count elevated: ${errorCount} errors`,
+                { errorCount },
+                timestamp
+            ));
+        }
+        
+        // Process alerts
+        alerts.forEach(alert => this.addAlert(alert));
+    }
+    
+    createAlert(type, severity, message, data, timestamp) {
+        return {
+            id: `${type}_${timestamp}`,
+            type,
+            severity,
+            message,
+            data,
+            timestamp,
+            resolved: false,
+            acknowledged: false
+        };
+    }
+    
+    addAlert(alert) {
+        this.alerts.set(alert.id, alert);
+        
+        // Emit alert event
+        this.eventBus.emit('monitor:alert_triggered', alert);
+        
+        // Persist alerts
+        this.persistAlerts();
+        
+        // Log critical alerts
+        if (alert.severity === 'critical') {
+            this.logger?.error(`🚨 Critical Alert: ${alert.message}`, alert.data);
+        }
+        
+        return alert.id;
+    }
+    
+    resolveAlert(alertId, resolution = 'manual') {
+        const alert = this.alerts.get(alertId);
+        if (!alert) return false;
+        
+        alert.resolved = true;
+        alert.resolvedAt = Date.now();
+        alert.resolution = resolution;
+        
+        this.eventBus.emit('monitor:alert_resolved', alert);
+        this.persistAlerts();
+        
+        return true;
+    }
+    
+    acknowledgeAlert(alertId) {
+        const alert = this.alerts.get(alertId);
+        if (!alert) return false;
+        
+        alert.acknowledged = true;
+        alert.acknowledgedAt = Date.now();
+        
+        this.persistAlerts();
+        
+        return true;
+    }
+    
+    getActiveAlerts(severity = null) {
+        const alerts = Array.from(this.alerts.values())
+            .filter(alert => !alert.resolved);
+        
+        if (severity) {
+            return alerts.filter(alert => alert.severity === severity);
+        }
+        
+        return alerts;
+    }
+    
+    persistAlerts() {
+        try {
+            const alerts = Array.from(this.alerts.values())
+                .slice(-50); // Keep last 50 alerts
+            
+            localStorage.setItem('hyperlang_monitor_alerts', JSON.stringify({
+                alerts,
+                savedAt: Date.now(),
+                version: '1.0.0'
+            }));
+        } catch (error) {
+            this.logger?.warn('Failed to persist alerts:', error);
+        }
+    }
+    
+    loadAlerts() {
+        try {
+            const stored = localStorage.getItem('hyperlang_monitor_alerts');
+            if (!stored) return false;
+            
+            const data = JSON.parse(stored);
+            if (data.version !== '1.0.0') return false;
+            
+            data.alerts.forEach(alert => {
+                this.alerts.set(alert.id, alert);
+            });
+            
+            return true;
+        } catch (error) {
+            return false;
+        }
+    }
+    
+    // ==================== REPORT GENERATION ====================
+    
+    generateReport(type = 'manual', options = {}) {
+        const startTime = Date.now();
+        const reportId = `${type}_${startTime}`;
+        
+        try {
+            const report = {
+                id: reportId,
+                type,
+                timestamp: startTime,
+                period: {
+                    start: options.startTime || startTime - this.options.reportInterval,
+                    end: startTime
+                },
+                summary: this.generateReportSummary(),
+                metrics: this.getAggregatedMetrics(),
+                alerts: this.getAlertSummary(),
+                recommendations: this.generateRecommendations(),
+                metadata: {
+                    generatedBy: 'StateMonitor',
+                    version: '1.0.0',
+                    ...options.metadata
+                }
+            };
+            
+            const duration = Date.now() - startTime;
+            report.duration = duration;
+            
+            // Store report
+            this.reports.unshift(report);
+            if (this.reports.length > 50) {
+                this.reports.pop();
+            }
+            
+            // Persist reports
+            this.persistReports();
+            
+            // Emit event
+            this.eventBus.emit('monitor:report_generated', {
+                reportId,
+                type,
+                duration,
+                timestamp: startTime
+            });
+            
+            this.logger?.log(`Report generated: ${reportId} (${duration}ms)`);
+            
+            return report;
+            
+        } catch (error) {
+            this.logger?.error('Failed to generate report:', error);
+            
+            this.eventBus.emit('monitor:report_error', {
+                reportId,
+                type,
+                error: error.message,
+                timestamp: startTime
+            });
+            
+            return null;
+        }
+    }
+    
+    generateReportSummary() {
+        const activeAlerts = this.getActiveAlerts();
+        
+        return {
+            status: activeAlerts.length === 0 ? 'healthy' : 'needs_attention',
+            monitoringDuration: this.calculateMonitoringDuration(),
+            metricsCollected: Array.from(this.metrics.values()).reduce((sum, arr) => sum + arr.length, 0),
+            activeAlerts: activeAlerts.length,
+            criticalAlerts: activeAlerts.filter(a => a.severity === 'critical').length,
+            systemHealth: this.calculateSystemHealthScore()
+        };
+    }
+    
+    getAggregatedMetrics() {
+        const aggregated = {};
+        
+        for (const [category, metrics] of this.metrics) {
+            if (metrics.length === 0) continue;
+            
+            // Get recent metrics (last hour)
+            const recent = metrics.filter(m => 
+                m._timestamp > Date.now() - 3600000
+            );
+            
+            if (recent.length === 0) continue;
+            
+            // Calculate averages for numeric values
+            aggregated[category] = this.aggregateMetrics(recent);
+        }
+        
+        return aggregated;
+    }
+    
+    aggregateMetrics(metrics) {
+        const result = {};
+        const firstMetric = metrics[0];
+        
+        // Recursively aggregate
+        const aggregate = (obj, path = '') => {
+            for (const [key, value] of Object.entries(obj)) {
+                if (key.startsWith('_')) continue;
+                
+                const currentPath = path ? `${path}.${key}` : key;
+                
+                if (typeof value === 'number') {
+                    // Calculate average
+                    const values = metrics.map(m => 
+                        this.getByPath(m, currentPath)
+                    ).filter(v => typeof v === 'number');
+                    
+                    if (values.length > 0) {
+                        result[currentPath] = {
+                            avg: values.reduce((a, b) => a + b, 0) / values.length,
+                            min: Math.min(...values),
+                            max: Math.max(...values),
+                            count: values.length
+                        };
+                    }
+                } else if (typeof value === 'object' && value !== null) {
+                    aggregate(value, currentPath);
+                }
+            }
+        };
+        
+        aggregate(firstMetric);
+        return result;
+    }
+    
+    getAlertSummary() {
+        const alerts = Array.from(this.alerts.values());
+        const last24h = alerts.filter(a => 
+            a.timestamp > Date.now() - 86400000
+        );
+        
+        return {
+            total: alerts.length,
+            active: alerts.filter(a => !a.resolved).length,
+            last24h: last24h.length,
+            bySeverity: {
+                critical: last24h.filter(a => a.severity === 'critical').length,
+                warning: last24h.filter(a => a.severity === 'warning').length,
+                info: last24h.filter(a => a.severity === 'info').length
+            },
+            resolutionRate: alerts.length > 0 ? 
+                alerts.filter(a => a.resolved).length / alerts.length : 1
+        };
+    }
+    
+    generateRecommendations() {
+        const recommendations = [];
+        const metrics = this.getAggregatedMetrics();
+        
+        // Memory recommendation
+        if (metrics.system?.memory?.usedJSHeapSize?.avg) {
+            const memoryUsage = (metrics.system.memory.usedJSHeapSize.avg / 
+                               metrics.system.memory.totalJSHeapSize.avg) * 100;
+            
+            if (memoryUsage > 80) {
+                recommendations.push({
+                    type: 'memory',
+                    priority: 'high',
+                    title: 'Optimize Memory Usage',
+                    description: 'Memory usage is consistently high',
+                    action: 'Consider implementing lazy loading and memory cleanup',
+                    estimatedImpact: 'high'
+                });
+            }
+        }
+        
+        // Network recommendation
+        if (metrics.system?.network?.rtt?.avg > 1000) {
+            recommendations.push({
+                type: 'network',
+                priority: 'medium',
+                title: 'Improve Network Performance',
+                description: 'High latency detected',
+                action: 'Optimize API calls and implement caching',
+                estimatedImpact: 'medium'
+            });
+        }
+        
+        // State size recommendation
+        if (metrics.application?.stateSize?.avg > 100000) { // 100KB
+            recommendations.push({
+                type: 'state',
+                priority: 'medium',
+                title: 'Reduce State Size',
+                description: 'Application state is large',
+                action: 'Implement state compression and archiving',
+                estimatedImpact: 'medium'
+            });
+        }
+        
+        return recommendations;
+    }
+    
+    // ==================== STATE SNAPSHOTS ====================
+    
+    createSnapshot(name = 'manual', metadata = {}) {
+        if (!this.stateManager) return null;
+        
+        const timestamp = Date.now();
+        const state = this.stateManager.getState();
+        const metrics = this.getCurrentMetrics();
+        
+        const snapshot = {
+            id: `snapshot_${timestamp}`,
+            name,
+            timestamp,
+            state: this.sanitizeState(state),
+            metrics,
+            metadata: {
+                createdBy: 'StateMonitor',
+                ...metadata
+            }
+        };
+        
+        this.snapshots.unshift(snapshot);
+        
+        // Keep only last 20 snapshots
+        if (this.snapshots.length > 20) {
+            this.snapshots.pop();
+        }
+        
+        this.eventBus.emit('monitor:snapshot_created', {
+            snapshotId: snapshot.id,
+            name,
+            timestamp
+        });
+        
+        return snapshot;
+    }
+    
+    sanitizeState(state) {
+        // Remove sensitive data before storing
+        const sanitized = { ...state };
+        
+        if (sanitized.user) {
+            const { password, token, ...safeUser } = sanitized.user;
+            sanitized.user = safeUser;
+        }
+        
+        return sanitized;
+    }
+    
+    getSnapshot(id) {
+        return this.snapshots.find(snapshot => snapshot.id === id);
+    }
+    
+    // ==================== UTILITY METHODS ====================
+    
+    setupPerformanceObserver() {
+        // Observe performance entries
+        if (window.PerformanceObserver) {
+            try {
+                // Long task observer
+                this.longTaskObserver = new PerformanceObserver((list) => {
+                    this.performanceEntries.push(...list.getEntries());
+                });
+                this.longTaskObserver.observe({ entryTypes: ['longtask'] });
+                
+                // Paint observer
+                this.paintObserver = new PerformanceObserver((list) => {
+                    this.performanceEntries.push(...list.getEntries());
+                });
+                this.paintObserver.observe({ entryTypes: ['paint'] });
+                
+            } catch (error) {
+                this.logger?.warn('Performance Observer not supported:', error);
+            }
+        }
+        
+        // Track user interactions
+        document.addEventListener('click', (event) => {
+            this.userInteractions.push({
+                type: 'click',
+                target: event.target.tagName,
+                timestamp: Date.now(),
+                x: event.clientX,
+                y: event.clientY
+            });
+            
+            // Keep only last 100 interactions
+            if (this.userInteractions.length > 100) {
+                this.userInteractions.shift();
+            }
+        });
+    }
+    
+    async getBatteryInfo() {
+        if ('getBattery' in navigator) {
+            try {
+                const battery = await navigator.getBattery();
+                return {
+                    level: battery.level,
+                    charging: battery.charging,
+                    chargingTime: battery.chargingTime,
+                    dischargingTime: battery.dischargingTime
+                };
+            } catch {
+                return null;
+            }
+        }
+        return null;
+    }
+    
+    calculateStateComplexity(state) {
+        const calculate = (obj, depth = 0) => {
+            if (typeof obj !== 'object' || obj === null) return 1;
+            
+            let complexity = 1;
+            for (const key in obj) {
+                if (obj.hasOwnProperty(key)) {
+                    complexity += calculate(obj[key], depth + 1);
+                }
+            }
+            
+            return complexity;
+        };
+        
+        return calculate(state);
+    }
+    
+    calculateSessionDuration() {
+        // Simplified - in real app, track session start
+        return Date.now() - (performance.timing.navigationStart || Date.now());
+    }
+    
+    countComponents() {
+        // Count elements with data-component attribute
+        return document.querySelectorAll('[data-component]').length;
+    }
+    
+    countPages() {
+        // Count elements with data-page attribute
+        return document.querySelectorAll('[data-page]').length;
+    }
+    
+    calculateAverageScore(state) {
+        const scores = state.progress
+            ?.filter(p => p.score !== undefined)
+            .map(p => p.score) || [];
+        
+        if (scores.length === 0) return 0;
+        
+        return scores.reduce((a, b) => a + b, 0) / scores.length;
+    }
+    
+    calculateDAU(state) {
+        // Simplified DAU calculation
+        const today = new Date().toDateString();
+        const activities = state.userActivities || [];
+        
+        return activities.filter(activity => 
+            new Date(activity.timestamp).toDateString() === today
+        ).length;
+    }
+    
+    calculateAverageSessionLength(state) {
+        const sessions = state.sessions || [];
+        if (sessions.length === 0) return 0;
+        
+        const totalDuration = sessions.reduce((sum, session) => {
+            return sum + (session.endTime - session.startTime);
+        }, 0);
+        
+        return totalDuration / sessions.length;
+    }
+    
+    calculateRetention(state) {
+        // Simplified retention calculation
+        const users = state.users || [];
+        const activeUsers = users.filter(u => u.lastActive > Date.now() - 604800000); // 7 days
+        
+        return users.length > 0 ? (activeUsers.length / users.length) * 100 : 0;
+    }
+    
+    calculateMonitoringDuration() {
+        // This would track when monitoring started
+        return Date.now() - (this.monitoringStartTime || Date.now());
+    }
+    
+    calculateSystemHealthScore() {
+        let score = 100;
+        
+        // Deduct for alerts
+        const activeAlerts = this.getActiveAlerts();
+        score -= activeAlerts.length * 10;
+        
+        // Deduct for critical alerts
+        const criticalAlerts = activeAlerts.filter(a => a.severity === 'critical');
+        score -= criticalAlerts.length * 20;
+        
+        return Math.max(0, score);
+    }
+    
+    getCurrentMetrics() {
+        const metrics = {};
+        
+        for (const [category, data] of this.metrics) {
+            if (data.length > 0) {
+                metrics[category] = data[data.length - 1];
+            }
+        }
+        
+        return metrics;
+    }
+    
+    getByPath(obj, path) {
+        return path.split('.').reduce((current, key) => {
+            return current && current[key] !== undefined ? current[key] : undefined;
+        }, obj);
+    }
+    
+    // ==================== STATE CHANGE HANDLER ====================
+    
+    onStateChange(newState, oldState, description) {
+        if (!this.isMonitoring) return;
+        
+        const change = {
+            timestamp: Date.now(),
+            description,
+            diff: this.calculateDiff(oldState, newState),
+            sizeChange: JSON.stringify(newState).length - JSON.stringify(oldState).length
+        };
+        
+        // Store state change
+        if (!this.metrics.has('stateChanges')) {
+            this.metrics.set('stateChanges', []);
+        }
+        
+        this.metrics.get('stateChanges').push(change);
+        
+        // Emit event for significant changes
+        if (Math.abs(change.sizeChange) > 1000) { // 1KB change
+            this.eventBus.emit('monitor:state_change_large', change);
+        }
+    }
+    
+    calculateDiff(oldState, newState) {
+        const diff = {
+            added: [],
+            removed: [],
+            changed: []
+        };
+        
+        const compare = (oldObj, newObj, path = '') => {
+            const allKeys = new Set([
+                ...Object.keys(oldObj || {}),
+                ...Object.keys(newObj || {})
+            ]);
+            
+            allKeys.forEach(key => {
+                const currentPath = path ? `${path}.${key}` : key;
+                const oldVal = oldObj?.[key];
+                const newVal = newObj?.[key];
+                
+                if (oldVal === undefined && newVal !== undefined) {
+                    diff.added.push(currentPath);
+                } else if (oldVal !== undefined && newVal === undefined) {
+                    diff.removed.push(currentPath);
+                } else if (JSON.stringify(oldVal) !== JSON.stringify(newVal)) {
+                    if (typeof oldVal === 'object' && typeof newVal === 'object') {
+                        compare(oldVal, newVal, currentPath);
+                    } else {
+                        diff.changed.push(currentPath);
+                    }
+                }
+            });
+        };
+        
+        compare(oldState, newState);
+        return diff;
+    }
+    
+    // ==================== PERSISTENCE ====================
+    
+    persistReports() {
+        try {
+            localStorage.setItem('hyperlang_monitor_reports', JSON.stringify({
+                reports: this.reports.slice(0, 20), // Keep last 20 reports
+                savedAt: Date.now(),
+                version: '1.0.0'
+            }));
+        } catch (error) {
+            this.logger?.warn('Failed to persist reports:', error);
+        }
+    }
+    
+    loadReports() {
+        try {
+            const stored = localStorage.getItem('hyperlang_monitor_reports');
+            if (!stored) return false;
+            
+            const data = JSON.parse(stored);
+            if (data.version !== '1.0.0') return false;
+            
+            this.reports = data.reports || [];
+            return true;
+        } catch (error) {
+            return false;
+        }
+    }
+    
+    // ==================== CONTRACT VALIDATION ====================
+    
+    validateContract() {
+        const errors = [];
+        
+        // Check required methods
+        const requiredMethods = ['startMonitoring', 'stopMonitoring', 'collectMetrics', 'generateReport'];
+        requiredMethods.forEach(method => {
+            if (typeof this[method] !== 'function') {
+                errors.push(`Missing required method: ${method}`);
+            }
+        });
+        
+        // Check metrics structure
+        if (!this.metrics || !(this.metrics instanceof Map)) {
+            errors.push('Metrics must be a Map instance');
+        }
+        
+        return {
+            valid: errors.length === 0,
+            errors,
+            contract: MONITOR_CONTRACT,
+            isMonitoring: this.isMonitoring,
+            metricsCount: this.metrics.size,
+            alertsCount: this.alerts.size,
+            reportsCount: this.reports.length,
+            timestamp: new Date().toISOString()
+        };
+    }
+    
+    // ==================== LIFECYCLE ====================
+    
+    destroy() {
+        this.stopMonitoring();
+        
+        // Disconnect observers
+        if (this.longTaskObserver) {
+            this.longTaskObserver.disconnect();
+        }
+        
+        if (this.paintObserver) {
+            this.paintObserver.disconnect();
+        }
+        
+        // Save all data
+        this.persistMetrics();
+        this.persistAlerts();
+        this.persistReports();
+        
+        this.logger?.log('StateMonitor destroyed');
+    }
+}
+
+// Singleton instance
+export const stateMonitor = new StateMonitor();
+
+// Register with context
+context.registerSingleton('stateMonitor', stateMonitor);
+
+// Export for global use
+if (typeof window !== 'undefined') {
+    window.stateMonitor = stateMonitor;
+}
+
+export default stateMonitor;
