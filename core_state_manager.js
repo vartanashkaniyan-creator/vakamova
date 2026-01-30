@@ -1,197 +1,110 @@
-/**
- * HyperLang - State Management System with Interface Contract
- * Version: 1.0.0
- * Principle: Interface Contract + Dependency Injection + Event-Driven
- */
+// ==================== STATE MANAGER (COMPLETE STANDALONE VERSION) ====================
+// HyperLang - Professional State Management (No Dependencies)
+// Version: 2.0.0 | Standalone | No Imports Needed
 
-import { CONFIG } from './config.js';
-import { context } from './context-provider.js';
-import { eventBus, EVENT_CONTRACT } from './event-bus.js';
-
-// ==================== STATE CONTRACT INTERFACE ====================
-
-export const STATE_CONTRACT = {
-    // Core State Structure
-    state: 'object',
-    
-    // State Metadata
-    metadata: {
-        version: 'string',
-        timestamp: 'number',
-        checksum: 'string?',
-        source: 'string?'
-    },
-    
-    // State Methods Contract
-    methods: {
-        getState: 'function',
-        setState: 'function',
-        subscribe: 'function',
-        unsubscribe: 'function',
-        getSnapshot: 'function',
-        replaceState: 'function'
-    },
-    
-    // State Events Contract
-    events: {
-        'state:changed': 'function',
-        'state:beforeChange': 'function',
-        'state:error': 'function',
-        'state:restored': 'function'
-    },
-    
-    // Validation Rules
-    validation: {
-        schema: 'object?',
-        strict: 'boolean?',
-        onChange: 'boolean?'
-    }
-};
-
-// ==================== STATE MANAGER CLASS ====================
-
-export class StateManager {
+class StateManager {
     constructor(options = {}) {
-        // Dependency Injection
-        this.config = context.get('config')?.STATE || CONFIG.STATE;
-        this.logger = context.get('logger');
-        this.eventBus = context.get('eventBus') || eventBus;
-        
         // Configuration
-        this.options = {
+        this.config = {
             name: options.name || 'global',
-            initialState: options.initialState || this.createInitialState(),
-            schema: options.schema || null,
-            strict: options.strict ?? this.config.VALIDATE_ON_CHANGE,
-            encrypt: options.encrypt ?? this.config.ENCRYPT_SENSITIVE,
-            maxHistory: options.maxHistory || this.config.MAX_HISTORY,
-            autoSave: options.autoSave ?? true,
-            autoSaveInterval: options.autoSaveInterval || this.config.AUTO_SAVE_INTERVAL,
-            middleware: options.middleware || [],
+            encrypt: options.encrypt || false,
+            maxHistory: options.maxHistory || 50,
+            autoSave: options.autoSave || true,
+            debug: options.debug || true,
             ...options
         };
         
-        // State Properties
-        this.state = this.initializeState(this.options.initialState);
+        // Core State
+        this.state = this.initializeState(options.initialState || {});
         this.history = [];
         this.future = [];
         this.listeners = new Map();
-        this.middleware = [...this.options.middleware];
         this.isUpdating = false;
-        this.batchQueue = [];
         this.isBatching = false;
+        this.batchQueue = [];
         
-        // State Metadata
+        // Internal Event System (replaces event-bus dependency)
+        this.events = new Map();
+        
+        // Metadata
         this.metadata = {
-            version: '1.0.0',
-            name: this.options.name,
+            version: '2.0.0',
             created: Date.now(),
-            lastModified: Date.now(),
             modifications: 0,
             checksum: this.generateChecksum(this.state)
         };
         
         // Setup
-        this.setupEventListeners();
         this.setupAutoSave();
-        this.setupDevTools();
+        this.setupDebug();
         
-        // Register with context
-        context.register(`state:${this.options.name}`, {
-            factory: () => this,
-            dependencies: ['config', 'logger', 'eventBus'],
-            lifecycle: 'singleton'
-        });
-        
-        this.logger?.log(`StateManager "${this.options.name}" initialized`);
+        this.log(`StateManager "${this.config.name}" initialized`);
     }
     
-    // ==================== CORE STATE METHODS ====================
+    // ==================== CORE METHODS ====================
     
     getState(path = null) {
-        if (!path) {
-            return this.deepClone(this.state);
-        }
-        
+        if (!path) return JSON.parse(JSON.stringify(this.state));
         return this.getByPath(this.state, path);
     }
     
     setState(updater, description = '') {
         if (this.isUpdating) {
-            throw new Error('Cannot set state while another update is in progress');
+            throw new Error('State update already in progress');
         }
         
         this.isUpdating = true;
         
         try {
-            // Run beforeChange middleware
-            const beforeResult = this.runMiddleware('beforeChange', {
-                current: this.state,
-                updater,
-                description
-            });
-            
-            if (beforeResult === false) {
-                this.isUpdating = false;
-                return false;
-            }
-            
-            // Save to history for undo
-            if (this.history.length < this.options.maxHistory) {
+            // Save to history
+            if (this.history.length < this.config.maxHistory) {
                 this.history.push({
-                    state: this.deepClone(this.state),
+                    state: JSON.parse(JSON.stringify(this.state)),
                     timestamp: Date.now(),
                     description
                 });
             }
             
-            // Clear future (redo) when new change is made
+            // Clear redo future
             this.future = [];
             
             // Calculate new state
             const newState = typeof updater === 'function' 
-                ? updater(this.deepClone(this.state))
-                : { ...this.deepClone(this.state), ...updater };
+                ? updater(JSON.parse(JSON.stringify(this.state)))
+                : { ...JSON.parse(JSON.stringify(this.state)), ...updater };
             
-            // Validate new state
+            // Validate
             this.validateState(newState);
             
-            // Update state
+            // Update
             const oldState = this.state;
             this.state = newState;
             
             // Update metadata
-            this.metadata.lastModified = Date.now();
             this.metadata.modifications++;
+            this.metadata.lastModified = Date.now();
             this.metadata.checksum = this.generateChecksum(newState);
-            
-            // Run afterChange middleware
-            this.runMiddleware('afterChange', {
-                oldState,
-                newState,
-                description
-            });
             
             // Notify listeners
             this.notifyListeners(oldState, newState, description);
             
-            // Emit event
-            this.eventBus.emit(`state:${this.options.name}:changed`, {
+            // Emit internal event
+            this.emitEvent('state:changed', {
                 oldState,
                 newState,
                 description,
-                metadata: this.metadata
+                source: 'internal'
             });
+            
+            // Auto-save if enabled
+            if (this.config.autoSave) {
+                this.saveToStorage();
+            }
             
             return true;
             
         } catch (error) {
-            this.eventBus.emit(`state:${this.options.name}:error`, {
-                error: error.message,
-                operation: 'setState',
-                description
-            });
-            
+            this.emitEvent('state:error', { error: error.message });
             throw error;
             
         } finally {
@@ -199,31 +112,18 @@ export class StateManager {
         }
     }
     
-    // ==================== ADVANCED STATE OPERATIONS ====================
+    // ==================== BATCH OPERATIONS ====================
     
-    batch(updater, description = 'batch') {
+    batch(operations, description = 'batch') {
         this.isBatching = true;
         
         try {
-            const result = updater(this);
+            const result = operations(this);
             this.flushBatch(description);
             return result;
         } finally {
             this.isBatching = false;
         }
-    }
-    
-    flushBatch(description = 'batch') {
-        if (this.batchQueue.length === 0) return;
-        
-        const batchUpdate = this.batchQueue.reduce((state, update) => {
-            return typeof update === 'function' 
-                ? update(state)
-                : { ...state, ...update };
-        }, this.deepClone(this.state));
-        
-        this.setState(batchUpdate, description);
-        this.batchQueue = [];
     }
     
     enqueueUpdate(updater) {
@@ -234,17 +134,39 @@ export class StateManager {
         }
     }
     
+    flushBatch(description = 'batch') {
+        if (this.batchQueue.length === 0) return;
+        
+        const batchResult = this.batchQueue.reduce((state, update) => {
+            return typeof update === 'function' 
+                ? update(state)
+                : { ...state, ...update };
+        }, JSON.parse(JSON.stringify(this.state)));
+        
+        this.setState(batchResult, description);
+        this.batchQueue = [];
+    }
+    
+    // ==================== UNDO/REDO ====================
+    
     undo() {
         if (this.history.length === 0) return false;
         
         const previous = this.history.pop();
         this.future.push({
-            state: this.deepClone(this.state),
+            state: JSON.parse(JSON.stringify(this.state)),
             timestamp: Date.now(),
             description: 'undo'
         });
         
-        this.replaceState(previous.state, `Undo: ${previous.description}`);
+        this.state = previous.state;
+        this.notifyListeners(this.state, previous.state, 'undo');
+        
+        this.emitEvent('state:undo', { 
+            state: this.state,
+            previousState: previous.state 
+        });
+        
         return true;
     }
     
@@ -253,246 +175,233 @@ export class StateManager {
         
         const next = this.future.pop();
         this.history.push({
-            state: this.deepClone(this.state),
+            state: JSON.parse(JSON.stringify(this.state)),
             timestamp: Date.now(),
             description: 'redo'
         });
         
-        this.replaceState(next.state, `Redo`);
-        return true;
-    }
-    
-    replaceState(newState, description = 'replace') {
-        const oldState = this.state;
-        this.state = this.deepClone(newState);
+        this.state = next.state;
+        this.notifyListeners(this.state, next.state, 'redo');
         
-        // Reset history and future
-        this.history = [];
-        this.future = [];
-        
-        this.metadata.lastModified = Date.now();
-        this.metadata.modifications++;
-        this.metadata.checksum = this.generateChecksum(newState);
-        
-        this.notifyListeners(oldState, newState, description);
-        
-        this.eventBus.emit(`state:${this.options.name}:replaced`, {
-            oldState,
-            newState,
-            description
+        this.emitEvent('state:redo', {
+            state: this.state,
+            nextState: next.state
         });
+        
+        return true;
     }
     
     // ==================== SUBSCRIPTION SYSTEM ====================
     
-    subscribe(listener, selector = null) {
-        const id = this.generateId();
+    subscribe(key, callback) {
+        if (!this.listeners.has(key)) {
+            this.listeners.set(key, new Set());
+        }
         
-        this.listeners.set(id, {
-            listener,
-            selector,
-            lastState: this.deepClone(this.state)
-        });
+        this.listeners.get(key).add(callback);
         
-        return () => this.unsubscribe(id);
+        this.log(`Listener added for key: ${key}`);
+        
+        // Return unsubscribe function
+        return () => {
+            if (this.listeners.has(key)) {
+                this.listeners.get(key).delete(callback);
+                this.log(`Listener removed for key: ${key}`);
+            }
+        };
     }
     
-    unsubscribe(id) {
-        return this.listeners.delete(id);
-    }
-    
-    subscribeToPath(path, listener) {
-        const id = this.generateId();
+    subscribeToPath(path, callback) {
+        const id = `path_${path}_${Date.now()}`;
         const currentValue = this.getByPath(this.state, path);
         
-        this.listeners.set(id, {
-            listener,
-            selector: (state) => this.getByPath(state, path),
-            lastValue: currentValue,
-            isPathListener: true,
-            path
-        });
-        
-        return () => this.unsubscribe(id);
-    }
-    
-    // ==================== SNAPSHOT AND SERIALIZATION ====================
-    
-    getSnapshot() {
-        return {
-            state: this.deepClone(this.state),
-            metadata: { ...this.metadata },
-            history: this.history.length,
-            future: this.future.length,
-            listeners: this.listeners.size,
-            timestamp: Date.now()
-        };
-    }
-    
-    serialize() {
-        return JSON.stringify({
-            state: this.state,
-            metadata: this.metadata,
-            version: '1.0.0'
-        });
-    }
-    
-    static deserialize(serialized, options = {}) {
-        try {
-            const data = JSON.parse(serialized);
-            
-            if (data.version !== '1.0.0') {
-                throw new Error(`Unsupported version: ${data.version}`);
-            }
-            
-            const manager = new StateManager({
-                ...options,
-                initialState: data.state
-            });
-            
-            manager.metadata = data.metadata;
-            
-            return manager;
-        } catch (error) {
-            throw new Error(`Failed to deserialize state: ${error.message}`);
-        }
-    }
-    
-    // ==================== VALIDATION AND SCHEMA ====================
-    
-    validateState(state) {
-        if (!this.options.strict) return true;
-        
-        // Schema validation
-        if (this.options.schema) {
-            this.validateWithSchema(state);
+        if (!this.listeners.has(id)) {
+            this.listeners.set(id, new Set());
         }
         
-        // Type validation
-        this.validateTypes(state);
-        
-        // Circular reference check
-        this.checkCircularReferences(state);
-        
-        return true;
-    }
-    
-    validateWithSchema(state) {
-        // Implement schema validation based on JSON Schema or similar
-        // This is a simplified version
-        const schema = this.options.schema;
-        
-        if (schema.required) {
-            schema.required.forEach(field => {
-                if (state[field] === undefined) {
-                    throw new Error(`Required field missing: ${field}`);
-                }
-            });
-        }
-    }
-    
-    validateTypes(state) {
-        // Basic type validation
-        const validate = (value, path = '') => {
-            if (value === null || value === undefined) return;
+        const listenerWrapper = (newState, oldState) => {
+            const newValue = this.getByPath(newState, path);
+            const oldValue = this.getByPath(oldState, path);
             
-            if (Array.isArray(value)) {
-                value.forEach((item, index) => validate(item, `${path}[${index}]`));
-            } else if (typeof value === 'object' && !(value instanceof Date)) {
-                Object.entries(value).forEach(([key, val]) => validate(val, path ? `${path}.${key}` : key));
-            } else if (typeof value === 'function') {
-                throw new Error(`Functions are not allowed in state (at ${path})`);
+            if (JSON.stringify(newValue) !== JSON.stringify(oldValue)) {
+                callback(newValue, oldValue);
             }
         };
         
-        validate(state);
-    }
-    
-    checkCircularReferences(obj, seen = new Set()) {
-        if (obj && typeof obj === 'object') {
-            if (seen.has(obj)) {
-                throw new Error('Circular reference detected in state');
-            }
-            
-            seen.add(obj);
-            
-            for (const key in obj) {
-                if (obj.hasOwnProperty(key)) {
-                    this.checkCircularReferences(obj[key], new Set(seen));
-                }
-            }
-        }
-    }
-    
-    // ==================== MIDDLEWARE SYSTEM ====================
-    
-    use(middleware) {
-        if (typeof middleware !== 'function') {
-            throw new Error('Middleware must be a function');
-        }
+        this.listeners.get(id).add(listenerWrapper);
         
-        this.middleware.push(middleware);
         return () => {
-            const index = this.middleware.indexOf(middleware);
-            if (index > -1) this.middleware.splice(index, 1);
+            if (this.listeners.has(id)) {
+                this.listeners.get(id).delete(listenerWrapper);
+            }
         };
     }
     
-    runMiddleware(phase, context) {
-        return this.middleware.reduce((ctx, middleware) => {
-            try {
-                const result = middleware(phase, ctx, this);
-                return result !== undefined ? result : ctx;
-            } catch (error) {
-                this.logger?.error(`Middleware error in phase ${phase}:`, error);
-                return ctx;
+    unsubscribe(key, callback) {
+        if (this.listeners.has(key)) {
+            const removed = this.listeners.get(key).delete(callback);
+            if (removed) {
+                this.log(`Unsubscribed from key: ${key}`);
             }
-        }, context);
+            return removed;
+        }
+        return false;
+    }
+    
+    notifyListeners(oldState, newState, description) {
+        for (const [key, callbacks] of this.listeners) {
+            if (key.startsWith('path_')) {
+                // Path listeners
+                callbacks.forEach(callback => {
+                    try {
+                        callback(newState, oldState, description);
+                    } catch (error) {
+                        console.error(`Path listener error for ${key}:`, error);
+                    }
+                });
+            } else if (key in newState || key in oldState) {
+                // Key-based listeners
+                callbacks.forEach(callback => {
+                    try {
+                        callback(newState[key], oldState[key], description);
+                    } catch (error) {
+                        console.error(`Listener error for ${key}:`, error);
+                    }
+                });
+            }
+        }
+    }
+    
+    // ==================== EVENT SYSTEM (INTERNAL) ====================
+    
+    on(event, callback) {
+        if (!this.events.has(event)) {
+            this.events.set(event, new Set());
+        }
+        this.events.get(event).add(callback);
+        
+        return () => this.off(event, callback);
+    }
+    
+    off(event, callback) {
+        if (this.events.has(event)) {
+            return this.events.get(event).delete(callback);
+        }
+        return false;
+    }
+    
+    emitEvent(event, data) {
+        if (this.events.has(event)) {
+            this.events.get(event).forEach(callback => {
+                try {
+                    callback(data);
+                } catch (error) {
+                    console.error(`Event handler error for ${event}:`, error);
+                }
+            });
+        }
+    }
+    
+    // ==================== PERSISTENCE ====================
+    
+    saveToStorage(key = null) {
+        try {
+            const storageKey = key || `hyperlang_state_${this.config.name}`;
+            const data = {
+                state: this.state,
+                metadata: this.metadata,
+                version: '2.0.0',
+                savedAt: Date.now()
+            };
+            
+            localStorage.setItem(storageKey, JSON.stringify(data));
+            
+            this.emitEvent('state:saved', {
+                key: storageKey,
+                size: JSON.stringify(data).length,
+                timestamp: Date.now()
+            });
+            
+            return true;
+        } catch (error) {
+            console.error('Failed to save state:', error);
+            return false;
+        }
+    }
+    
+    loadFromStorage(key = null) {
+        try {
+            const storageKey = key || `hyperlang_state_${this.config.name}`;
+            const stored = localStorage.getItem(storageKey);
+            
+            if (!stored) {
+                this.log('No stored state found');
+                return false;
+            }
+            
+            const data = JSON.parse(stored);
+            
+            if (data.version !== '2.0.0') {
+                console.warn('State version mismatch:', data.version);
+                return false;
+            }
+            
+            this.state = data.state;
+            this.metadata = data.metadata;
+            this.history = [];
+            this.future = [];
+            
+            this.notifyListeners({}, this.state, 'loaded from storage');
+            this.emitEvent('state:loaded', {
+                key: storageKey,
+                timestamp: Date.now()
+            });
+            
+            return true;
+        } catch (error) {
+            console.error('Failed to load state:', error);
+            return false;
+        }
+    }
+    
+    clearStorage(key = null) {
+        const storageKey = key || `hyperlang_state_${this.config.name}`;
+        localStorage.removeItem(storageKey);
+        this.log(`Storage cleared for key: ${storageKey}`);
     }
     
     // ==================== UTILITY METHODS ====================
     
-    createInitialState() {
-        return {
-            version: '1.0.0',
-            timestamp: Date.now(),
-            data: {},
-            ui: {
-                isLoading: false,
+    initializeState(initialState) {
+        const defaultState = {
+            app: {
+                name: 'HyperLang',
+                version: '1.0.0',
                 theme: 'dark',
-                language: 'fa'
+                language: 'fa',
+                isLoading: false
             },
-            user: null,
-            session: {
+            user: {
+                id: null,
+                name: 'Guest',
+                email: null,
                 isAuthenticated: false,
-                lastActivity: Date.now()
+                level: 'beginner',
+                streak: 0
+            },
+            lessons: {
+                current: null,
+                completed: [],
+                progress: {}
+            },
+            ui: {
+                sidebarOpen: true,
+                notifications: true,
+                soundEnabled: true
             }
         };
-    }
-    
-    initializeState(initialState) {
-        // Merge with default state structure
-        const defaultState = this.createInitialState();
-        const state = this.deepMerge(defaultState, initialState);
         
-        // Validate initial state
-        this.validateState(state);
-        
-        return state;
-    }
-    
-    deepClone(obj) {
-        if (obj === null || typeof obj !== 'object') return obj;
-        if (obj instanceof Date) return new Date(obj);
-        if (Array.isArray(obj)) return obj.map(item => this.deepClone(item));
-        
-        const cloned = {};
-        for (const key in obj) {
-            if (obj.hasOwnProperty(key)) {
-                cloned[key] = this.deepClone(obj[key]);
-            }
-        }
-        return cloned;
+        return this.deepMerge(defaultState, initialState);
     }
     
     deepMerge(target, source) {
@@ -506,8 +415,6 @@ export class StateManager {
                     } else {
                         output[key] = this.deepMerge(target[key], source[key]);
                     }
-                } else if (Array.isArray(source[key]) && Array.isArray(target[key])) {
-                    output[key] = [...target[key], ...source[key]];
                 } else {
                     output[key] = source[key];
                 }
@@ -523,10 +430,9 @@ export class StateManager {
     
     getByPath(obj, path) {
         return path.split('.').reduce((current, key) => {
-            if (current && typeof current === 'object' && key in current) {
-                return current[key];
-            }
-            return undefined;
+            return current && typeof current === 'object' && key in current 
+                ? current[key] 
+                : undefined;
         }, obj);
     }
     
@@ -544,8 +450,29 @@ export class StateManager {
         return obj;
     }
     
-    generateChecksum(state) {
-        const str = JSON.stringify(state);
+    validateState(state) {
+        // Basic validation - can be extended
+        if (!state || typeof state !== 'object') {
+            throw new Error('State must be an object');
+        }
+        
+        if (Array.isArray(state)) {
+            throw new Error('State cannot be an array');
+        }
+        
+        // Check for functions (not allowed in state)
+        const hasFunctions = JSON.stringify(state, (key, value) => {
+            if (typeof value === 'function') {
+                throw new Error(`Functions not allowed in state (key: ${key})`);
+            }
+            return value;
+        });
+        
+        return true;
+    }
+    
+    generateChecksum(data) {
+        const str = JSON.stringify(data);
         let hash = 0;
         
         for (let i = 0; i < str.length; i++) {
@@ -557,196 +484,76 @@ export class StateManager {
         return hash.toString(16);
     }
     
-    generateId() {
-        return `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    }
+    // ==================== DEBUG & LOGGING ====================
     
-    // ==================== EVENT HANDLING ====================
-    
-    setupEventListeners() {
-        // Listen for external state updates
-        this.eventBus.on(`state:${this.options.name}:update`, (event) => {
-            if (event.data && event.data.state) {
-                this.setState(event.data.state, event.data.description || 'external update');
-            }
-        });
-        
-        // Listen for reset commands
-        this.eventBus.on(`state:${this.options.name}:reset`, () => {
-            this.replaceState(this.options.initialState, 'reset');
-        });
-        
-        // Listen for snapshot requests
-        this.eventBus.on(`state:${this.options.name}:snapshot`, (event) => {
-            const snapshot = this.getSnapshot();
-            this.eventBus.emit(`state:${this.options.name}:snapshotResponse`, {
-                requestId: event.data?.requestId,
-                snapshot
-            });
-        });
-    }
-    
-    notifyListeners(oldState, newState, description) {
-        for (const [id, listenerData] of this.listeners) {
-            try {
-                if (listenerData.isPathListener) {
-                    const oldValue = this.getByPath(oldState, listenerData.path);
-                    const newValue = this.getByPath(newState, listenerData.path);
-                    
-                    if (JSON.stringify(oldValue) !== JSON.stringify(newValue)) {
-                        listenerData.listener(newValue, oldValue, description);
-                        listenerData.lastValue = newValue;
-                    }
-                } else if (listenerData.selector) {
-                    const oldSelected = listenerData.selector(oldState);
-                    const newSelected = listenerData.selector(newState);
-                    
-                    if (JSON.stringify(oldSelected) !== JSON.stringify(newSelected)) {
-                        listenerData.listener(newSelected, oldSelected, description);
-                    }
-                } else {
-                    listenerData.listener(newState, oldState, description);
-                }
-                
-                listenerData.lastState = this.deepClone(newState);
-            } catch (error) {
-                this.logger?.error(`Listener error for ${id}:`, error);
-                this.eventBus.emit(`state:${this.options.name}:listenerError`, {
-                    listenerId: id,
-                    error: error.message
-                });
-            }
+    setupDebug() {
+        if (this.config.debug) {
+            // Expose to window for debugging
+            window[`stateManager_${this.config.name}`] = this;
+            
+            // Log initial state
+            this.log('Initial state:', this.state);
         }
     }
-    
-    // ==================== AUTO SAVE ====================
     
     setupAutoSave() {
-        if (!this.options.autoSave) return;
-        
-        this.autoSaveInterval = setInterval(() => {
-            this.saveToStorage();
-        }, this.options.autoSaveInterval);
-        
-        // Also save on page unload
-        window.addEventListener('beforeunload', () => {
-            this.saveToStorage();
-        });
-    }
-    
-    saveToStorage() {
-        try {
-            const data = {
-                state: this.state,
-                metadata: this.metadata,
-                version: '1.0.0',
-                timestamp: Date.now()
-            };
+        if (this.config.autoSave) {
+            // Auto-save every 30 seconds
+            this.autoSaveInterval = setInterval(() => {
+                this.saveToStorage();
+            }, 30000);
             
-            localStorage.setItem(`hyperlang_state_${this.options.name}`, JSON.stringify(data));
-            
-            this.eventBus.emit(`state:${this.options.name}:saved`, {
-                timestamp: Date.now(),
-                size: JSON.stringify(data).length
-            });
-        } catch (error) {
-            this.logger?.error('Failed to save state:', error);
-        }
-    }
-    
-    loadFromStorage() {
-        try {
-            const stored = localStorage.getItem(`hyperlang_state_${this.options.name}`);
-            if (!stored) return false;
-            
-            const data = JSON.parse(stored);
-            
-            if (data.version !== '1.0.0') {
-                this.logger?.warn(`State version mismatch: ${data.version}`);
-                return false;
-            }
-            
-            this.replaceState(data.state, 'loaded from storage');
-            this.metadata = data.metadata;
-            
-            this.eventBus.emit(`state:${this.options.name}:loaded`, {
-                timestamp: Date.now(),
-                fromStorage: true
-            });
-            
-            return true;
-        } catch (error) {
-            this.logger?.error('Failed to load state:', error);
-            return false;
-        }
-    }
-    
-    // ==================== DEV TOOLS INTEGRATION ====================
-    
-    setupDevTools() {
-        if (!CONFIG.APP.DEBUG) return;
-        
-        // Expose to window for debugging
-        window[`stateManager_${this.options.name}`] = this;
-        
-        // Connect to Redux DevTools if available
-        if (window.__REDUX_DEVTOOLS_EXTENSION__) {
-            this.devtools = window.__REDUX_DEVTOOLS_EXTENSION__.connect({
-                name: `HyperLang State: ${this.options.name}`,
-                features: {
-                    pause: true,
-                    lock: true,
-                    persist: false,
-                    export: true,
-                    import: 'custom',
-                    jump: true,
-                    skip: false,
-                    reorder: false,
-                    dispatch: false,
-                    test: false
-                }
-            });
-            
-            this.devtools.init(this.state);
-            
-            // Subscribe to state changes
-            this.subscribe((state) => {
-                this.devtools.send('STATE_CHANGE', state);
+            // Save on page unload
+            window.addEventListener('beforeunload', () => {
+                this.saveToStorage();
             });
         }
     }
     
-    // ==================== CONTRACT VALIDATION ====================
+    log(...args) {
+        if (this.config.debug) {
+            console.log(`[StateManager:${this.config.name}]`, ...args);
+        }
+    }
     
-    validateContract() {
-        const errors = [];
-        
-        // Validate against STATE_CONTRACT
-        if (!this.state || typeof this.state !== 'object') {
-            errors.push('State must be an object');
+    // ==================== DEBUG METHODS ====================
+    
+    getHistorySize() {
+        return this.history.length;
+    }
+    
+    getFutureSize() {
+        return this.future.length;
+    }
+    
+    getListenerCount() {
+        let count = 0;
+        for (const callbacks of this.listeners.values()) {
+            count += callbacks.size;
         }
+        return count;
+    }
+    
+    getMetadata() {
+        return { ...this.metadata };
+    }
+    
+    // ==================== RESET & DESTROY ====================
+    
+    reset() {
+        const oldState = this.state;
+        this.state = this.initializeState({});
+        this.history = [];
+        this.future = [];
         
-        if (!this.metadata || !this.metadata.version) {
-            errors.push('State metadata missing version');
-        }
-        
-        // Validate methods exist
-        const requiredMethods = ['getState', 'setState', 'subscribe', 'unsubscribe', 'getSnapshot'];
-        requiredMethods.forEach(method => {
-            if (typeof this[method] !== 'function') {
-                errors.push(`Missing required method: ${method}`);
-            }
+        this.notifyListeners(oldState, this.state, 'reset');
+        this.emitEvent('state:reset', { 
+            oldState, 
+            newState: this.state 
         });
         
-        return {
-            valid: errors.length === 0,
-            errors,
-            contract: STATE_CONTRACT,
-            timestamp: new Date().toISOString()
-        };
+        this.log('State reset to initial values');
     }
-    
-    // ==================== LIFECYCLE ====================
     
     destroy() {
         // Clear intervals
@@ -754,38 +561,105 @@ export class StateManager {
             clearInterval(this.autoSaveInterval);
         }
         
-        // Remove listeners
+        // Clear listeners
         this.listeners.clear();
+        this.events.clear();
         
-        // Remove from window
-        if (CONFIG.APP.DEBUG) {
-            delete window[`stateManager_${this.options.name}`];
+        // Clear from window
+        if (this.config.debug) {
+            delete window[`stateManager_${this.config.name}`];
         }
         
-        // Disconnect devtools
-        if (this.devtools) {
-            this.devtools.unsubscribe();
+        this.log('StateManager destroyed');
+    }
+    
+    // ==================== QUICK API (for easy use) ====================
+    
+    get(path) {
+        return this.getByPath(this.state, path);
+    }
+    
+    set(path, value) {
+        const newState = JSON.parse(JSON.stringify(this.state));
+        this.setByPath(newState, path, value);
+        return this.setState(newState, `set ${path}`);
+    }
+    
+    update(path, updater) {
+        const current = this.getByPath(this.state, path);
+        const newValue = typeof updater === 'function' ? updater(current) : updater;
+        return this.set(path, newValue);
+    }
+    
+    toggle(path) {
+        const current = this.getByPath(this.state, path);
+        if (typeof current === 'boolean') {
+            return this.set(path, !current);
         }
-        
-        this.logger?.log(`StateManager "${this.options.name}" destroyed`);
+        return false;
+    }
+    
+    increment(path, amount = 1) {
+        const current = this.getByPath(this.state, path);
+        if (typeof current === 'number') {
+            return this.set(path, current + amount);
+        }
+        return false;
+    }
+    
+    push(path, item) {
+        const current = this.getByPath(this.state, path);
+        if (Array.isArray(current)) {
+            const newArray = [...current, item];
+            return this.set(path, newArray);
+        }
+        return false;
     }
 }
 
-// ==================== GLOBAL STATE MANAGER INSTANCE ====================
+// ==================== GLOBAL INSTANCE ====================
 
-// Create default global state manager
-export const stateManager = new StateManager({
+// Create default global instance
+const stateManager = new StateManager({
     name: 'global',
-    strict: true,
-    autoSave: true
+    debug: true,
+    autoSave: true,
+    maxHistory: 100
 });
 
-// Register with context
-context.registerSingleton('stateManager', stateManager);
+// Auto-load from storage on init
+setTimeout(() => {
+    stateManager.loadFromStorage();
+}, 100);
 
-// Export for global use
+// Export for ES6 modules
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = { StateManager, stateManager };
+}
+
+// Make available globally for browser
 if (typeof window !== 'undefined') {
+    window.StateManager = StateManager;
     window.stateManager = stateManager;
 }
 
-export default stateManager;
+console.log('✅ StateManager 2.0.0 loaded (Standalone Version)');
+
+// Optional: Initialize with some demo data for testing
+if (typeof window !== 'undefined' && window.location.href.includes('debug')) {
+    setTimeout(() => {
+        stateManager.setState({
+            user: { 
+                name: 'تست کاربر', 
+                level: 'intermediate',
+                streak: 7 
+            },
+            app: { 
+                theme: 'dark',
+                language: 'fa'
+            }
+        }, 'demo initialization');
+        
+        console.log('Demo state initialized:', stateManager.getState());
+    }, 500);
+    }
