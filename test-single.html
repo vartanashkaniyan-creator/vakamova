@@ -1,0 +1,13 @@
+<script type="module">
+// تست کنفیک
+import('./core/config.js').then(() => console.log('✅ config.js OK')).catch(e => console.error('❌ config.js:', e));
+
+// تست کانتکست
+import('./core/context-provider.js').then(() => console.log('✅ context-provider.js OK')).catch(e => console.error('❌ context-provider.js:', e));
+
+// تست ایونت باس
+import('./core/event-bus.js').then(() => console.log('✅ event-bus.js OK')).catch(e => console.error('❌ event-bus.js:', e));
+
+// تست استیت منیجر
+import('./core/state-manager.js').then(() => console.log('✅ state-manager.js OK')).catch(e => console.error('❌ state-manager.js:', e));
+</script>
