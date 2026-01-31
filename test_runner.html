@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔬 تست هسته Vakamova</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); color: #e6e6e6; min-height: 100vh; padding: 20px; line-height: 1.6; }
+        
+        .container { max-width: 1200px; margin: 0 auto; }
+        header { text-align: center; margin-bottom: 40px; padding: 30px; background: rgba(255, 255, 255, 0.05); border-radius: 20px; border: 1px solid rgba(255, 255, 255, 0.1); }
+        h1 { color: #64ffda; font-size: 2.8rem; margin-bottom: 10px; }
+        .subtitle { color: #8892b0; font-size: 1.2rem; }
+        
+        .test-section { background: rgba(17, 34, 64, 0.7); border-radius: 15px; padding: 25px; margin-bottom: 25px; border: 1px solid rgba(100, 255, 218, 0.2); transition: all 0.3s; }
+        .test-section:hover { border-color: rgba(100, 255, 218, 0.5); box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3); }
+        
+        .test-title { color: #64ffda; font-size: 1.5rem; margin-bottom: 15px; display: flex; align-items: center; gap: 10px; }
+        .test-title::before { content: '🧪'; }
+        
+        .file-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px; margin: 25px 0; }
+        .file-card { background: rgba(255, 255, 255, 0.05); padding: 15px; border-radius: 10px; text-align: center; border: 1px solid transparent; transition: all 0.3s; }
+        .file-card.loaded { border-color: #4CAF50; background: rgba(76, 175, 80, 0.1); }
+        .file-card.error { border-color: #ff5252; background: rgba(255, 82, 82, 0.1); }
+        .file-card .status { font-size: 0.9rem; margin-top: 8px; font-weight: bold; }
+        .file-card.loaded .status { color: #4CAF50; }
+        .file-card.error .status { color: #ff5252; }
+        
+        .control-panel { display: flex; gap: 15px; margin: 30px 0; flex-wrap: wrap; }
+        .btn { padding: 14px 28px; border: none; border-radius: 10px; font-size: 1.1rem; font-weight: bold; cursor: pointer; transition: all 0.3s; display: flex; align-items: center; justify-content: center; gap: 10px; }
+        .btn-primary { background: linear-gradient(135deg, #0d7377 0%, #14ffec 100%); color: #000; }
+        .btn-primary:hover { transform: translateY(-3px); box-shadow: 0 7px 15px rgba(13, 115, 119, 0.4); }
+        .btn-secondary { background: rgba(255, 255, 255, 0.1); color: #fff; border: 1px solid rgba(255, 255, 255, 0.2); }
+        .btn-secondary:hover { background: rgba(255, 255, 255, 0.2); }
+        
+        .log-container { background: rgba(0, 0, 0, 0.5); border-radius: 10px; padding: 20px; margin-top: 25px; max-height: 400px; overflow-y: auto; font-family: 'Courier New', monospace; }
+        .log-entry { padding: 10px; border-bottom: 1px solid rgba(255, 255, 255, 0.1); }
+        .log-entry.success { color: #4CAF50; border-left: 4px solid #4CAF50; padding-left: 15px; }
+        .log-entry.error { color: #ff5252; border-left: 4px solid #ff5252; padding-left: 15px; }
+        .log-entry.info { color: #64b5f6; border-left: 4px solid #64b5f6; padding-left: 15px; }
+        .log-entry.warn { color: #ffb74d; border-left: 4px solid #ffb74d; padding-left: 15px; }
+        
+        .progress-bar { width: 100%; height: 8px; background: rgba(255, 255, 255, 0.1); border-radius: 4px; margin: 20px 0; overflow: hidden; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, #0d7377, #14ffec); width: 0%; transition: width 0.5s ease; }
+        
+        .summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-top: 30px; }
+        .summary-card { background: rgba(255, 255, 255, 0.05); padding: 20px; border-radius: 10px; text-align: center; }
+        .summary-card h3 { color: #8892b0; margin-bottom: 10px; font-size: 1rem; }
+        .summary-card .value { font-size: 2.5rem; font-weight: bold; }
+        .summary-card.passed .value { color: #4CAF50; }
+        .summary-card.failed .value { color: #ff5252; }
+        
+        @media (max-width: 768px) {
+            .file-list { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+            .control-panel { flex-direction: column; }
+            .btn { width: 100%; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🔬 تستر هسته Vakamova</h1>
+            <p class="subtitle">آزمایش ۱۰ فایل اصلی پروژه (۶ فایل اول + ۴ فایل جدید)</p>
+        </header>
+        
+        <div class="test-section">
+            <h2 class="test-title">فایل‌های هسته</h2>
+            <div class="file-list" id="fileList">
+                <!-- فایل‌ها به صورت دینامیک اینجا لود می‌شوند -->
+            </div>
+            
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            
+            <div class="control-panel">
+                <button class="btn btn-primary" onclick="loadAllFiles()">
+                    <span>📂 بارگذاری همه فایل‌ها</span>
+                </button>
+                <button class="btn btn-secondary" onclick="runBasicTests()">
+                    <span>⚡ اجرای تست‌های پایه</span>
+                </button>
+                <button class="btn btn-secondary" onclick="runIntegrationTests()">
+                    <span>🔗 تست ارتباط فایل‌ها</span>
+                </button>
+                <button class="btn btn-secondary" onclick="clearLogs()">
+                    <span>🗑️ پاک کردن لاگ‌ها</span>
+                </button>
+            </div>
+        </div>
+        
+        <div class="summary" id="summarySection">
+            <div class="summary-card passed">
+                <h3>فایل‌های بارگذاری شده</h3>
+                <div class="value" id="loadedCount">0</div>
+            </div>
+            <div class="summary-card passed">
+                <h3>تست‌های موفق</h3>
+                <div class="value" id="passedCount">0</div>
+            </div>
+            <div class="summary-card failed">
+                <h3>تست‌های ناموفق</h3>
+                <div class="value" id="failedCount">0</div>
+            </div>
+            <div class="summary-card">
+                <h3>کل تست‌ها</h3>
+                <div class="value" id="totalTests">0</div>
+            </div>
+        </div>
+        
+        <div class="test-section">
+            <h2 class="test-title">📋 گزارش اجرا</h2>
+            <div class="log-container" id="logContainer">
+                <!-- لاگ‌ها اینجا نمایش داده می‌شوند -->
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // ==================== CONFIGURATION ====================
+        const CORE_FILES = [
+            // 6 فایل اول شما
+            { name: 'event_bus.js', path: 'core/event_bus.js', type: 'core' },
+            { name: 'context_provider.js', path: 'core/context_provider.js', type: 'core' },
+            { name: 'state_manager.js', path: 'core/state_manager.js', type: 'core' },
+            { name: 'api_client.js', path: 'core/api_client.js', type: 'core' },
+            
+            // فایل‌های اصلی اولیه (فرضی - اسم‌ها را اصلاح کنید)
+            { name: 'state.js', path: 'core/state.js', type: 'base' },
+            { name: 'router.js', path: 'core/router.js', type: 'base' },
+            { name: 'database.js', path: 'core/database.js', type: 'base' },
+            { name: 'api.js', path: 'core/api.js', type: 'base' },
+            { name: 'utils.js', path: 'core/utils.js', type: 'base' },
+            { name: 'config.js', path: 'core/config.js', type: 'base' }
+        ];
+        
+        // ==================== STATE MANAGEMENT ====================
+        const appState = {
+            loadedFiles: new Set(),
+            testResults: { passed: 0, failed: 0, total: 0 },
+            logs: []
+        };
+        
+        // ==================== LOGGING SYSTEM ====================
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString('fa-IR');
+            const logEntry = { message, type, timestamp };
+            appState.logs.push(logEntry);
+            
+            // نمایش در صفحه
+            const logElement = document.createElement('div');
+            logElement.className = `log-entry ${type}`;
+            logElement.innerHTML = `
+                <strong>[${timestamp}]</strong> 
+                <span>${message}</span>
+            `;
+            
+            document.getElementById('logContainer').prepend(logElement);
+            console.log(`[${type.toUpperCase()}] ${message}`);
+            
+            // آپدیت خلاصه
+            updateSummary();
+        }
+        
+        // ==================== FILE LOADER ====================
+        async function loadFile(fileInfo) {
+            return new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                script.src = fileInfo.path;
+                script.type = 'module'; // مهم: برای ES6 Modules
+                
+                script.onload = () => {
+                    appState.loadedFiles.add(fileInfo.name);
+                    updateFileCard(fileInfo.name, 'loaded');
+                    log(`✅ فایل "${fileInfo.name}" بارگذاری شد`, 'success');
+                    updateProgress();
+                    resolve(fileInfo.name);
+                };
+                
+                script.onerror = () => {
+                    updateFileCard(fileInfo.name, 'error');
+                    log(`❌ خطا در بارگذاری "${fileInfo.name}"`, 'error');
+                    reject(new Error(`Failed to load ${fileInfo.name}`));
+                };
+                
+                document.head.appendChild(script);
+            });
+        }
+        
+        async function loadAllFiles() {
+            log('🚀 شروع بارگذاری همه فایل‌ها...', 'info');
+            document.getElementById('progressFill').style.width = '0%';
+            
+            for (let i = 0; i < CORE_FILES.length; i++) {
+                const file = CORE_FILES[i];
+                try {
+                    await loadFile(file);
+                    // تأخیر کوتاه برای نمایش بهتر
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                } catch (error) {
+                    log(`خطا در فایل ${file.name}: ${error.message}`, 'error');
+                }
+            }
+            
+            log('🎉 بارگذاری فایل‌ها کامل شد!', 'success');
+        }
+        
+        // ==================== TEST FUNCTIONS ====================
+        async function runBasicTests() {
+            log('🧪 شروع تست‌های پایه...', 'info');
+            
+            // تست ۱: بررسی EventBus
+            if (typeof eventBus !== 'undefined') {
+                try {
+                    eventBus.emit('test:event', { data: 'test' });
+                    log('✅ EventBus پاسخ می‌دهد', 'success');
+                    appState.testResults.passed++;
+                } catch (e) {
+                    log(`❌ EventBus خطا داد: ${e.message}`, 'error');
+                    appState.testResults.failed++;
+                }
+            }
+            
+            // تست ۲: بررسی State Manager
+            if (typeof HyperStateManager !== 'undefined') {
+                try {
+                    const testState = new HyperStateManager(eventBus);
+                    testState.set('test', 'value');
+                    const value = testState.get('test');
+                    if (value === 'value') {
+                        log('✅ StateManager کار می‌کند', 'success');
+                        appState.testResults.passed++;
+                    }
+                } catch (e) {
+                    log(`❌ StateManager خطا داد: ${e.message}`, 'error');
+                    appState.testResults.failed++;
+                }
+            }
+            
+            // تست ۳: بررسی API Client
+            if (typeof HyperApiClient !== 'undefined') {
+                try {
+                    const api = new HyperApiClient(eventBus, { baseURL: 'https://jsonplaceholder.typicode.com' });
+                    log('✅ API Client ساخته شد', 'success');
+                    appState.testResults.passed++;
+                } catch (e) {
+                    log(`❌ API Client خطا داد: ${e.message}`, 'warn');
+                }
+            }
+            
+            appState.testResults.total = appState.testResults.passed + appState.testResults.failed;
+            updateSummary();
+            log(`📊 تست‌های پایه کامل شد: ${appState.testResults.passed} موفق، ${appState.testResults.failed} ناموفق`, 'info');
+        }
+        
+        async function runIntegrationTests() {
+            if (appState.loadedFiles.size < 4) {
+                log('⚠️ ابتدا فایل‌ها را بارگذاری کنید', 'warn');
+                return;
+            }
+            
+            log('🔗 شروع تست ارتباط فایل‌ها...', 'info');
+            
+            try {
+                // تست یکپارچه ۱: EventBus → StateManager
+                const testState = new HyperStateManager(eventBus);
+                let eventReceived = false;
+                
+                eventBus.on('state:changed', () => {
+                    eventReceived = true;
+                });
+                
+                testState.set('integration.test', 'working');
+                
+                setTimeout(() => {
+                    if (eventReceived) {
+                        log('✅ EventBus و StateManager با هم ارتباط دارند', 'success');
+                    } else {
+                        log('❌ EventBus و StateManager ارتباط برقرار نکردند', 'error');
+                    }
+                }, 100);
+                
+                // تست یکپارچه ۲: Context Provider → Services
+                if (typeof createContext !== 'undefined') {
+                    const context = createContext(eventBus);
+                    context.register('testService', class TestService {
+                        constructor() { this.name = 'Test'; }
+                    });
+                    
+                    const service = context.resolve('testService');
+                    if (service && service.name === 'Test') {
+                        log('✅ Context Provider سرویس‌ها را مدیریت می‌کند', 'success');
+                    }
+                }
+                
+            } catch (error) {
+                log(`❌ خطا در تست یکپارچه: ${error.message}`, 'error');
+            }
+        }
+        
+        // ==================== UI UPDATERS ====================
+        function updateFileCard(fileName, status) {
+            const card = document.querySelector(`[data-file="${fileName}"]`);
+            if (card) {
+                card.className = `file-card ${status}`;
+                card.querySelector('.status').textContent = 
+                    status === 'loaded' ? '✅ بارگذاری شد' : '❌ خطا';
+            }
+        }
+        
+        function updateProgress() {
+            const progress = (appState.loadedFiles.size / CORE_FILES.length) * 100;
+            document.getElementById('progressFill').style.width = `${progress}%`;
+            document.getElementById('loadedCount').textContent = appState.loadedFiles.size;
+        }
+        
+        function updateSummary() {
+            document.getElementById('passedCount').textContent = appState.testResults.passed;
+            document.getElementById('failedCount').textContent = appState.testResults.failed;
+            document.getElementById('totalTests').textContent = appState.testResults.total;
+        }
+        
+        function clearLogs() {
+            document.getElementById('logContainer').innerHTML = '';
+            appState.logs = [];
+            log('🗑️ لاگ‌ها پاک شدند', 'info');
+        }
+        
+        // ==================== INITIALIZATION ====================
+        function initializeFileList() {
+            const fileList = document.getElementById('fileList');
+            fileList.innerHTML = '';
+            
+            CORE_FILES.forEach(file => {
+                const card = document.createElement('div');
+                card.className = 'file-card';
+                card.setAttribute('data-file', file.name);
+                card.innerHTML = `
+                    <div class="file-name">📄 ${file.name}</div>
+                    <div class="file-type">${file.type === 'core' ? 'هسته' : 'پایه'}</div>
+                    <div class="status">⏳ در انتظار</div>
+                `;
+                fileList.appendChild(card);
+            });
+        }
+        
+        // ==================== START APP ====================
+        window.addEventListener('DOMContentLoaded', () => {
+            initializeFileList();
+            log('🟢 تستر Vakamova آماده است', 'success');
+            log(`هدف: آزمایش ${CORE_FILES.length} فایل اصلی`, 'info');
+        });
+        
+        // Global exports برای تست دستی در کنسول
+        window.VakamovaTester = {
+            loadAllFiles,
+            runBasicTests,
+            runIntegrationTests,
+            clearLogs,
+            getState: () => ({ ...appState }),
+            log
+        };
+    </script>
+</body>
+</html>
