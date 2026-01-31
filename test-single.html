@@ -1,10 +1,11 @@
+
 <!DOCTYPE html>
 <html>
 <head>
-    <title>تست HyperLang</title>
+    <title>تست Vakamova</title>
 </head>
 <body>
-    <h1>بررسی فایل‌های هسته</h1>
+    <h1>بررسی فایل‌های هسته Vakamova</h1>
     
     <!-- همین ترتیب لود کن -->
     <script src="utils.js"></script>
@@ -15,23 +16,42 @@
     <script src="database.js"></script>
     
     <script>
-    // ۳ ثانیه صبر کن سپس چک کن
     setTimeout(() => {
-        console.log('بررسی شروع شد...');
+        console.log('🚀 تست Vakamova شروع شد...');
         
-        // اگر این پیام‌ها را دیدی، مشکل از نام کلاس‌هاست
-        if (typeof Database === 'undefined') console.log('⚠️ Database کلاس پیدا نشد');
-        if (typeof State === 'undefined') console.log('⚠️ State کلاس پیدا نشد');
-        if (typeof Router === 'undefined') console.log('⚠️ Router کلاس پیدا نشد');
-        if (typeof Auth === 'undefined') console.log('⚠️ Auth کلاس پیدا نشد');
+        // چک کن چه کلاس‌هایی وجود دارند
+        const classes = [
+            'Database', 'StateManager', 'Router', 
+            'Auth', 'API', 'Utils'
+        ];
         
-        // اگر این پیام را دیدی، همه چیز اوکیه
-        if (typeof Database !== 'undefined' && 
-            typeof State !== 'undefined') {
-            console.log('✅ همه فایل‌ها سالم هستند');
-            document.body.innerHTML += '<h2 style="color:green;">آماده برای ساخت صفحه اصلی</h2>';
+        let missing = [];
+        let found = [];
+        
+        classes.forEach(cls => {
+            if (typeof window[cls] === 'undefined') {
+                missing.push(cls);
+                console.log(`❌ ${cls} پیدا نشد`);
+            } else {
+                found.push(cls);
+                console.log(`✅ ${cls} وجود دارد`);
+            }
+        });
+        
+        // نمایش نتیجه
+        if (missing.length === 0) {
+            console.log('🎉 همه فایل‌های Vakamova سالم هستند!');
+            document.body.innerHTML += '<h2 style="color:green; padding:20px;">✅ Vakamova آماده است</h2>';
+        } else {
+            console.log(`⚠️ ${missing.length} فایل مشکل دارند`);
+            document.body.innerHTML += `
+                <h2 style="color:orange; padding:20px;">
+                    ⚠️ بعضی فایل‌ها مشکل دارند
+                </h2>
+                <p>لطفاً این نام کلاس‌ها را بگو: ${missing.join(', ')}</p>
+            `;
         }
-    }, 3000);
+    }, 2000);
     </script>
 </body>
 </html>
