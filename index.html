@@ -1,1 +1,205 @@
 
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vakamova - تست هسته اصلی</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #fff;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+        }
+        h1 {
+            color: #00dbde;
+            font-size: 2.8rem;
+            margin-bottom: 10px;
+            text-shadow: 0 0 20px rgba(0, 219, 222, 0.5);
+        }
+        .subtitle {
+            color: #a0a0c0;
+            font-size: 1.2rem;
+        }
+        .modules-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 25px;
+            margin-bottom: 40px;
+        }
+        .module-card {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(0, 219, 222, 0.3);
+            border-radius: 12px;
+            padding: 25px;
+            transition: all 0.3s ease;
+        }
+        .module-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0, 219, 222, 0.2);
+        }
+        .module-card h3 {
+            color: #00dbde;
+            margin-bottom: 15px;
+            font-size: 1.4rem;
+        }
+        .module-status {
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            margin-bottom: 15px;
+        }
+        .status-active {
+            background: rgba(0, 255, 0, 0.2);
+            color: #00ff00;
+        }
+        .test-section {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 12px;
+            padding: 30px;
+            margin-top: 30px;
+        }
+        .test-buttons {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            margin-top: 20px;
+        }
+        .btn {
+            padding: 12px 25px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: bold;
+        }
+        .btn-primary {
+            background: linear-gradient(45deg, #00dbde, #0093e9);
+            color: white;
+        }
+        .btn-primary:hover {
+            transform: scale(1.05);
+            box-shadow: 0 5px 20px rgba(0, 219, 222, 0.4);
+        }
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+        .logs {
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 30px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+        }
+        .log-entry {
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            color: #a0e7a0;
+        }
+        .log-error { color: #ff6b6b; }
+        .log-info { color: #4fc3f7; }
+        .log-success { color: #69f0ae; }
+        footer {
+            text-align: center;
+            margin-top: 40px;
+            color: #a0a0c0;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🚀 Vakamova</h1>
+            <p class="subtitle">سیستم هسته اصلی - تست اتصال ماژول‌ها</p>
+        </header>
+
+        <div class="modules-grid">
+            <div class="module-card">
+                <span class="module-status status-active">فعال</span>
+                <h3>📦 پایگاه داده</h3>
+                <p>مدیریت ذخیره‌سازی IndexedDB با قابلیت همگام‌سازی</p>
+            </div>
+            <div class="module-card">
+                <span class="module-status status-active">فعال</span>
+                <h3>⚙️ مدیریت وضعیت</h3>
+                <p>State Management با قابلیت Undo/Redo</p>
+            </div>
+            <div class="module-card">
+                <span class="module-status status-active">فعال</span>
+                <h3>🛣️ مسیریابی</h3>
+                <p>Router پیشرفته با قابلیت Lazy Loading</p>
+            </div>
+            <div class="module-card">
+                <span class="module-status status-active">فعال</span>
+                <h3>🔐 احراز هویت</h3>
+                <p>سیستم امن Login/Register با JWT</p>
+            </div>
+            <div class="module-card">
+                <span class="module-status status-active">فعال</span>
+                <h3>🌐 API Client</h3>
+                <p>ارتباط با سرور با قابلیت Retry & Cache</p>
+            </div>
+            <div class="module-card">
+                <span class="module-status status-active">فعال</span>
+                <h3>🛠️ ابزارها</h3>
+                <p>توابع کمکی و Utilities عمومی</p>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2>🧪 تست عملکرد</h2>
+            <p>برای بررسی اتصال ماژول‌ها دکمه‌های زیر را امتحان کنید:</p>
+            
+            <div class="test-buttons">
+                <button class="btn btn-primary" onclick="testDatabase()">
+                    تست پایگاه داده
+                </button>
+                <button class="btn btn-primary" onclick="testState()">
+                    تست مدیریت وضعیت
+                </button>
+                <button class="btn btn-primary" onclick="testRouter()">
+                    تست مسیریابی
+                </button>
+                <button class="btn btn-secondary" onclick="testAllModules()">
+                    تست کامل همه ماژول‌ها
+                </button>
+                <button class="btn btn-secondary" onclick="clearLogs()">
+                    پاک کردن لاگ‌ها
+                </button>
+            </div>
+
+            <div class="logs" id="log-container">
+                <div class="log-entry log-info">سیستم Vakamova آماده تست است...</div>
+            </div>
+        </div>
+
+        <footer>
+            <p>پروژه آموزش زبان ۱۲ زبانه | نسخه هسته ۱.۰.۰ | توسعه با JavaScript خالص</p>
+        </footer>
+    </div>
+
+    <script type="module" src="main.js"></script>
+</body>
+</html>
