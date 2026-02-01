@@ -3,40 +3,131 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vakamova - تست</title>
+    <title>Vakamova - آموزش زبان ۱۲ زبانه</title>
     <style>
-        body {
-            background: #1a237e;
-            color: white;
-            font-family: Tahoma;
-            text-align: center;
-            padding: 50px;
-            direction: rtl;
-        }
-        h1 { color: #00e5ff; }
-        .success { 
-            background: green; 
+        body { 
+            background: #0d0d1a; 
+            color: white; 
+            font-family: Tahoma; 
+            margin: 0; 
             padding: 20px; 
-            border-radius: 10px;
-            margin: 20px;
+            direction: rtl; 
+        }
+        #app { min-height: 100vh; }
+        .loading { 
+            text-align: center; 
+            padding: 100px; 
+            color: #00b0ff; 
         }
     </style>
 </head>
 <body>
-    <h1>✅ Vakamova - صفحه تست</h1>
-    <div class="success">
-        <p>اگر این متن را می‌بینید، GitHub Pages درست کار می‌کند.</p>
-        <p>ساختار پوشه‌ها:</p>
-        <ul style="list-style:none;">
-            <li>📁 core/</li>
-            <li>📁 pages/</li>
-            <li>📁 modules/</li>
-        </ul>
+    <div id="app">
+        <div class="loading">
+            <h1>🚀 Vakamova</h1>
+            <p>در حال راه‌اندازی سیستم...</p>
+        </div>
     </div>
-    
-    <script>
-        console.log('✅ صفحه تست بارگذاری شد');
-        console.log('آدرس:', window.location.href);
+
+    <script type="module">
+        // تنظیمات اصلی
+        const CONFIG = {
+            corePath: './core',
+            pagesPath: './pages',
+            modulesPath: './modules'
+        };
+
+        // سیستم ساده رویداد
+        class EventBus {
+            constructor() { this.events = {}; }
+            on(e, fn) { this.events[e] = this.events[e] || []; this.events[e].push(fn); }
+            emit(e, data) { if(this.events[e]) this.events[e].forEach(fn => fn(data)); }
+        }
+
+        // راه‌انداز اصلی
+        class App {
+            constructor() {
+                this.eventBus = new EventBus();
+                this.state = { user: null, page: 'home' };
+            }
+            
+            async init() {
+                console.log('شروع راه‌اندازی Vakamova...');
+                
+                try {
+                    // 1. بارگذاری ماژول اصلی
+                    await this.loadCoreModules();
+                    
+                    // 2. نمایش صفحه اول
+                    await this.showHomePage();
+                    
+                    console.log('✅ Vakamova راه‌اندازی شد');
+                    this.eventBus.emit('app:ready', { time: Date.now() });
+                    
+                } catch(error) {
+                    console.error('خطا در راه‌اندازی:', error);
+                    this.showError();
+                }
+            }
+            
+            async loadCoreModules() {
+                // فقط ماژول‌های ضروری بارگذاری شوند
+                const modules = ['event_bus', 'state_manager', 'router'];
+                
+                for(const mod of modules) {
+                    try {
+                        await import(`${CONFIG.corePath}/${mod}.js`);
+                        console.log(`✅ ${mod} بارگذاری شد`);
+                    } catch(e) {
+                        console.warn(`⚠️ ${mod} بارگذاری نشد:`, e.message);
+                    }
+                }
+            }
+            
+            async showHomePage() {
+                try {
+                    // بارگذاری صفحه اصلی
+                    const module = await import(`${CONFIG.pagesPath}/home/home_page.js`);
+                    const Page = module.default || module;
+                    const page = new Page();
+                    
+                    // نمایش در #app
+                    const appEl = document.getElementById('app');
+                    if(appEl && page.render) {
+                        appEl.innerHTML = '';
+                        appEl.appendChild(page.render());
+                    }
+                } catch(e) {
+                    // صفحه ساده جایگزین
+                    document.getElementById('app').innerHTML = `
+                        <div style="text-align:center; padding:50px;">
+                            <h1>🌍 Vakamova</h1>
+                            <p>سیستم آموزش ۱۲ زبان</p>
+                            <p style="color:#888;">صفحه اصلی در حال توسعه است</p>
+                        </div>
+                    `;
+                }
+            }
+            
+            showError() {
+                document.getElementById('app').innerHTML = `
+                    <div style="color:#ff5252; text-align:center; padding:50px;">
+                        <h2>⚠️ خطای سیستم</h2>
+                        <p>لطفاً صفحه را رفرش کنید</p>
+                        <button onclick="window.location.reload()">تلاش مجدد</button>
+                    </div>
+                `;
+            }
+        }
+
+        // شروع برنامه
+        document.addEventListener('DOMContentLoaded', () => {
+            const app = new App();
+            app.init();
+            
+            // برای دسترسی از کنسول
+            window.VakamovaApp = app;
+        });
     </script>
 </body>
 </html>
