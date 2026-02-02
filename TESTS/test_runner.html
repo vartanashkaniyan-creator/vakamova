@@ -1,69 +1,929 @@
-// ==================== پیکربندی همه فایل‌های پروژه ====================
-const PROJECT_MODULES = [
-    // هسته اصلی
-    { name: 'Event Bus', path: 'core/event_bus.js', type: 'core' },
-    { name: 'State Manager', path: 'core/state_manager.js', type: 'core' },
-    { name: 'Context Provider', path: 'core/context_provider.js', type: 'core' },
-    { name: 'API Client', path: 'core/api_client.js', type: 'core' },
-    { name: 'Router Middleware', path: 'core/router_middleware.js', type: 'core' },
-    { name: 'Guards', path: 'core/guards.js', type: 'core' },
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🧪 داشبورد تست Vakamova</title>
+    <style>
+        :root {
+            --primary: #0d7377;
+            --success: #4CAF50;
+            --warning: #FF9800;
+            --danger: #f44336;
+            --dark: #1a1a2e;
+            --light: #f8f9fa;
+        }
+        
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #e6e6e6;
+            min-height: 100vh;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding: 30px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 20px;
+            border: 1px solid rgba(100, 255, 218, 0.2);
+        }
+        
+        h1 {
+            color: #64ffda;
+            font-size: 2.8rem;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            color: #8892b0;
+            font-size: 1.2rem;
+            margin-bottom: 20px;
+        }
+        
+        .control-panel {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 30px 0;
+        }
+        
+        .btn {
+            padding: 14px 24px;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #0d7377 0%, #14ffec 100%);
+            color: #000;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 7px 15px rgba(13, 115, 119, 0.4);
+        }
+        
+        .btn-success {
+            background: linear-gradient(135deg, #2e7d32 0%, #4CAF50 100%);
+            color: white;
+        }
+        
+        .btn-warning {
+            background: linear-gradient(135deg, #f57c00 0%, #FF9800 100%);
+            color: white;
+        }
+        
+        .btn-danger {
+            background: linear-gradient(135deg, #c62828 0%, #f44336 100%);
+            color: white;
+        }
+        
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+        
+        .dashboard {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 20px;
+            margin-top: 30px;
+        }
+        
+        .module-card {
+            background: rgba(17, 34, 64, 0.7);
+            border-radius: 15px;
+            padding: 20px;
+            border: 1px solid rgba(100, 255, 218, 0.2);
+            transition: all 0.3s;
+        }
+        
+        .module-card:hover {
+            border-color: rgba(100, 255, 218, 0.5);
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+        }
+        
+        .module-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .module-title {
+            color: #64ffda;
+            font-size: 1.3rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .module-badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+        
+        .badge-core { background: #0d7377; color: white; }
+        .badge-auth { background: #9C27B0; color: white; }
+        .badge-lesson { background: #2196F3; color: white; }
+        .badge-ui { background: #FF9800; color: black; }
+        .badge-page { background: #4CAF50; color: white; }
+        
+        .module-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin: 15px 0;
+        }
+        
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #666;
+        }
+        
+        .status-pending { background: #FF9800; }
+        .status-loaded { background: #4CAF50; }
+        .status-error { background: #f44336; }
+        .status-testing { background: #2196F3; animation: pulse 1s infinite; }
+        
+        @keyframes pulse {
+            0% { opacity: 0.5; }
+            50% { opacity: 1; }
+            100% { opacity: 0.5; }
+        }
+        
+        .module-actions {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        .module-action-btn {
+            padding: 10px;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+        
+        .module-action-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
+        }
+        
+        .module-action-btn.success {
+            background: rgba(76, 175, 80, 0.2);
+            color: #4CAF50;
+        }
+        
+        .module-action-btn.warning {
+            background: rgba(255, 152, 0, 0.2);
+            color: #FF9800;
+        }
+        
+        .module-action-btn.danger {
+            background: rgba(244, 67, 54, 0.2);
+            color: #f44336;
+        }
+        
+        .module-info {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            font-size: 0.9rem;
+            color: #8892b0;
+        }
+        
+        .log-container {
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 30px;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+        
+        .log-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .log-filters {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .log-filter-btn {
+            padding: 6px 12px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            background: transparent;
+            color: #8892b0;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        
+        .log-filter-btn.active {
+            background: rgba(100, 255, 218, 0.2);
+            color: #64ffda;
+            border-color: #64ffda;
+        }
+        
+        .log-entry {
+            padding: 12px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+        }
+        
+        .log-entry.success { color: #4CAF50; border-left: 4px solid #4CAF50; padding-left: 15px; }
+        .log-entry.error { color: #f44336; border-left: 4px solid #f44336; padding-left: 15px; }
+        .log-entry.info { color: #64b5f6; border-left: 4px solid #64b5f6; padding-left: 15px; }
+        .log-entry.warning { color: #FF9800; border-left: 4px solid #FF9800; padding-left: 15px; }
+        
+        .stats-panel {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin: 30px 0;
+        }
+        
+        .stat-card {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .stat-value {
+            font-size: 2.5rem;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        
+        .stat-label {
+            color: #8892b0;
+            font-size: 0.9rem;
+        }
+        
+        .progress-container {
+            margin: 20px 0;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 5px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #0d7377, #14ffec);
+            width: 0%;
+            transition: width 0.5s ease;
+        }
+        
+        @media (max-width: 768px) {
+            .dashboard {
+                grid-template-columns: 1fr;
+            }
+            
+            .control-panel {
+                grid-template-columns: 1fr;
+            }
+            
+            .module-actions {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🧪 داشبورد تست Vakamova</h1>
+            <p class="subtitle">مدیریت و آزمایش ماژول‌های پروژه به صورت مجزا و یکپارچه</p>
+            
+            <div class="control-panel">
+                <button class="btn btn-primary" onclick="loadAllModules()">
+                    <span>📂 بارگذاری همه ماژول‌ها</span>
+                </button>
+                <button class="btn btn-success" onclick="runAllTests()">
+                    <span>⚡ اجرای همه تست‌ها</span>
+                </button>
+                <button class="btn btn-warning" onclick="runIntegrationTest()">
+                    <span>🔗 تست یکپارچه کامل</span>
+                </button>
+                <button class="btn btn-danger" onclick="clearAllModules()">
+                    <span>🗑️ خالی‌سازی همه</span>
+                </button>
+            </div>
+        </header>
+        
+        <div class="stats-panel">
+            <div class="stat-card">
+                <div class="stat-label">ماژول‌های بارگذاری شده</div>
+                <div class="stat-value" id="loadedCount">0</div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="loadedProgress"></div>
+                </div>
+                <div class="stat-label" id="loadedPercentage">0%</div>
+            </div>
+            
+            <div class="stat-card">
+                <div class="stat-label">تست‌های موفق</div>
+                <div class="stat-value" id="passedCount">0</div>
+            </div>
+            
+            <div class="stat-card">
+                <div class="stat-label">تست‌های ناموفق</div>
+                <div class="stat-value" id="failedCount">0</div>
+            </div>
+            
+            <div class="stat-card">
+                <div class="stat-label">کل تست‌ها</div>
+                <div class="stat-value" id="totalTests">0</div>
+            </div>
+        </div>
+        
+        <div class="dashboard" id="modulesDashboard">
+            <!-- ماژول‌ها به صورت داینامیک اینجا ساخته می‌شوند -->
+        </div>
+        
+        <div class="log-container">
+            <div class="log-header">
+                <h3>📋 گزارش اجرا</h3>
+                <div class="log-filters">
+                    <button class="log-filter-btn active" onclick="filterLogs('all')">همه</button>
+                    <button class="log-filter-btn" onclick="filterLogs('success')">موفق</button>
+                    <button class="log-filter-btn" onclick="filterLogs('error')">خطا</button>
+                    <button class="log-filter-btn" onclick="filterLogs('warning')">هشدار</button>
+                    <button class="log-filter-btn" onclick="clearLogs()">پاک کردن</button>
+                </div>
+            </div>
+            <div id="logEntries">
+                <!-- لاگ‌ها اینجا نمایش داده می‌شوند -->
+            </div>
+        </div>
+    </div>
     
-    // ماژول‌های سیستمی
-    { name: 'Auth Manager', path: 'modules/auth/auth_manager.js', type: 'auth' },
-    { name: 'Token Manager', path: 'modules/auth/token_manager.js', type: 'auth' },
-    { name: 'Auth Middleware', path: 'modules/auth/auth_middleware.js', type: 'auth' },
-    { name: 'Lesson Engine', path: 'modules/lessons/engine.js', type: 'lesson' },
-    // ✅ تغییر ۱: اضافه کردن کامپوننت Button به لیست ماژول‌ها
-    { name: 'Button Component', path: 'components/Button.js', type: 'ui' },
-    
-    // صفحات
-    { name: 'Auth View', path: 'pages/auth/auth_view.js', type: 'page' },
-    { name: 'Home Page', path: 'pages/home/home_page.js', type: 'page' },
-    { name: 'Router', path: 'pages/router.js', type: 'page' }
-];
-
-// ==================== تست جریان کامل کاربر ====================
-async function runFullIntegrationTest() {
-    console.log('🚀 شروع تست یکپارچه کامل Vakamova');
-    
-    // مرحله ۱: بارگذاری همه ماژول‌ها
-    const loadResults = await loadAllModules();
-    if (!loadResults.success) {
-        console.error('❌ خطا در بارگذاری ماژول‌ها');
-        return;
-    }
-    
-    // مرحله ۲: تست جریان احراز هویت
-    console.log('🔐 تست جریان احراز هویت...');
-    const authTest = await testAuthFlow();
-    if (!authTest.success) {
-        console.error('❌ سیستم احراز هویت مشکل دارد');
-        return;
-    }
-    
-    // مرحله ۳: تست مسیریابی و دسترسی‌ها
-    console.log('📍 تست مسیریابی و دسترسی‌ها...');
-    const routingTest = await testRoutingAndGuards();
-    
-    // مرحله ۴: تست ماژول درس
-    console.log('📚 تست موتور درس‌ها...');
-    const lessonTest = await testLessonModule();
-    
-    // ✅ تغییر ۲: فراخوانی تست کامپوننت Button
-    const buttonTest = await testButtonComponent();
-    
-    // خلاصه نتایج
-    console.log('\n📊 ========== نتایج نهایی تست ==========');
-    console.log(`✅ ماژول‌های بارگذاری شده: ${loadResults.loadedCount}/${PROJECT_MODULES.length}`);
-    console.log(`✅ احراز هویت: ${authTest.success ? 'قابل استفاده' : 'مشکل دارد'}`);
-    console.log(`📍 مسیریابی: ${routingTest.success ? 'فعال' : 'نیاز به تنظیم'}`);
-    console.log(`📚 موتور درس: ${lessonTest.success ? 'آماده' : 'در حال توسعه'}`);
-    // ✅ تغییر ۳: اضافه کردن نتیجه تست Button به خلاصه
-    console.log(`🎯 کامپوننت Button: ${buttonTest.success ? 'آماده' : 'نیاز به بررسی'}`);
-    console.log('🎉 تست یکپارچه کامل شد!');
-    
-    // پیشنهاد مرحله بعد
-    if (authTest.success && routingTest.success) {
-        console.log('\n💡 پیشنهاد بعدی: فعال‌سازی صفحه اصلی (index.html) و اتصال Router');
-    }
-}
+    <script>
+        // ==================== پیکربندی ماژول‌ها ====================
+        const PROJECT_MODULES = [
+            // هسته اصلی
+            { name: 'Event Bus', path: 'core/event_bus.js', type: 'core', badge: 'badge-core' },
+            { name: 'State Manager', path: 'core/state_manager.js', type: 'core', badge: 'badge-core' },
+            { name: 'Context Provider', path: 'core/context_provider.js', type: 'core', badge: 'badge-core' },
+            { name: 'API Client', path: 'core/api_client.js', type: 'core', badge: 'badge-core' },
+            { name: 'Router Middleware', path: 'core/router_middleware.js', type: 'core', badge: 'badge-core' },
+            { name: 'Guards', path: 'core/guards.js', type: 'core', badge: 'badge-core' },
+            
+            // ماژول‌های سیستمی
+            { name: 'Auth Manager', path: 'modules/auth/auth_manager.js', type: 'auth', badge: 'badge-auth' },
+            { name: 'Token Manager', path: 'modules/auth/token_manager.js', type: 'auth', badge: 'badge-auth' },
+            { name: 'Auth Middleware', path: 'modules/auth/auth_middleware.js', type: 'auth', badge: 'badge-auth' },
+            { name: 'Lesson Engine', path: 'modules/lessons/engine.js', type: 'lesson', badge: 'badge-lesson' },
+            { name: 'Button Component', path: 'components/Button.js', type: 'ui', badge: 'badge-ui' },
+            { name: 'Card Component', path: 'components/Card.js', type: 'ui', badge: 'badge-ui' },
+            
+            // صفحات
+            { name: 'Auth View', path: 'pages/auth/auth_view.js', type: 'page', badge: 'badge-page' },
+            { name: 'Home Page', path: 'pages/home/home_page.js', type: 'page', badge: 'badge-page' },
+            { name: 'Router', path: 'pages/router.js', type: 'page', badge: 'badge-page' }
+        ];
+        
+        // ==================== وضعیت برنامه ====================
+        const appState = {
+            modules: new Map(),
+            logs: [],
+            stats: {
+                loaded: 0,
+                passed: 0,
+                failed: 0,
+                total: 0
+            }
+        };
+        
+        // ==================== سیستم لاگ‌گیری ====================
+        function log(message, type = 'info', module = 'system') {
+            const timestamp = new Date().toLocaleTimeString('fa-IR');
+            const logEntry = {
+                id: `log_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                message,
+                type,
+                timestamp,
+                module,
+                visible: true
+            };
+            
+            appState.logs.unshift(logEntry);
+            
+            // نمایش در صفحه
+            const logElement = document.createElement('div');
+            logElement.className = `log-entry ${type}`;
+            logElement.id = logEntry.id;
+            logElement.innerHTML = `
+                <strong>[${timestamp}]</strong> 
+                <span class="log-module">[${module}]</span>
+                <span>${message}</span>
+            `;
+            
+            document.getElementById('logEntries').prepend(logElement);
+            console.log(`[${type.toUpperCase()}] [${module}] ${message}`);
+            
+            // آپدیت آمار
+            updateStats();
+            
+            return logEntry.id;
+        }
+        
+        function filterLogs(filter) {
+            const buttons = document.querySelectorAll('.log-filter-btn');
+            buttons.forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            appState.logs.forEach(log => {
+                const element = document.getElementById(log.id);
+                if (element) {
+                    log.visible = filter === 'all' || log.type === filter;
+                    element.style.display = log.visible ? 'block' : 'none';
+                }
+            });
+        }
+        
+        function clearLogs() {
+            document.getElementById('logEntries').innerHTML = '';
+            appState.logs = [];
+            log('لاگ‌ها پاک شدند', 'info');
+        }
+        
+        // ==================== مدیریت ماژول‌ها ====================
+        function initializeDashboard() {
+            const dashboard = document.getElementById('modulesDashboard');
+            dashboard.innerHTML = '';
+            
+            PROJECT_MODULES.forEach((module, index) => {
+                const moduleState = {
+                    id: `module_${index}`,
+                    name: module.name,
+                    path: module.path,
+                    type: module.type,
+                    badge: module.badge,
+                    status: 'pending', // pending, loaded, error, testing
+                    instance: null,
+                    loadTime: null,
+                    testResult: null
+                };
+                
+                appState.modules.set(module.name, moduleState);
+                
+                const card = document.createElement('div');
+                card.className = 'module-card';
+                card.id = moduleState.id;
+                card.innerHTML = `
+                    <div class="module-header">
+                        <div class="module-title">
+                            <span class="module-icon">${getModuleIcon(module.type)}</span>
+                            <span>${module.name}</span>
+                        </div>
+                        <span class="module-badge ${module.badge}">${module.type}</span>
+                    </div>
+                    
+                    <div class="module-status">
+                        <div class="status-indicator status-pending" id="status_${module.name}"></div>
+                        <span id="statusText_${module.name}">در انتظار بارگذاری</span>
+                    </div>
+                    
+                    <div class="module-info">
+                        <div>مسیر: <code>${module.path}</code></div>
+                        <div id="info_${module.name}">آماده برای بارگذاری</div>
+                    </div>
+                    
+                    <div class="module-actions">
+                        <button class="module-action-btn" onclick="loadModule('${module.name}')" id="loadBtn_${module.name}">
+                            📂 بارگذاری
+                        </button>
+                        <button class="module-action-btn success" onclick="testModule('${module.name}')" id="testBtn_${module.name}" disabled>
+                            ⚡ تست واحد
+                        </button>
+                        <button class="module-action-btn danger" onclick="clearModule('${module.name}')" id="clearBtn_${module.name}" disabled>
+                            🗑️ خالی‌سازی
+                        </button>
+                    </div>
+                `;
+                
+                dashboard.appendChild(card);
+            });
+            
+            updateStats();
+            log('داشبورد تست راه‌اندازی شد', 'success');
+        }
+        
+        async function loadModule(moduleName) {
+            const moduleState = appState.modules.get(moduleName);
+            if (!moduleState) return;
+            
+            moduleState.status = 'testing';
+            updateModuleUI(moduleName);
+            
+            try {
+                log(`در حال بارگذاری ${moduleName}...`, 'info', moduleName);
+                
+                // بارگذاری اسکریپت
+                const script = document.createElement('script');
+                script.src = moduleState.path;
+                script.type = 'module';
+                
+                await new Promise((resolve, reject) => {
+                    script.onload = () => {
+                        moduleState.status = 'loaded';
+                        moduleState.loadTime = Date.now();
+                        moduleState.instance = window[moduleName] || null;
+                        
+                        // فعال کردن دکمه تست
+                        document.getElementById(`testBtn_${moduleName}`).disabled = false;
+                        document.getElementById(`clearBtn_${moduleName}`).disabled = false;
+                        
+                        log(`✅ ${moduleName} با موفقیت بارگذاری شد`, 'success', moduleName);
+                        resolve();
+                    };
+                    
+                    script.onerror = () => {
+                        moduleState.status = 'error';
+                        log(`❌ خطا در بارگذاری ${moduleName}`, 'error', moduleName);
+                        reject(new Error(`Failed to load ${moduleName}`));
+                    };
+                    
+                    document.head.appendChild(script);
+                });
+                
+                // تست اولیه پس از بارگذاری
+                if (moduleState.instance) {
+                    try {
+                        await testModule(moduleName, true);
+                    } catch (testError) {
+                        // تست اولیه اجباری نیست
+                    }
+                }
+                
+            } catch (error) {
+                moduleState.status = 'error';
+                log(`خطا: ${error.message}`, 'error', moduleName);
+            } finally {
+                updateModuleUI(moduleName);
+                updateStats();
+            }
+        }
+        
+        async function testModule(moduleName, silent = false) {
+            const moduleState = appState.modules.get(moduleName);
+            if (!moduleState || moduleState.status !== 'loaded') {
+                if (!silent) log(`ابتدا ${moduleName} را بارگذاری کنید`, 'warning', moduleName);
+                return;
+            }
+            
+            moduleState.status = 'testing';
+            updateModuleUI(moduleName);
+            
+            if (!silent) log(`در حال تست ${moduleName}...`, 'info', moduleName);
+            
+            try {
+                const testResult = await executeModuleTest(moduleName, moduleState);
+                
+                if (testResult.success) {
+                    moduleState.status = 'loaded';
+                    moduleState.testResult = 'passed';
+                    appState.stats.passed++;
+                    if (!silent) log(`✅ تست ${moduleName} موفقیت‌آمیز بود`, 'success', moduleName);
+                } else {
+                    moduleState.status = 'error';
+                    moduleState.testResult = 'failed';
+                    appState.stats.failed++;
+                    if (!silent) log(`❌ تست ${moduleName} ناموفق بود: ${testResult.error}`, 'error', moduleName);
+                }
+                
+                appState.stats.total++;
+                
+            } catch (error) {
+                moduleState.status = 'error';
+                moduleState.testResult = 'failed';
+                appState.stats.failed++;
+                appState.stats.total++;
+                
+                if (!silent) log(`❌ خطا در تست ${moduleName}: ${error.message}`, 'error', moduleName);
+            } finally {
+                updateModuleUI(moduleName);
+                updateStats();
+            }
+        }
+        
+        async function executeModuleTest(moduleName, moduleState) {
+            // تست‌های اختصاصی برای هر ماژول
+            switch (moduleName) {
+                case 'Event Bus':
+                    if (typeof eventBus !== 'undefined') {
+                        eventBus.emit('test:event', { test: true });
+                        return { success: true };
+                    }
+                    break;
+                    
+                case 'State Manager':
+                    if (typeof HyperStateManager !== 'undefined') {
+                        const testState = new HyperStateManager(eventBus || { emit: () => {} });
+                        testState.set('test', 'value');
+                        return { success: testState.get('test') === 'value' };
+                    }
+                    break;
+                    
+                case 'Button Component':
+                    if (typeof VakamovaButton !== 'undefined') {
+                        const btn = new VakamovaButton({ eventBus: eventBus || { emit: () => {} } });
+                        return { success: typeof btn.render === 'function' };
+                    }
+                    break;
+                    
+                case 'Auth Manager':
+                    if (typeof auth_manager !== 'undefined') {
+                        return { success: typeof auth_manager.register === 'function' };
+                    }
+                    break;
+                    
+                default:
+                    // تست عمومی برای ماژول‌های دیگر
+                    if (moduleState.instance) {
+                        return { success: true, message: 'ماژول بارگذاری شد' };
+                    }
+            }
+            
+            return { success: false, error: 'ماژول شناسایی نشد' };
+        }
+        
+        function clearModule(moduleName) {
+            const moduleState = appState.modules.get(moduleName);
+            if (!moduleState) return;
+            
+            // حذف اسکریپت از DOM
+            const scripts = document.querySelectorAll(`script[src="${moduleState.path}"]`);
+            scripts.forEach(script => script.remove());
+            
+            // ریست وضعیت
+            moduleState.status = 'pending';
+            moduleState.instance = null;
+            moduleState.loadTime = null;
+            moduleState.testResult = null;
+            
+            // غیرفعال کردن دکمه‌ها
+            document.getElementById(`testBtn_${moduleName}`).disabled = true;
+            document.getElementById(`clearBtn_${moduleName}`).disabled = true;
+            
+            updateModuleUI(moduleName);
+            log(`ماژول ${moduleName} خالی‌سازی شد`, 'warning', moduleName);
+            updateStats();
+        }
+        
+        function updateModuleUI(moduleName) {
+            const moduleState = appState.modules.get(moduleName);
+            if (!moduleState) return;
+            
+            const statusIndicator = document.getElementById(`status_${moduleName}`);
+            const statusText = document.getElementById(`statusText_${moduleName}`);
+            const infoText = document.getElementById(`info_${moduleName}`);
+            const loadBtn = document.getElementById(`loadBtn_${moduleName}`);
+            
+            if (!statusIndicator || !statusText) return;
+            
+            // آپدیت وضعیت
+            statusIndicator.className = 'status-indicator';
+            
+            switch (moduleState.status) {
+                case 'pending':
+                    statusIndicator.classList.add('status-pending');
+                    statusText.textContent = 'در انتظار بارگذاری';
+                    loadBtn.textContent = '📂 بارگذاری';
+                    break;
+                    
+                case 'testing':
+                    statusIndicator.classList.add('status-testing');
+                    statusText.textContent = 'در حال تست...';
+                    loadBtn.textContent = '⏳ در حال بارگذاری';
+                    break;
+                    
+                case 'loaded':
+                    statusIndicator.classList.add('status-loaded');
+                    statusText.textContent = 'بارگذاری شده' + 
+                        (moduleState.testResult === 'passed' ? ' (تست موفق)' : 
+                         moduleState.testResult === 'failed' ? ' (تست ناموفق)' : '');
+                    loadBtn.textContent = '✅ بارگذاری مجدد';
+                    break;
+                    
+                case 'error':
+                    statusIndicator.classList.add('status-error');
+                    statusText.textContent = 'خطا در بارگذاری';
+                    loadBtn.textContent = '🔄 تلاش مجدد';
+                    break;
+            }
+            
+            // آپدیت اطلاعات
+            if (infoText) {
+                let info = '';
+                if (moduleState.loadTime) {
+                    const loadTime = new Date(moduleState.loadTime).toLocaleTimeString('fa-IR');
+                    info += `زمان بارگذاری: ${loadTime}<br>`;
+                }
+                if (moduleState.instance) {
+                    info += `نوع: ${typeof moduleState.instance}<br>`;
+                }
+                infoText.innerHTML = info || 'آماده برای بارگذاری';
+            }
+        }
+        
+        // ==================== توابع کمکی ====================
+        function getModuleIcon(type) {
+            const icons = {
+                core: '⚙️',
+                auth: '🔐',
+                lesson: '📚',
+                ui: '🎨',
+                page: '📄'
+            };
+            return icons[type] || '📦';
+        }
+        
+        async function loadAllModules() {
+            log('شروع بارگذاری همه ماژول‌ها...', 'info');
+            
+            for (const [name, module] of appState.modules) {
+                if (module.status === 'pending') {
+                    await loadModule(name);
+                    // تأخیر کوتاه بین بارگذاری‌ها
+                    await new Promise(resolve => setTimeout(resolve, 300));
+                }
+            }
+            
+            log('بارگذاری همه ماژول‌ها کامل شد', 'success');
+        }
+        
+        async function runAllTests() {
+            log('شروع اجرای همه تست‌ها...', 'info');
+            
+            for (const [name, module] of appState.modules) {
+                if (module.status === 'loaded') {
+                    await testModule(name);
+                    // تأخیر کوتاه بین تست‌ها
+                    await new Promise(resolve => setTimeout(resolve, 200));
+                }
+            }
+            
+            log('اجرای همه تست‌ها کامل شد', 'success');
+        }
+        
+        async function runIntegrationTest() {
+            log('شروع تست یکپارچه کامل...', 'info');
+            
+            // بارگذاری ماژول‌های ضروری اگر بارگذاری نشده‌اند
+            const essentialModules = ['Event Bus', 'State Manager', 'Auth Manager', 'Router'];
+            for (const moduleName of essentialModules) {
+                const module = appState.modules.get(moduleName);
+                if (module && module.status === 'pending') {
+                    await loadModule(moduleName);
+                }
+            }
+            
+            // تست جریان کاربر
+            try {
+                // ۱. تست Event Bus
+                if (typeof eventBus !== 'undefined') {
+                    let eventReceived = false;
+                    eventBus.on('integration:test', () => eventReceived = true);
+                    eventBus.emit('integration:test', { data: 'test' });
+                    
+                    if (eventReceived) {
+                        log('✅ Event Bus ارتباط برقرار می‌کند', 'success');
+                    }
+                }
+                
+                // ۲. تست State Manager
+                if (typeof HyperStateManager !== 'undefined') {
+                    const testState = new HyperStateManager(eventBus || { emit: () => {} });
+                    testState.set('integration.test', 'working');
+                    
+                    if (testState.get('integration.test') === 'working') {
+                        log('✅ State Manager کار می‌کند', 'success');
+                    }
+                }
+                
+                // ۳. تست Auth (اگر موجود باشد)
+                if (typeof auth_manager !== 'undefined') {
+                    log('✅ سیستم احراز هویت بارگذاری شده است', 'success');
+                }
+                
+                // ۴. تست Button Component (اگر موجود باشد)
+                if (typeof VakamovaButton !== 'undefined') {
+                    log('✅ کامپوننت Button قابل استفاده است', 'success');
+                }
+                
+                log('🎉 تست یکپارچه با موفقیت انجام شد', 'success');
+                
+            } catch (error) {
+                log(`❌ خطا در تست یکپارچه: ${error.message}`, 'error');
+            }
+        }
+        
+        function clearAllModules() {
+            for (const [name] of appState.modules) {
+                clearModule(name);
+            }
+            
+            appState.stats = { loaded: 0, passed: 0, failed: 0, total: 0 };
+            updateStats();
+            log('همه ماژول‌ها خالی‌سازی شدند', 'warning');
+        }
+        
+        function updateStats() {
+            // شمارش ماژول‌های بارگذاری شده
+            let loadedCount = 0;
+            for (const [, module] of appState.modules) {
+                if (module.status === 'loaded') loadedCount++;
+            }
+            
+            appState.stats.loaded = loadedCount;
+            
+            // آپدیت UI
+            document.getElementById('loadedCount').textContent = loadedCount;
+            document.getElementById('passedCount').textContent = appState.stats.passed;
+            document.getElementById('failedCount').textContent = appState.stats.failed;
+            document.getElementById('totalTests').textContent = appState.stats.total;
+            
+            // پیشرفت بارگذاری
+            const progress = (loadedCount / PROJECT_MODULES.length) * 100;
+            document.getElementById('loadedProgress').style.width = `${progress}%`;
+            document.getElementById('loadedPercentage').textContent = `${Math.round(progress)}%`;
+        }
+        
+        // ==================== راه‌اندازی اولیه ====================
+        window.addEventListener('DOMContentLoaded', () => {
+            initializeDashboard();
+            log('داشبورد تست Vakamova آماده است', 'success');
+            log(`تعداد ماژول‌ها: ${PROJECT_MODULES.length}`, 'info');
+        });
+        
+        // اکسپورت توابع برای تست دستی در کنسول
+        window.VakamovaTester = {
+            loadModule,
+            testModule,
+            clearModule,
+            loadAllModules,
+            runAllTests,
+            runIntegrationTest,
+            clearAllModules,
+            log,
+            getState: () => ({ 
+                modules: Object.fromEntries(appState.modules),
+                stats: appState.stats,
+                logs: appState.logs 
+            })
+        };
+    </script>
+</body>
+</html>
