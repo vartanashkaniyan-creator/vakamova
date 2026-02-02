@@ -23,6 +23,73 @@ const PROJECT_MODULES = [
     { name: 'Router', path: 'pages/router.js', type: 'page' }
 ];
 
+
+// ==================== تست کامپوننت Button ====================
+async function testButtonComponent() {
+    console.log('🟢 شروع تست کامپوننت Button...');
+    try {
+        // ۱. بارگذاری ماژول Button (اگر هنوز import نشده)
+        if (typeof VakamovaButton === 'undefined') {
+            await loadModule({ name: 'Button', path: 'components/Button.js', type: 'ui' });
+        }
+        
+        // ۲. ساخت نمونه Button با eventBus آزمایشی
+        const mockEventBus = {
+            emit: (event, data) => console.log(`📢 [Button Test] رویداد: ${event}`, data),
+            on: () => () => {}
+        };
+        
+        const button = new VakamovaButton({ eventBus: mockEventBus });
+        
+        // ۳. رندر Button در یک المان آزمایشی
+        const testContainer = document.createElement('div');
+        document.body.appendChild(testContainer);
+        
+        button.render(testContainer, {
+            type: 'primary',
+            size: 'md',
+            text: 'دکمه تست Vakamova',
+            icon: '✅',
+            onClick: () => console.log('✅ کلیک دکمه کار کرد!')
+        });
+        
+        // ۴. تست متدهای اصلی
+        button.disable();
+        console.assert(button.isDisabled(), '❌ disable() کار نکرد');
+        
+        button.enable();
+        console.assert(!button.isDisabled(), '❌ enable() کار نکرد');
+        
+        button.setLoading(true);
+        console.assert(button.isLoading(), '❌ setLoading(true) کار نکرد');
+        
+        button.setLoading(false);
+        console.assert(!button.isLoading(), '❌ setLoading(false) کار نکرد');
+        
+        // ۵. تمیزکاری
+        button.destroy();
+        testContainer.remove();
+        
+        console.log('✅ تست کامپوننت Button با موفقیت انجام شد.');
+        return { success: true, component: 'Button', message: 'کامپوننت آماده استفاده است.' };
+        
+    } catch (error) {
+        console.error('❌ خطا در تست Button:', error);
+        return { success: false, component: 'Button', error: error.message };
+    }
+}
+
+// ==================== اضافه کردن Button به لیست ماژول‌ها ====================
+// (این خط را در آرایه PROJECT_MODULES، بعد از ماژول‌های auth اضافه کن)
+// { name: 'Button Component', path: 'components/Button.js', type: 'ui' },
+    
+
+
+
+
+
+
+    
 // ==================== تست جریان کامل کاربر ====================
 async function runFullIntegrationTest() {
     console.log('🚀 شروع تست یکپارچه کامل Vakamova');
