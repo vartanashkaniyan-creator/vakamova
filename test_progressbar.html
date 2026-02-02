@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تست ProgressBar - Vakamova</title>
+    <style>
+        * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, sans-serif; }
+        body { background: #1a1a2e; color: #e6e6e6; padding: 20px; line-height: 1.6; }
+        .container { max-width: 800px; margin: 0 auto; }
+        h1 { color: #64ffda; text-align: center; margin-bottom: 30px; }
+        
+        .test-section { 
+            background: rgba(255, 255, 255, 0.05); 
+            border-radius: 10px; 
+            padding: 20px; 
+            margin-bottom: 20px;
+            border: 1px solid rgba(100, 255, 218, 0.2);
+        }
+        
+        .controls { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 10px; 
+            margin: 20px 0; 
+        }
+        
+        button { 
+            padding: 12px 15px; 
+            background: #0d7377; 
+            color: white; 
+            border: none; 
+            border-radius: 8px;
+            cursor: pointer; 
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+        button:hover { background: #14ffec; color: #000; transform: translateY(-2px); }
+        
+        .progress-container { 
+            margin: 30px 0; 
+            padding: 20px; 
+            background: rgba(0,0,0,0.3); 
+            border-radius: 10px;
+        }
+        
+        .log { 
+            background: rgba(0,0,0,0.5); 
+            padding: 15px; 
+            border-radius: 8px; 
+            margin-top: 20px;
+            font-family: monospace; 
+            max-height: 300px; 
+            overflow-y: auto;
+        }
+        .log-item { padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .success { color: #4CAF50; }
+        .error { color: #ff5252; }
+        .info { color: #64b5f6; }
+        
+        #progress-bar-container {
+            margin: 20px 0;
+            border: 2px solid #333;
+            border-radius: 20px;
+            overflow: hidden;
+            height: 30px;
+            background: #222;
+        }
+        
+        #progress-bar-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #0d7377, #14ffec);
+            border-radius: 18px;
+            transition: width 0.5s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: black;
+            font-weight: bold;
+            min-width: 30px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 تست ProgressBar Component</h1>
+        
+        <div class="test-section">
+            <h2>نمایشگر پیشرفت</h2>
+            <div id="progress-bar-container">
+                <div id="progress-bar-fill">0%</div>
+            </div>
+            
+            <div class="controls">
+                <button onclick="setProgress(0)">0% (پاک کردن)</button>
+                <button onclick="setProgress(25)">25% (شروع)</button>
+                <button onclick="setProgress(50)">50% (نیمه)</button>
+                <button onclick="setProgress(75)">75% (نزدیک)</button>
+                <button onclick="setProgress(100)">100% (کامل)</button>
+                <button onclick="setProgress(33)">33% (یک سوم)</button>
+                <button onclick="setProgress(66)">66% (دو سوم)</button>
+                <button onclick="randomProgress()">🎲 مقدار تصادفی</button>
+            </div>
+            
+            <div class="controls">
+                <button onclick="changeColor('#ff5252')">🔴 رنگ قرمز</button>
+                <button onclick="changeColor('#4CAF50')">🟢 رنگ سبز</button>
+                <button onclick="changeColor('#FF9800')">🟠 رنگ نارنجی</button>
+                <button onclick="changeColor('#2196F3')">🔵 رنگ آبی</button>
+                <button onclick="resetColor()">↩️ رنگ پیش‌فرض</button>
+            </div>
+            
+            <div class="controls">
+                <button onclick="showLabel(true)">📝 نمایش برچسب</button>
+                <button onclick="showLabel(false)">🙈 پنهان برچسب</button>
+                <button onclick="setAnimation('fast')">⚡ انیمیشن سریع</button>
+                <button onclick="setAnimation('slow')">🐌 انیمیشن آهسته</button>
+                <button onclick="setAnimation('none')">⛔ بدون انیمیشن</button>
+            </div>
+        </div>
+        
+        <div class="test-section">
+            <h2>لاگ اجرا</h2>
+            <div class="log" id="log"></div>
+        </div>
+    </div>
+
+    <script type="module">
+        // ==================== IMPORT COMPONENT ====================
+        // توجه: مسیر را با ساختار پروژه خود تطبیق دهید
+        import ProgressBar from './components/ProgressBar.js';
+        
+        // ==================== GLOBAL STATE ====================
+        let progressBarInstance = null;
+        const state = {
+            value: 0,
+            color: null,
+            showLabel: true,
+            animationSpeed: 'normal'
+        };
+        
+        // ==================== INITIALIZATION ====================
+        document.addEventListener('DOMContentLoaded', async () => {
+            try {
+                log('📦 در حال بارگذاری ProgressBar...', 'info');
+                
+                // ایجاد نمونه ProgressBar
+                progressBarInstance = new ProgressBar({
+                    container: document.getElementById('progress-bar-container'),
+                    initialValue: 0,
+                    showLabel: true,
+                    onUpdate: (value) => {
+                        log(`به‌روزرسانی خودکار: ${value}%`, 'info');
+                        updateDisplay(value);
+                    }
+                });
+                
+                log('✅ ProgressBar با موفقیت بارگذاری شد', 'success');
+                log('دکمه‌های تست را فشار دهید', 'info');
+                
+            } catch (error) {
+                log(`❌ خطا در بارگذاری: ${error.message}`, 'error');
+            }
+        });
+        
+        // ==================== TEST FUNCTIONS ====================
+        function setProgress(value) {
+            if (!progressBarInstance) return;
+            
+            try {
+                const oldValue = state.value;
+                progressBarInstance.setValue(value);
+                state.value = value;
+                
+                updateDisplay(value);
+                log(`📊 تغییر پیشرفت: ${oldValue}% → ${value}%`, 'success');
+                
+            } catch (error) {
+                log(`خطا در setProgress: ${error.message}`, 'error');
+            }
+        }
+        
+        function randomProgress() {
+            const randomValue = Math.floor(Math.random() * 101);
+            setProgress(randomValue);
+            log(`🎲 مقدار تصادفی: ${randomValue}%`, 'info');
+        }
+        
+        function changeColor(color) {
+            if (!progressBarInstance) return;
+            
+            try {
+                progressBarInstance.setColor(color);
+                state.color = color;
+                
+                document.getElementById('progress-bar-fill').style.background = color;
+                log(`🎨 رنگ تغییر کرد به: ${color}`, 'success');
+                
+            } catch (error) {
+                log(`خطا در تغییر رنگ: ${error.message}`, 'error');
+            }
+        }
+        
+        function resetColor() {
+            if (!progressBarInstance) return;
+            
+            try {
+                progressBarInstance.resetColor();
+                state.color = null;
+                
+                document.getElementById('progress-bar-fill').style.background = 
+                    'linear-gradient(90deg, #0d7377, #14ffec)';
+                log('🎨 رنگ به حالت پیش‌فرض بازگشت', 'success');
+                
+            } catch (error) {
+                log(`خطا در بازنشانی رنگ: ${error.message}`, 'error');
+            }
+        }
+        
+        function showLabel(visible) {
+            if (!progressBarInstance) return;
+            
+            try {
+                progressBarInstance.toggleLabel(visible);
+                state.showLabel = visible;
+                
+                log(`📝 برچسب ${visible ? 'نمایش' : 'پنهان'} شد`, 'success');
+                
+            } catch (error) {
+                log(`خطا در مدیریت برچسب: ${error.message}`, 'error');
+            }
+        }
+        
+        function setAnimation(speed) {
+            if (!progressBarInstance) return;
+            
+            try {
+                progressBarInstance.setAnimationSpeed(speed);
+                state.animationSpeed = speed;
+                
+                const speedText = {
+                    'fast': 'سریع',
+                    'slow': 'آهسته',
+                    'none': 'بدون انیمیشن',
+                    'normal': 'نرمال'
+                }[speed] || speed;
+                
+                log(`⚡ انیمیشن تنظیم شد بر: ${speedText}`, 'success');
+                
+            } catch (error) {
+                log(`خطا در تنظیم انیمیشن: ${error.message}`, 'error');
+            }
+        }
+        
+        // ==================== UTILITY FUNCTIONS ====================
+        function updateDisplay(value) {
+            const fillElement = document.getElementById('progress-bar-fill');
+            fillElement.style.width = `${value}%`;
+            fillElement.textContent = `${value}%`;
+        }
+        
+        function log(message, type = 'info') {
+            const logElement = document.getElementById('log');
+            const item = document.createElement('div');
+            item.className = `log-item ${type}`;
+            item.innerHTML = `
+                <strong>[${new Date().toLocaleTimeString('fa-IR')}]</strong>
+                <span>${message}</span>
+            `;
+            logElement.appendChild(item);
+            logElement.scrollTop = logElement.scrollHeight;
+            console.log(`[${type.toUpperCase()}] ${message}`);
+        }
+        
+        // ==================== GLOBAL EXPORT FOR CONSOLE TESTING ====================
+        window.ProgressBarTester = {
+            setProgress,
+            randomProgress,
+            changeColor,
+            resetColor,
+            showLabel,
+            setAnimation,
+            getState: () => ({ ...state }),
+            getInstance: () => progressBarInstance,
+            log
+        };
+        
+        console.log('🚀 ProgressBarTester آماده است!');
+        
+    </script>
+</body>
+</html>
