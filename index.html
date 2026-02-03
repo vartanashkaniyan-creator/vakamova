@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vakamova - آموزش ۱۲ زبانه</title>
+    <link rel="stylesheet" href="assets/fonts/vazirmatn.css">
+    <style>
+        :root {
+            --primary: #0d7377;
+            --secondary: #272343;
+            --accent: #ffd803;
+            --background: #fffffe;
+            --surface: #f8f9fa;
+            --text: #2d334a;
+            --error: #e45858;
+            --success: #4CAF50;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Vazirmatn', sans-serif; 
+            background: var(--background);
+            color: var(--text);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+        #app { 
+            min-height: 100vh; 
+            opacity: 0;
+            transition: opacity 0.5s ease;
+        }
+        .loading-screen {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            color: white;
+        }
+        .spinner { 
+            width: 60px; height: 60px;
+            border: 5px solid rgba(255,255,255,0.3);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .error-screen {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: var(--background);
+            padding: 40px;
+            text-align: center;
+            z-index: 1001;
+        }
+        .toast-container {
+            position: fixed;
+            top: 20px; right: 20px;
+            z-index: 1002;
+            max-width: 400px;
+        }
+        .toast {
+            background: white;
+            border-right: 5px solid var(--primary);
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            animation: slideIn 0.3s ease;
+        }
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        nav {
+            background: white;
+            padding: 15px 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .logo { 
+            font-size: 1.8rem; 
+            font-weight: bold;
+            color: var(--primary);
+            text-decoration: none;
+        }
+        .language-selector select {
+            padding: 8px 15px;
+            border: 2px solid var(--primary);
+            border-radius: 8px;
+            background: white;
+            font-family: inherit;
+        }
+        main { padding: 30px; }
+    </style>
+</head>
+<body>
+    <!-- صفحه بارگذاری -->
+    <div class="loading-screen" id="loadingScreen">
+        <div class="spinner"></div>
+        <h2>Vakamova در حال راه‌اندازی...</h2>
+        <p id="loadingMessage">بارگذاری هسته سیستم</p>
+    </div>
+
+    <!-- صفحه خطا -->
+    <div class="error-screen" id="errorScreen">
+        <h2 style="color: var(--error); margin-bottom: 20px;">⚠️ خطا در راه‌اندازی</h2>
+        <p id="errorMessage" style="margin-bottom: 30px;"></p>
+        <button onclick="location.reload()" style="
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-family: inherit;
+        ">تلاش مجدد</button>
+    </div>
+
+    <!-- اعلان‌های موقت -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- برنامه اصلی -->
+    <div id="app">
+        <nav>
+            <a href="/" class="logo">Vakamova</a>
+            <div class="language-selector">
+                <select id="languageSelect" disabled>
+                    <option value="fa">فارسی</option>
+                    <option value="en">English</option>
+                </select>
+            </div>
+        </nav>
+        <main id="pageContainer">
+            <!-- صفحات در اینجا رندر می‌شوند -->
+        </main>
+    </div>
+
+    <!-- ماژول اصلی راه‌اندازی -->
+    <script type="module">
+        // ==================== APP BOOTSTRAP ====================
+        // اصل ۴: پیکربندی متمرکز
+        const APP_CONFIG = Object.freeze({
+            coreModules: [
+                { name: 'event_bus', path: './core/event_bus.js', exportName: 'eventBus' },
+                { name: 'context_provider', path: './core/context_provider.js', exportName: 'createContext' },
+                { name: 'state_manager', path: './core/state_manager.js', exportName: 'HyperStateManager' },
+                { name: 'router', path: './core/router.js', exportName: 'HyperRouter' }
+            ],
+            appModules: [
+                { name: 'auth', path: './modules/auth/auth_manager.js', exportName: 'AuthManager' },
+                { name: 'theme', path: './modules/theme/theme_manager.js', exportName: 'ThemeManager' }
+            ],
+            defaultRoute: '/home',
+            version: '1.0.0'
+        });
+
+        // اصل ۳: ارتباط رویدادمحور
+        class AppInitializer {
+            constructor() {
+                this.modules = new Map();
+                this.eventSystem = null;
+                this.context = null;
+                this.isInitialized = false;
+            }
+
+            async initialize() {
+                try {
+                    await this.loadCoreModules();
+                    await this.setupEventSystem();
+                    await this.setupContextProvider();
+                    await this.initializeAppModules();
+                    await this.setupRouter();
+                    
+                    this.isInitialized = true;
+                    this.showApp();
+                    
+                } catch (error) {
+                    this.handleError(error);
+                }
+            }
+
+            // اصل ۱: تزریق وابستگی
+            async loadCoreModules() {
+                this.updateLoadingMessage('بارگذاری ماژول‌های هسته...');
+                
+                for (const moduleConfig of APP_CONFIG.coreModules) {
+                    try {
+                        const module = await import(moduleConfig.path);
+                        const exported = module[moduleConfig.exportName] || module.default || module;
+                        this.modules.set(moduleConfig.name, exported);
+                        
+                        console.log(`✅ ${moduleConfig.name} loaded`);
+                        this.updateLoadingMessage(`${moduleConfig.name} بارگذاری شد`);
+                        
+                    } catch (error) {
+                        throw new Error(`خطا در بارگذاری ${moduleConfig.name}: ${error.message}`);
+                    }
+                }
+            }
+
+            async setupEventSystem() {
+                const EventBus = this.modules.get('event_bus');
+                this.eventSystem = EventBus;
+                
+                // رویدادهای سیستم
+                this.eventSystem.on('app:navigate', (data) => {
+                    this.handleNavigation(data);
+                });
+                
+                this.eventSystem.on('app:toast', (data) => {
+                    this.showToast(data.message, data.type);
+                });
+                
+                this.eventSystem.on('app:error', (error) => {
+                    this.handleError(error);
+                });
+            }
+
+            async setupContextProvider() {
+                const createContext = this.modules.get('context_provider');
+                const StateManager = this.modules.get('state_manager');
+                
+                // اصل ۲: قرارداد رابط
+                this.context = createContext(this.eventSystem);
+                
+                // ثبت سرویس‌ها با قرارداد مشخص
+                this.context.register('eventBus', {
+                    provider: () => this.eventSystem,
+                    type: 'value',
+                    singleton: true
+                });
+                
+                this.context.register('stateManager', {
+                    provider: () => new StateManager(this.eventSystem, {
+                        enableHistory: true,
+                        maxHistory: 50
+                    }),
+                    type: 'factory',
+                    singleton: true,
+                    dependencies: ['eventBus']
+                });
+            }
+
+            async initializeAppModules() {
+                this.updateLoadingMessage('راه‌اندازی ماژول‌های برنامه...');
+                
+                for (const moduleConfig of APP_CONFIG.appModules) {
+                    try {
+                        const module = await import(moduleConfig.path);
+                        const ModuleClass = module[moduleConfig.exportName] || module.default;
+                        
+                        if (typeof ModuleClass === 'function') {
+                            const instance = new ModuleClass(
+                                this.context.resolve('eventBus'),
+                                this.context.resolve('stateManager')
+                            );
+                            
+                            this.context.register(moduleConfig.name, {
+                                provider: () => instance,
+                                type: 'value',
+                                singleton: true
+                            });
+                            
+                            if (instance.initialize && typeof instance.initialize === 'function') {
+                                await instance.initialize();
+                            }
+                            
+                            console.log(`✅ ${moduleConfig.name} initialized`);
+                        }
+                        
+                    } catch (error) {
+                        console.warn(`⚠️ ${moduleConfig.name} initialization skipped:`, error.message);
+                    }
+                }
+            }
+
+            async setupRouter() {
+                const Router = this.modules.get('router');
+                const stateManager = this.context.resolve('stateManager');
+                
+                const router = new Router({
+                    eventBus: this.eventSystem,
+                    stateManager: stateManager,
+                    container: document.getElementById('pageContainer'),
+                    routes: {
+                        '/home': { 
+                            module: './pages/home/home_page.js',
+                            requiresAuth: false 
+                        },
+                        '/auth': { 
+                            module: './pages/auth/auth_view.js',
+                            requiresAuth: false 
+                        },
+                        '/lesson/:id': { 
+                            module: './pages/lesson/lesson_view.js',
+                            requiresAuth: true 
+                        }
+                    }
+                });
+                
+                this.context.register('router', {
+                    provider: () => router,
+                    type: 'value',
+                    singleton: true
+                });
+                
+                // شروع مسیریابی
+                await router.initialize();
+                router.navigate(APP_CONFIG.defaultRoute);
+            }
+
+            // ==================== UI METHODS ====================
+            
+            showApp() {
+                document.getElementById('loadingScreen').style.opacity = '0';
+                setTimeout(() => {
+                    document.getElementById('loadingScreen').style.display = 'none';
+                    document.getElementById('app').style.opacity = '1';
+                    this.eventSystem.emit('app:ready', { 
+                        timestamp: new Date().toISOString(),
+                        version: APP_CONFIG.version
+                    });
+                    this.showToast('Vakamova آماده است!', 'success');
+                }, 500);
+            }
+
+            updateLoadingMessage(message) {
+                const element = document.getElementById('loadingMessage');
+                if (element) element.textContent = message;
+            }
+
+            showToast(message, type = 'info') {
+                const container = document.getElementById('toastContainer');
+                const toast = document.createElement('div');
+                toast.className = 'toast';
+                toast.style.borderRightColor = {
+                    'success': 'var(--success)',
+                    'error': 'var(--error)',
+                    'info': 'var(--primary)'
+                }[type] || 'var(--primary)';
+                
+                toast.textContent = message;
+                container.appendChild(toast);
+                
+                setTimeout(() => {
+                    toast.style.opacity = '0';
+                    setTimeout(() => toast.remove(), 300);
+                }, 3000);
+            }
+
+            handleError(error) {
+                console.error('❌ App Error:', error);
+                
+                document.getElementById('loadingScreen').style.display = 'none';
+                document.getElementById('errorMessage').textContent = 
+                    error.message || 'خطای نامشخص در راه‌اندازی برنامه';
+                document.getElementById('errorScreen').style.display = 'block';
+                
+                this.eventSystem?.emit('app:crash', { error });
+            }
+
+            handleNavigation(data) {
+                console.log('Navigation:', data);
+                // مدیریت ناوبری سفارشی
+            }
+        }
+
+        // ==================== START APPLICATION ====================
+        document.addEventListener('DOMContentLoaded', async () => {
+            // بررسی پشتیبانی مرورگر
+            if (!('Promise' in window) || !('import' in document.createElement('script'))) {
+                document.getElementById('errorMessage').textContent = 
+                    'مرورگر شما از قابلیت‌های مورد نیاز پشتیبانی نمی‌کند. لطفاً از آخرین نسخه Chrome یا Firefox استفاده کنید.';
+                document.getElementById('errorScreen').style.display = 'block';
+                document.getElementById('loadingScreen').style.display = 'none';
+                return;
+            }
+
+            const app = new AppInitializer();
+            window.VakamovaApp = app; // برای دیباگ در کنسول
+            
+            // شروع برنامه
+            await app.initialize();
+        });
+
+        // ==================== GLOBAL ERROR HANDLING ====================
+        window.addEventListener('unhandledrejection', (event) => {
+            console.error('Unhandled Promise Rejection:', event.reason);
+            document.querySelector('.error-screen')?.style.display === 'block' ||
+            window.VakamovaApp?.handleError(event.reason);
+        });
+
+        window.addEventListener('error', (event) => {
+            console.error('Global Error:', event.error);
+            event.preventDefault();
+        });
+    </script>
+</body>
+</html>
