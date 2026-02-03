@@ -4,7 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Vakamova - آموزش ۱۲ زبانه</title>
-    <link rel="stylesheet" href="assets/fonts/vazirmatn.css">
+    <!-- اصلاح مسیر فونت -->
+    <link rel="stylesheet" href="/Zabansaz/assets/fonts/vazirmatn.css">
     <style>
         :root {
             --primary: #0d7377;
@@ -130,7 +131,8 @@
     <!-- برنامه اصلی -->
     <div id="app">
         <nav>
-            <a href="/" class="logo">Vakamova</a>
+            <!-- اصلاح لینک لوگو -->
+            <a href="/Zabansaz/" class="logo">Vakamova</a>
             <div class="language-selector">
                 <select id="languageSelect" disabled>
                     <option value="fa">فارسی</option>
@@ -149,14 +151,16 @@
         // اصل ۴: پیکربندی متمرکز
         const APP_CONFIG = Object.freeze({
             coreModules: [
-                { name: 'event_bus', path: './core/event_bus.js', exportName: 'eventBus' },
-                { name: 'context_provider', path: './core/context_provider.js', exportName: 'createContext' },
-                { name: 'state_manager', path: './core/state_manager.js', exportName: 'HyperStateManager' },
-                { name: 'router', path: './core/router.js', exportName: 'HyperRouter' }
+                // اصلاح مسیرهای coreModules
+                { name: 'event_bus', path: '/Zabansaz/core/event_bus.js', exportName: 'eventBus' },
+                { name: 'context_provider', path: '/Zabansaz/core/context_provider.js', exportName: 'createContext' },
+                { name: 'state_manager', path: '/Zabansaz/core/state_manager.js', exportName: 'HyperStateManager' },
+                { name: 'router', path: '/Zabansaz/core/router.js', exportName: 'HyperRouter' }
             ],
             appModules: [
-                { name: 'auth', path: './modules/auth/auth_manager.js', exportName: 'AuthManager' },
-                { name: 'theme', path: './modules/theme/theme_manager.js', exportName: 'ThemeManager' }
+                // اصلاح مسیرهای appModules
+                { name: 'auth', path: '/Zabansaz/modules/auth/auth_manager.js', exportName: 'AuthManager' },
+                { name: 'theme', path: '/Zabansaz/modules/theme/theme_manager.js', exportName: 'ThemeManager' }
             ],
             defaultRoute: '/home',
             version: '1.0.0'
@@ -291,16 +295,17 @@
                     stateManager: stateManager,
                     container: document.getElementById('pageContainer'),
                     routes: {
+                        // اصلاح مسیر صفحات
                         '/home': { 
-                            module: './pages/home/home_page.js',
+                            module: '/Zabansaz/pages/home/home_page.js',
                             requiresAuth: false 
                         },
                         '/auth': { 
-                            module: './pages/auth/auth_view.js',
+                            module: '/Zabansaz/pages/auth/auth_view.js',
                             requiresAuth: false 
                         },
                         '/lesson/:id': { 
-                            module: './pages/lesson/lesson_view.js',
+                            module: '/Zabansaz/pages/lesson/lesson_view.js',
                             requiresAuth: true 
                         }
                     }
