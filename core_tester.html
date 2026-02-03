@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تستر هسته Vakamova</title>
+    <style>
+        body { font-family: Vazirmatn, sans-serif; padding: 20px; background: #f5f5f5; }
+        .tester { background: white; padding: 25px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); max-width: 800px; margin: 0 auto; }
+        h1 { color: #0d7377; text-align: center; margin-bottom: 25px; }
+        .file-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; margin-bottom: 25px; }
+        .file-item { background: #f8f9fa; padding: 15px; border-radius: 8px; border: 2px solid #dee2e6; text-align: center; cursor: pointer; transition: all 0.3s; }
+        .file-item:hover { background: #e9ecef; border-color: #0d7377; }
+        .file-item.testing { background: #fff3cd; border-color: #ffc107; }
+        .file-item.success { background: #d1e7dd; border-color: #198754; }
+        .file-item.error { background: #f8d7da; border-color: #dc3545; }
+        .controls { display: flex; gap: 10px; justify-content: center; margin: 25px 0; flex-wrap: wrap; }
+        button { padding: 12px 24px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.3s; }
+        #runAll { background: #0d7377; color: white; }
+        #runAll:hover { background: #095c5f; }
+        #runSelected { background: #6f42c1; color: white; }
+        #runSelected:hover { background: #5a32a3; }
+        #clearLogs { background: #6c757d; color: white; }
+        #clearLogs:hover { background: #545b62; }
+        select { padding: 12px; border-radius: 6px; border: 2px solid #ced4da; min-width: 250px; font-family: inherit; }
+        .log-container { background: #1a1a1a; color: #f8f9fa; padding: 20px; border-radius: 8px; margin-top: 20px; max-height: 400px; overflow-y: auto; font-family: monospace; }
+        .log-entry { padding: 8px; border-bottom: 1px solid #333; }
+        .log-entry.success { color: #4CAF50; }
+        .log-entry.error { color: #ff5252; }
+        .log-entry.info { color: #64b5f6; }
+        .summary { display: flex; justify-content: space-around; margin-top: 20px; padding: 15px; background: #e9ecef; border-radius: 8px; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="tester">
+        <h1>🧪 تستر فایل‌های هسته Vakamova</h1>
+        
+        <div class="controls">
+            <button id="runAll">▶️ تست همه فایل‌ها</button>
+            <select id="fileSelect">
+                <option value="">-- انتخاب فایل برای تست تکی --</option>
+            </select>
+            <button id="runSelected">🚀 تست فایل انتخاب‌شده</button>
+            <button id="clearLogs">🗑️ پاک کردن لاگ‌ها</button>
+        </div>
+        
+        <div class="file-list" id="fileList">
+            <!-- فایل‌ها به صورت پویا اضافه می‌شوند -->
+        </div>
+        
+        <div class="summary">
+            <div>کل: <span id="totalCount">0</span></div>
+            <div style="color: #4CAF50;">موفق: <span id="successCount">0</span></div>
+            <div style="color: #dc3545;">ناموفق: <span id="errorCount">0</span></div>
+            <div>در حال تست: <span id="testingCount">0</span></div>
+        </div>
+        
+        <h3>📜 گزارش اجرا:</h3>
+        <div class="log-container" id="logContainer"></div>
+    </div>
+    
+    <script>
+        const CORE_FILES = [
+            { name: 'event_bus.js', path: './core/event_bus.js', testFn: testEventBus },
+            { name: 'context_provider.js', path: './core/context_provider.js', testFn: testContextProvider },
+            { name: 'config.js', path: './core/config.js', testFn: testConfig },
+            { name: 'db.js', path: './core/db.js', testFn: testDatabase },
+            { name: 'api.js', path: './core/api.js', testFn: testApi },
+            { name: 'api_client.js', path: './core/api_client.js', testFn: testApiClient },
+            { name: 'font_manager.js', path: './core/font_manager.js', testFn: testFontManager },
+            { name: 'route_guards.js', path: './core/route_guards.js', testFn: testRouteGuards },
+            { name: 'router.js', path: './core/router.js', testFn: testRouter },
+            { name: 'router_middleware.js', path: './core/router_middleware.js', testFn: testRouterMiddleware },
+            { name: 'state.js', path: './core/state.js', testFn: testState },
+            { name: 'state_manager.js', path: './core/state_manager.js', testFn: testStateManager },
+            { name: 'utils.js', path: './core/utils.js', testFn: testUtils }
+        ];
+
+        let testResults = { total: 0, success: 0, error: 0, testing: 0 };
+        const loadedModules = new Map();
+
+        function initializeUI() {
+            const fileList = document.getElementById('fileList');
+            const fileSelect = document.getElementById('fileSelect');
+            
+            CORE_FILES.forEach(file => {
+                const fileItem = document.createElement('div');
+                fileItem.className = 'file-item';
+                fileItem.id = `file-${file.name.replace('.', '-')}`;
+                fileItem.innerHTML = `
+                    <div class="file-name">📄 ${file.name}</div>
+                    <div class="file-status">⏳ منتظر</div>
+                `;
+                fileList.appendChild(fileItem);
+                
+                const option = document.createElement('option');
+                option.value = file.path;
+                option.textContent = file.name;
+                fileSelect.appendChild(option);
+            });
+            updateSummary();
+        }
+
+        async function loadAndTestFile(fileInfo) {
+            const fileElement = document.getElementById(`file-${fileInfo.name.replace('.', '-')}`);
+            fileElement.className = 'file-item testing';
+            fileElement.querySelector('.file-status').textContent = '🔍 در حال تست...';
+            testResults.testing++;
+            updateSummary();
+            
+            log(`شروع تست: ${fileInfo.name}`, 'info');
+            
+            try {
+                const module = await loadModule(fileInfo.path);
+                loadedModules.set(fileInfo.name, module);
+                
+                if (fileInfo.testFn) {
+                    await fileInfo.testFn(module);
+                } else {
+                    await basicModuleTest(module, fileInfo.name);
+                }
+                
+                fileElement.className = 'file-item success';
+                fileElement.querySelector('.file-status').textContent = '✅ موفق';
+                testResults.success++;
+                log(`تست ${fileInfo.name} با موفقیت گذرانده شد`, 'success');
+            } catch (error) {
+                fileElement.className = 'file-item error';
+                fileElement.querySelector('.file-status').textContent = '❌ خطا';
+                testResults.error++;
+                log(`خطا در ${fileInfo.name}: ${error.message}`, 'error');
+                console.error(error);
+            } finally {
+                testResults.testing--;
+                testResults.total++;
+                updateSummary();
+            }
+        }
+
+        async function loadModule(path) {
+            return new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                script.src = path;
+                script.type = 'module';
+                
+                script.onload = () => {
+                    const moduleName = path.split('/').pop().replace('.js', '');
+                    const module = window[moduleName] || window[moduleName.replace(/_/g, '')] || window[moduleName.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join('')];
+                    resolve(module || {});
+                };
+                
+                script.onerror = () => reject(new Error(`بارگذاری ${path} ناموفق بود`));
+                document.head.appendChild(script);
+            });
+        }
+
+        async function basicModuleTest(module, name) {
+            if (typeof module === 'object' && Object.keys(module).length > 0) {
+                return true;
+            }
+            throw new Error('ماژول خالی یا نامعتبر است');
+        }
+
+        async function testEventBus(module) {
+            if (!module || !module.emit) {
+                throw new Error('EventBus دارای متد emit نیست');
+            }
+            module.emit('test', { message: 'تست EventBus' });
+            return true;
+        }
+
+        async function testContextProvider(module) {
+            if (!module || !module.register) {
+                throw new Error('ContextProvider دارای متد register نیست');
+            }
+            return true;
+        }
+
+        async function testDatabase(module) {
+            if (!module) {
+                throw new Error('ماژول database بارگذاری نشد');
+            }
+            return true;
+        }
+
+        async function testApi(module) {
+            if (!module) {
+                throw new Error('ماژول api بارگذاری نشد');
+            }
+            return true;
+        }
+
+        async function testApiClient(module) {
+            if (!module || typeof module !== 'function') {
+                throw new Error('ApiClient یک تابع سازنده نیست');
+            }
+            return true;
+        }
+
+        async function testRouter(module) {
+            if (!module || !module.navigate) {
+                throw new Error('Router دارای متد navigate نیست');
+            }
+            return true;
+        }
+
+        async function testState(module) {
+            if (!module || !module.set) {
+                throw new Error('State دارای متد set نیست');
+            }
+            return true;
+        }
+
+        async function testStateManager(module) {
+            if (!module || typeof module !== 'function') {
+                throw new Error('StateManager یک تابع سازنده نیست');
+            }
+            return true;
+        }
+
+        async function testUtils(module) {
+            if (!module || typeof module !== 'object') {
+                throw new Error('Utils یک آبجکت معتبر نیست');
+            }
+            return true;
+        }
+
+        async function testConfig(module) {
+            if (!module || typeof module !== 'object') {
+                throw new Error('Config یک آبجکت معتبر نیست');
+            }
+            return true;
+        }
+
+        async function testFontManager(module) {
+            if (!module || !module.loadFont) {
+                throw new Error('FontManager دارای متد loadFont نیست');
+            }
+            return true;
+        }
+
+        async function testRouteGuards(module) {
+            if (!module || !module.checkAccess) {
+                throw new Error('RouteGuards دارای متد checkAccess نیست');
+            }
+            return true;
+        }
+
+        async function testRouterMiddleware(module) {
+            if (!module || !module.process) {
+                throw new Error('RouterMiddleware دارای متد process نیست');
+            }
+            return true;
+        }
+
+        async function runAllTests() {
+            testResults = { total: 0, success: 0, error: 0, testing: 0 };
+            document.querySelectorAll('.file-item').forEach(item => {
+                item.className = 'file-item';
+                item.querySelector('.file-status').textContent = '⏳ منتظر';
+            });
+            log('شروع تست کلیه فایل‌های هسته...', 'info');
+            
+            for (const file of CORE_FILES) {
+                await loadAndTestFile(file);
+                await new Promise(resolve => setTimeout(resolve, 300));
+            }
+            
+            log(`✅ تست کلیه فایل‌ها تکمیل شد. موفق: ${testResults.success}, ناموفق: ${testResults.error}`, 
+                testResults.error === 0 ? 'success' : 'error');
+        }
+
+        async function runSelectedTest() {
+            const select = document.getElementById('fileSelect');
+            const selectedPath = select.value;
+            if (!selectedPath) {
+                log('لطفاً یک فایل را انتخاب کنید', 'error');
+                return;
+            }
+            
+            const fileInfo = CORE_FILES.find(f => f.path === selectedPath);
+            if (fileInfo) {
+                await loadAndTestFile(fileInfo);
+            }
+        }
+
+        function log(message, type = 'info') {
+            const logContainer = document.getElementById('logContainer');
+            const logEntry = document.createElement('div');
+            logEntry.className = `log-entry ${type}`;
+            logEntry.textContent = `[${new Date().toLocaleTimeString('fa-IR')}] ${message}`;
+            logContainer.appendChild(logEntry);
+            logContainer.scrollTop = logContainer.scrollHeight;
+            console.log(`[${type}] ${message}`);
+        }
+
+        function updateSummary() {
+            document.getElementById('totalCount').textContent = testResults.total;
+            document.getElementById('successCount').textContent = testResults.success;
+            document.getElementById('errorCount').textContent = testResults.error;
+            document.getElementById('testingCount').textContent = testResults.testing;
+        }
+
+        function clearLogs() {
+            document.getElementById('logContainer').innerHTML = '';
+            log('لاگ‌ها پاک شدند', 'info');
+        }
+
+        document.getElementById('runAll').addEventListener('click', runAllTests);
+        document.getElementById('runSelected').addEventListener('click', runSelectedTest);
+        document.getElementById('clearLogs').addEventListener('click', clearLogs);
+
+        document.addEventListener('DOMContentLoaded', initializeUI);
+    </script>
+</body>
+</html>
