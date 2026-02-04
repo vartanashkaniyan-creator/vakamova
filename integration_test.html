@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="fa">
+<head>
+    <meta charset="UTF-8">
+    <title>تست یکپارچگی Vakamova</title>
+    <style>
+        body { font-family: system-ui; padding: 20px; direction: rtl; }
+        .success { color: green; }
+        .error { color: red; }
+        .log { border: 1px solid #ccc; padding: 15px; margin-top: 20px; min-height: 100px; }
+    </style>
+</head>
+<body>
+    <h1>🧪 تست یکپارچگی Vakamova</h1>
+    <button id="runTest">اجرای تست</button>
+    <div id="log" class="log"></div>
+
+    <script>
+        const log = document.getElementById('log');
+        const output = (msg, type = 'info') => {
+            const p = document.createElement('p');
+            p.innerHTML = `[${new Date().toLocaleTimeString('fa-IR')}] ${msg}`;
+            p.className = type === 'success' ? 'success' : type === 'error' ? 'error' : '';
+            log.appendChild(p);
+        };
+
+        // لیست فایل‌ها برای بارگذاری
+        const coreFiles = [
+            'core/event_bus.js',
+            'core/utils.js',
+            'core/state_manager.js',
+            'core/security.layer.js',
+            'core/core.operation.js',
+            'core/persistence.js',
+            'modules/auth/auth_manager.js'
+        ];
+
+        async function loadScript(src) {
+            return new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                script.src = src;
+                script.onload = () => resolve(src);
+                script.onerror = () => reject(new Error(`خطا در بارگذاری ${src}`));
+                document.head.appendChild(script);
+            });
+        }
+
+        async function runIntegrationTest() {
+            log.innerHTML = '';
+            output('شروع تست یکپارچگی...');
+
+            // مرحله ۱: بارگذاری فایل‌های اصلی
+            output('بارگذاری فایل‌های core...');
+            try {
+                for (const file of coreFiles) {
+                    await loadScript(file);
+                    output(`✅ ${file} بارگذاری شد`, 'success');
+                }
+            } catch (e) {
+                output(`❌ خطا در بارگذاری: ${e.message}`, 'error');
+                return;
+            }
+
+            // مرحله ۲: تست EventBus
+            output('تست EventBus...');
+            if (typeof eventBus !== 'undefined') {
+                try {
+                    eventBus.emit('test:integration', { message: 'سلام Vakamova' });
+                    output('✅ EventBus پاسخ داد', 'success');
+                } catch (e) {
+                    output(`❌ EventBus خطا: ${e.message}`, 'error');
+                }
+            } else {
+                output('❌ eventBus تعریف نشده', 'error');
+            }
+
+            // مرحله ۳: تست State Manager
+            output('تست State Manager...');
+            if (typeof HyperStateManager !== 'undefined') {
+                try {
+                    const testState = new HyperStateManager(eventBus);
+                    testState.set('integration.test', 'مقدار تست');
+                    const value = testState.get('integration.test');
+                    if (value === 'مقدار تست') {
+                        output('✅ State Manager کار می‌کند', 'success');
+                    }
+                } catch (e) {
+                    output(`❌ State Manager خطا: ${e.message}`, 'error');
+                }
+            }
+
+            // مرحله ۴: تست Auth Manager (اگر موجود باشد)
+            output('بررسی Auth Manager...');
+            if (typeof auth_manager !== 'undefined') {
+                output('✅ Auth Manager موجود است', 'success');
+                // می‌توانید تست‌های بیشتر برای auth_manager اینجا اضافه کنید
+            }
+
+            // مرحله ۵: تست فایل‌های جدید
+            output('بررسی فایل‌های جدید...');
+            const newFiles = ['security.layer.js', 'core.operation.js', 'persistence.js'];
+            newFiles.forEach(file => {
+                if (typeof window[file.replace('.js', '')] !== 'undefined') {
+                    output(`✅ ${file} بارگذاری شد`, 'success');
+                } else {
+                    output(`⚠️ ${file} به صورت global تعریف نشده`, 'info');
+                }
+            });
+
+            output('تست کامل شد!', 'success');
+        }
+
+        document.getElementById('runTest').addEventListener('click', runIntegrationTest);
+    </script>
+</body>
+</html>
