@@ -1,34 +1,69 @@
-
 /**
- * HYPERLANG STATE MANAGER - سیستم مدیریت وضعیت پیشرفته
+ * HYPERLANG STATE MANAGER - سیستم مدیریت وضعیت پیشرفته (نسخه اصلاح‌شده)
  * اصل: پیکربندی متمرکز، قرارداد رابط، معماری حرفه‌ای
  * وابستگی: event-bus.js (برای تغییرات state)
  */
 
 class HyperStateManager {
     constructor(eventSystem, config = {}) {
+        // ==================== تزریق وابستگی‌ها ====================
         this._eventSystem = eventSystem;
         
+        // تزریق logger برای مدیریت خطاها
+        this._logger = config.logger || {
+            error: (msg, error) => {
+                if (typeof console !== 'undefined' && console.error) {
+                    console.error(`[StateManager] ${msg}`, error);
+                }
+            },
+            warn: (msg, data) => {
+                if (typeof console !== 'undefined' && console.warn) {
+                    console.warn(`[StateManager] ${msg}`, data);
+                }
+            },
+            info: (msg, data) => {
+                if (typeof console !== 'undefined' && console.info) {
+                    console.info(`[StateManager] ${msg}`, data);
+                }
+            }
+        };
+        
+        // ==================== ذخیره‌سازی حالت ====================
         this._state = new Map();
         this._history = [];
         this._transactions = new Map();
-        this._subscriptions = new Map();
         this._middlewares = [];
         
+        // ==================== پیکربندی متمرکز ====================
         this._config = Object.freeze({
             maxHistory: config.maxHistory || 100,
             enableHistory: config.enableHistory ?? true,
             enableMiddleware: config.enableMiddleware ?? true,
             strictMode: config.strictMode ?? false,
             defaultNamespace: config.defaultNamespace || 'global',
+            autoCleanupInterval: config.autoCleanupInterval || 300000, // 5 دقیقه
             ...config
         });
         
+        // ==================== سیستم‌های پیشرفته ====================
         this._validators = new Map();
-        this._computedStates = new Map();
         this._snapshots = new Map();
         
+        // سیستم subscription بهینه‌شده
+        this._subscriptions = {
+            byPath: new Map(),           // Subscriptionهای مستقیم
+            byPattern: new Map(),        // Subscriptionهای الگویی
+            computedDeps: new Map(),     // وابستگی‌های computed
+            cleanupQueue: new Set()      // صف پاکسازی
+        };
+        
+        // Dependency tracker متمرکز برای computed states
+        this._dependencyTracker = this._createDependencyTracker();
+        
         Object.seal(this._config);
+        
+        // راه‌اندازی cleanup خودکار
+        this._setupAutoCleanup();
         
         // Initialize default state
         this._initDefaultState();
@@ -117,8 +152,9 @@ class HyperStateManager {
         const fullPath = `${namespace}.${normalizedPath}`;
         
         // Check computed state first
-        if (this._computedStates.has(fullPath)) {
-            return this._computedStates.get(fullPath).value;
+        const computedValue = this._dependencyTracker.getComputedValue(fullPath);
+        if (computedValue !== undefined) {
+            return computedValue;
         }
         
         return this._getStateValue(fullPath);
@@ -144,7 +180,7 @@ class HyperStateManager {
         this._deleteStateValue(fullPath);
         
         // Remove computed states
-        this._computedStates.delete(fullPath);
+        this._dependencyTracker.removeComputedState(fullPath);
         
         // Notify subscribers
         this._notifySubscribers(fullPath, undefined, oldValue);
@@ -168,11 +204,11 @@ class HyperStateManager {
         
         const subscriptionId = Symbol(`sub_${Date.now()}`);
         
-        if (!this._subscriptions.has(fullPath)) {
-            this._subscriptions.set(fullPath, new Map());
+        if (!this._subscriptions.byPath.has(fullPath)) {
+            this._subscriptions.byPath.set(fullPath, new Map());
         }
         
-        this._subscriptions.get(fullPath).set(subscriptionId, {
+        this._subscriptions.byPath.get(fullPath).set(subscriptionId, {
             callback,
             options: {
                 immediate: options.immediate ?? false,
@@ -186,19 +222,25 @@ class HyperStateManager {
             try {
                 callback(this.get(path, { namespace }), undefined, fullPath);
             } catch (error) {
-                console.error('[StateManager] Immediate subscription error:', error);
+                this._logger.error('Immediate subscription error:', error);
             }
         }
         
-        return () => {
-            const pathSubs = this._subscriptions.get(fullPath);
+        const unsubscribe = () => {
+            const pathSubs = this._subscriptions.byPath.get(fullPath);
             if (pathSubs) {
                 pathSubs.delete(subscriptionId);
                 if (pathSubs.size === 0) {
-                    this._subscriptions.delete(fullPath);
+                    this._subscriptions.byPath.delete(fullPath);
                 }
             }
+            return true;
         };
+        
+        // ثبت برای cleanup خودکار
+        this._subscriptions.cleanupQueue.add(unsubscribe);
+        
+        return unsubscribe;
     }
     
     computed(path, computer, options = {}) {
@@ -206,27 +248,13 @@ class HyperStateManager {
         const namespace = options.namespace || this._config.defaultNamespace;
         const fullPath = `${namespace}.${normalizedPath}`;
         
-        const computedState = {
+        // استفاده از dependency tracker متمرکز
+        return this._dependencyTracker.createComputedState(
+            fullPath,
             computer,
-            dependencies: options.dependencies || [],
-            value: null,
-            cache: options.cache ?? true
-        };
-        
-        // Compute initial value
-        computedState.value = this._computeValue(computedState);
-        
-        this._computedStates.set(fullPath, computedState);
-        
-        // Subscribe to dependencies
-        for (const dep of computedState.dependencies) {
-            this.subscribe(dep, () => {
-                computedState.value = this._computeValue(computedState);
-                this._notifySubscribers(fullPath, computedState.value);
-            }, { namespace: options.namespace });
-        }
-        
-        return computedState.value;
+            options.dependencies || [],
+            options
+        );
     }
     
     transaction(callback) {
@@ -295,6 +323,47 @@ class HyperStateManager {
         return this;
     }
     
+    // ==================== NEW: CLEANUP METHODS ====================
+    
+    cleanupAllSubscriptions() {
+        let cleanedCount = 0;
+        
+        // پاکسازی همه subscriptionها
+        this._subscriptions.cleanupQueue.forEach(unsubscribe => {
+            if (unsubscribe()) {
+                cleanedCount++;
+            }
+        });
+        
+        this._subscriptions.cleanupQueue.clear();
+        this._subscriptions.byPath.clear();
+        this._subscriptions.byPattern.clear();
+        
+        // پاکسازی dependency tracker
+        this._dependencyTracker.cleanup();
+        
+        this._logger.info(`Cleaned up ${cleanedCount} subscriptions`, {
+            timestamp: Date.now()
+        });
+        
+        return { success: true, cleanedCount };
+    }
+    
+    cleanupUnusedSubscriptions() {
+        const unused = [];
+        
+        for (const [path, subscribers] of this._subscriptions.byPath) {
+            // اگر مسیر در state وجود ندارد
+            if (this.get(path) === undefined) {
+                unused.push(path);
+                subscribers.clear();
+                this._subscriptions.byPath.delete(path);
+            }
+        }
+        
+        return { success: true, unusedPaths: unused, count: unused.length };
+    }
+    
     // ==================== UTILITY METHODS ====================
     
     getAllState(namespace = null) {
@@ -332,7 +401,112 @@ class HyperStateManager {
         return Array.from(this._snapshots.keys());
     }
     
+    getSubscriptionCount() {
+        let total = 0;
+        for (const subscribers of this._subscriptions.byPath.values()) {
+            total += subscribers.size;
+        }
+        return total;
+    }
+    
     // ==================== PRIVATE METHODS ====================
+    
+    _createDependencyTracker() {
+        const computedStates = new Map();
+        const dependencyMap = new Map();
+        
+        return {
+            createComputedState(fullPath, computer, dependencies, options) {
+                const computedState = {
+                    computer,
+                    dependencies: dependencies.map(dep => 
+                        Array.isArray(dep) ? dep.join('.') : dep
+                    ),
+                    value: null,
+                    cache: options.cache ?? true,
+                    subscribers: new Set()
+                };
+                
+                // Compute initial value
+                computedState.value = this._computeValue(computedState);
+                
+                computedStates.set(fullPath, computedState);
+                
+                // Register dependencies
+                for (const dep of computedState.dependencies) {
+                    if (!dependencyMap.has(dep)) {
+                        dependencyMap.set(dep, new Set());
+                    }
+                    dependencyMap.get(dep).add(fullPath);
+                }
+                
+                return computedState.value;
+            },
+            
+            _computeValue(computedState) {
+                try {
+                    const depsValues = computedState.dependencies.map(dep => {
+                        const path = Array.isArray(dep) ? dep.join('.') : dep;
+                        return this._getStateValue(path);
+                    });
+                    
+                    return computedState.computer(...depsValues);
+                } catch (error) {
+                    this._logger.error('Computed state error:', error);
+                    return null;
+                }
+            },
+            
+            getComputedValue(fullPath) {
+                const computed = computedStates.get(fullPath);
+                return computed ? computed.value : undefined;
+            },
+            
+            removeComputedState(fullPath) {
+                const computed = computedStates.get(fullPath);
+                if (computed) {
+                    // Remove from dependency map
+                    for (const dep of computed.dependencies) {
+                        const dependents = dependencyMap.get(dep);
+                        if (dependents) {
+                            dependents.delete(fullPath);
+                            if (dependents.size === 0) {
+                                dependencyMap.delete(dep);
+                            }
+                        }
+                    }
+                    computedStates.delete(fullPath);
+                }
+            },
+            
+            updateDependents(changedPath) {
+                const dependents = dependencyMap.get(changedPath);
+                if (dependents) {
+                    for (const dependentPath of dependents) {
+                        const computed = computedStates.get(dependentPath);
+                        if (computed) {
+                            computed.value = this._computeValue(computed);
+                            // Notify subscribers
+                            this._notifySubscribers(dependentPath, computed.value);
+                        }
+                    }
+                }
+            },
+            
+            cleanup() {
+                computedStates.clear();
+                dependencyMap.clear();
+            }
+        };
+    }
+    
+    _setupAutoCleanup() {
+        if (this._config.autoCleanupInterval > 0) {
+            this._cleanupInterval = setInterval(() => {
+                this.cleanupUnusedSubscriptions();
+            }, this._config.autoCleanupInterval);
+        }
+    }
     
     _initDefaultState() {
         this.set('initialized', false, { 
@@ -427,17 +601,51 @@ class HyperStateManager {
     }
     
     _notifySubscribers(path, newValue, oldValue) {
-        if (!this._subscriptions.has(path)) return;
-        
-        const subscribers = this._subscriptions.get(path);
-        
-        for (const [id, config] of subscribers) {
-            try {
-                config.callback(newValue, oldValue, path);
-            } catch (error) {
-                console.error('[StateManager] Subscriber error:', error);
+        // Notify direct subscribers
+        if (this._subscriptions.byPath.has(path)) {
+            const subscribers = this._subscriptions.byPath.get(path);
+            
+            for (const [id, config] of subscribers) {
+                try {
+                    config.callback(newValue, oldValue, path);
+                } catch (error) {
+                    this._logger.error('Subscriber error:', error);
+                }
             }
         }
+        
+        // Notify pattern subscribers
+        for (const [pattern, subscribers] of this._subscriptions.byPattern) {
+            if (this._matchesPattern(path, pattern)) {
+                for (const [id, config] of subscribers) {
+                    try {
+                        config.callback(newValue, oldValue, path);
+                    } catch (error) {
+                        this._logger.error('Pattern subscriber error:', error);
+                    }
+                }
+            }
+        }
+        
+        // Update computed dependents
+        this._dependencyTracker.updateDependents(path);
+    }
+    
+    _matchesPattern(path, pattern) {
+        if (pattern === '*') return true;
+        
+        const pathParts = path.split('.');
+        const patternParts = pattern.split('.');
+        
+        if (pathParts.length !== patternParts.length) return false;
+        
+        for (let i = 0; i < pathParts.length; i++) {
+            if (patternParts[i] !== '*' && patternParts[i] !== pathParts[i]) {
+                return false;
+            }
+        }
+        
+        return true;
     }
     
     _runMiddlewares(phase, data) {
@@ -453,7 +661,7 @@ class HyperStateManager {
                     result.value = middlewareResult.value;
                 }
             } catch (error) {
-                console.error('[StateManager] Middleware error:', error);
+                this._logger.error('Middleware error:', error);
                 if (this._config.strictMode) throw error;
             }
         }
@@ -462,27 +670,8 @@ class HyperStateManager {
     }
     
     _updateComputedStates(changedPath, newValue) {
-        for (const [path, computed] of this._computedStates) {
-            if (computed.dependencies.includes(changedPath)) {
-                computed.value = this._computeValue(computed);
-                this._notifySubscribers(path, computed.value);
-            }
-        }
-    }
-    
-    _computeValue(computedState) {
-        try {
-            const depsValues = computedState.dependencies.map(dep => 
-                this.get(dep.replace(/^[^.]+\./, ''), { 
-                    namespace: dep.split('.')[0] 
-                })
-            );
-            
-            return computedState.computer(...depsValues);
-        } catch (error) {
-            console.error('[StateManager] Computed state error:', error);
-            return null;
-        }
+        // Handled by dependency tracker
+        this._dependencyTracker.updateDependents(changedPath);
     }
     
     _commitTransaction(transactionId) {
@@ -540,10 +729,56 @@ class HyperStateManager {
         this._state = restoreMap(serializedState);
         
         // Notify all subscribers
-        for (const [path] of this._subscriptions) {
+        for (const [path] of this._subscriptions.byPath) {
             this._notifySubscribers(path, this.get(path));
         }
     }
+    
+    // ==================== DESTRUCTOR ====================
+    
+    destroy() {
+        // توقف cleanup خودکار
+        if (this._cleanupInterval) {
+            clearInterval(this._cleanupInterval);
+        }
+        
+        // پاکسازی کامل
+        this.cleanupAllSubscriptions();
+        
+        // پاکسازی state
+        this._state.clear();
+        this._history = [];
+        this._transactions.clear();
+        this._middlewares = [];
+        this._validators.clear();
+        this._snapshots.clear();
+        
+        this._logger.info('StateManager destroyed', { timestamp: Date.now() });
+        
+        return { success: true };
+    }
 }
 
-export { HyperStateManager };
+// ==================== فکتوری و Singleton ====================
+
+const StateManagerFactory = {
+    create(eventSystem, config = {}) {
+        return new HyperStateManager(eventSystem, config);
+    },
+    
+    getInstance(eventSystem, config = {}) {
+        if (!this._instance) {
+            this._instance = this.create(eventSystem, config);
+        }
+        return this._instance;
+    },
+    
+    destroyInstance() {
+        if (this._instance) {
+            this._instance.destroy();
+            this._instance = null;
+        }
+    }
+};
+
+export { HyperStateManager, StateManagerFactory };
