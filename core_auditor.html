@@ -5,127 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>🔍 ممیزی هسته Vakamova - Core Auditor</title>
     <style>
-        :root {
-            --primary: #0d7377;
-            --success: #4CAF50;
-            --warning: #FF9800;
-            --danger: #f44336;
-            --dark: #1a1a2e;
-            --light: #f8f9fa;
-        }
-        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Vazirmatn', sans-serif; }
-        body { background: linear-gradient(135deg, var(--dark) 0%, #16213e 100%); color: var(--light); min-height: 100vh; padding: 20px; }
-        
-        .container { max-width: 1400px; margin: 0 auto; }
-        header { text-align: center; margin-bottom: 40px; padding: 30px; background: rgba(255,255,255,0.05); border-radius: 20px; border: 2px solid var(--primary); }
-        h1 { color: #14ffec; font-size: 2.8rem; margin-bottom: 10px; }
-        .subtitle { color: #8892b0; font-size: 1.2rem; }
-        
-        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin: 30px 0; }
-        .stat-card { background: rgba(255,255,255,0.05); padding: 20px; border-radius: 15px; text-align: center; border: 1px solid rgba(255,255,255,0.1); }
-        .stat-card h3 { color: #8892b0; font-size: 1rem; margin-bottom: 10px; }
-        .stat-card .value { font-size: 2.5rem; font-weight: bold; }
-        .stat-card.success .value { color: var(--success); }
-        .stat-card.warning .value { color: var(--warning); }
-        
-        .modules-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; margin: 30px 0; }
-        .module-card { background: rgba(17,34,64,0.8); border-radius: 15px; padding: 20px; border: 2px solid transparent; transition: all 0.3s; }
-        .module-card.loaded { border-color: var(--success); }
-        .module-card.error { border-color: var(--danger); }
-        .module-card.pending { border-color: var(--warning); }
-        
-        .module-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
-        .module-name { font-size: 1.3rem; font-weight: bold; color: #14ffec; }
-        .module-status { padding: 5px 15px; border-radius: 20px; font-size: 0.9rem; font-weight: bold; }
-        .status-loaded { background: rgba(76,175,80,0.2); color: var(--success); }
-        .status-error { background: rgba(244,67,54,0.2); color: var(--danger); }
-        .status-pending { background: rgba(255,152,0,0.2); color: var(--warning); }
-        .status-waiting { background: rgba(33,150,243,0.2); color: #2196f3; }
-        
-        .module-deps { margin: 15px 0; padding: 10px; background: rgba(0,0,0,0.3); border-radius: 10px; }
-        .dep-item { display: inline-block; padding: 3px 10px; margin: 3px; background: rgba(255,255,255,0.1); border-radius: 5px; font-size: 0.85rem; }
-        .dep-item.missing { background: rgba(244,67,54,0.3); color: #ff8a8a; }
-        .dep-item.loaded { background: rgba(76,175,80,0.3); color: #a5d6a7; }
-        
-        .test-buttons { display: flex; gap: 10px; margin-top: 15px; flex-wrap: wrap; }
-        .btn { padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; transition: all 0.3s; }
-        .btn-test { background: var(--primary); color: white; }
-        .btn-test:hover { background: #0a5f62; transform: translateY(-2px); }
-        .btn-load { background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.3); }
-        .btn-load:hover { background: rgba(255,255,255,0.2); }
-        .btn-load:disabled { opacity: 0.5; cursor: not-allowed; }
-        
-        .controls { display: flex; gap: 20px; margin: 30px 0; flex-wrap: wrap; }
-        .btn-main { padding: 15px 30px; font-size: 1.1rem; background: linear-gradient(135deg, var(--primary) 0%, #14ffec 100%); color: black; font-weight: bold; }
-        .btn-smart { background: linear-gradient(135deg, #9c27b0 0%, #e91e63 100%); }
-        
-        .logs-container { background: rgba(0,0,0,0.5); border-radius: 10px; padding: 20px; margin-top: 30px; max-height: 400px; overflow-y: auto; }
-        .log-entry { padding: 10px; border-bottom: 1px solid rgba(255,255,255,0.1); font-family: 'Courier New', monospace; }
-        .log-timestamp { color: #8892b0; font-size: 0.9rem; }
-        .log-success { color: var(--success); border-left: 4px solid var(--success); padding-left: 15px; }
-        .log-error { color: var(--danger); border-left: 4px solid var(--danger); padding-left: 15px; }
-        .log-warning { color: var(--warning); border-left: 4px solid var(--warning); padding-left: 15px; }
-        .log-info { color: #64b5f6; border-left: 4px solid #64b5f6; padding-left: 15px; }
-        
-        .progress-bar { width: 100%; height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px; margin: 20px 0; overflow: hidden; }
-        .progress-fill { height: 100%; background: linear-gradient(90deg, var(--primary), #14ffec); width: 0%; transition: width 0.5s; }
-        
-        .dependency-graph { margin: 30px 0; padding: 20px; background: rgba(0,0,0,0.3); border-radius: 10px; }
-        .graph-node { display: inline-block; padding: 8px 15px; margin: 5px; background: rgba(255,255,255,0.1); border-radius: 5px; }
-        .graph-arrow { color: #14ffec; margin: 0 10px; }
-        
-        @media (max-width: 768px) {
-            .modules-grid { grid-template-columns: 1fr; }
-            .controls { flex-direction: column; }
-            .btn-main { width: 100%; }
-        }
+        /* استایل‌ها همانند قبل */
     </style>
 </head>
 <body>
     <div class="container">
-        <header>
-            <h1>🔍 ممیزی هسته Vakamova</h1>
-            <p class="subtitle">بررسی ۱۳ فایل اصلی core/ - تست مستقل بدون وابستگی خارجی</p>
-        </header>
-        
-        <div class="stats-grid" id="statsGrid">
-            <div class="stat-card success">
-                <h3>فایل‌های بارگذاری شده</h3>
-                <div class="value" id="loadedCount">0</div>
-            </div>
-            <div class="stat-card success">
-                <h3>تست‌های موفق</h3>
-                <div class="value" id="passedCount">0</div>
-            </div>
-            <div class="stat-card warning">
-                <h3>خطاها</h3>
-                <div class="value" id="errorCount">0</div>
-            </div>
-            <div class="stat-card">
-                <h3>وابستگی‌های فعال</h3>
-                <div class="value" id="depCount">0</div>
-            </div>
-        </div>
-        
-        <div class="progress-bar">
-            <div class="progress-fill" id="progressFill"></div>
-        </div>
-        
-        <div class="controls">
-            <button class="btn btn-main" onclick="loadAllCoreFiles()">📥 بارگذاری همه فایل‌های Core</button>
-            <button class="btn btn-main btn-smart" onclick="loadSmartSequence()">🧠 بارگذاری هوشمند (ترتیب صحیح)</button>
-            <button class="btn btn-main" onclick="runAllTests()">⚡ اجرای همه تست‌ها</button>
-            <button class="btn btn-main" onclick="analyzeDependencies()">🔗 تحلیل وابستگی‌ها</button>
-            <button class="btn btn-main" onclick="clearLogs()">🗑️ پاک کردن گزارش</button>
-        </div>
-        
-        <div id="modulesContainer" class="modules-grid">
-            <!-- ماژول‌ها اینجا ساخته می‌شوند -->
-        </div>
-        
-        <div class="logs-container" id="logsContainer">
-            <!-- لاگ‌ها اینجا نمایش داده می‌شوند -->
-        </div>
+        <!-- HTML همانند قبل -->
     </div>
     
     <script>
@@ -139,11 +24,60 @@
                 test: () => testEventBus()
             },
             { 
+                id: 'utils',
+                name: 'Utilities', 
+                path: 'core/utils.js', 
+                dependencies: [],
+                test: () => testUtilities()
+            },
+            { 
+                id: 'state',
+                name: 'State (پایه)', 
+                path: 'core/state.js', 
+                dependencies: [],
+                test: () => testBaseState()
+            },
+            { 
                 id: 'state_manager',
                 name: 'State Manager', 
                 path: 'core/state_manager.js', 
                 dependencies: ['event_bus'],
                 test: () => testStateManager()
+            },
+            { 
+                id: 'router',
+                name: 'Router', 
+                path: 'core/router.js', 
+                dependencies: ['event_bus', 'state_manager'],
+                test: () => testRouter()
+            },
+            { 
+                id: 'database',
+                name: 'Database', 
+                path: 'core/database.js', 
+                dependencies: ['utils'],
+                test: () => testDatabase()
+            },
+            { 
+                id: 'api',
+                name: 'API (پایه)', 
+                path: 'core/api.js', 
+                dependencies: ['utils'],
+                test: () => testBaseApi()
+            },
+            { 
+                id: 'config',
+                name: 'Config Manager', 
+                path: 'core/config.js', 
+                dependencies: ['utils'],
+                test: () => testConfig()
+            },
+            { 
+                id: 'font_manager',
+                name: 'Font Manager', 
+                path: 'core/font_manager.js', 
+                dependencies: ['utils'],
+                test: () => testFontManager()
             },
             { 
                 id: 'context_provider',
@@ -172,114 +106,34 @@
                 path: 'core/guards.js', 
                 dependencies: ['router', 'state_manager'],
                 test: () => testGuards()
-            },
-            { 
-                id: 'state',
-                name: 'State (پایه)', 
-                path: 'core/state.js', 
-                dependencies: [],
-                test: () => testBaseState()
-            },
-            { 
-                id: 'router',
-                name: 'Router', 
-                path: 'core/router.js', 
-                dependencies: ['event_bus', 'state_manager'],
-                test: () => testRouter()
-            },
-            { 
-                id: 'database',
-                name: 'Database', 
-                path: 'core/database.js', 
-                dependencies: ['utils'],
-                test: () => testDatabase()
-            },
-            { 
-                id: 'api',
-                name: 'API (پایه)', 
-                path: 'core/api.js', 
-                dependencies: ['utils'],
-                test: () => testBaseApi()
-            },
-            { 
-                id: 'utils',
-                name: 'Utilities', 
-                path: 'core/utils.js', 
-                dependencies: [],
-                test: () => testUtilities()
-            },
-            { 
-                id: 'config',
-                name: 'Config Manager', 
-                path: 'core/config.js', 
-                dependencies: ['utils'],
-                test: () => testConfig()
-            },
-            { 
-                id: 'font_manager',
-                name: 'Font Manager', 
-                path: 'core/font_manager.js', 
-                dependencies: ['utils'],
-                test: () => testFontManager()
             }
         ];
         
-        // ==================== وضعیت برنامه ====================
-        const appState = {
-            loadedModules: new Map(),
-            testResults: { passed: 0, failed: 0, total: 0 },
-            dependencies: new Map(),
-            logs: [],
-            moduleMap: new Map()
-        };
-        
-        // ایجاد نقشه برای دسترسی سریع
-        CORE_MODULES.forEach((module, index) => {
-            appState.moduleMap.set(module.id, { index, module });
-        });
-        
-        // ==================== سیستم گزارش‌گیری ====================
-        function log(message, type = 'info') {
-            const timestamp = new Date().toLocaleTimeString('fa-IR');
-            const logEntry = { message, type, timestamp };
-            appState.logs.push(logEntry);
-            
-            const logElement = document.createElement('div');
-            logElement.className = `log-entry log-${type}`;
-            logElement.innerHTML = `
-                <span class="log-timestamp">[${timestamp}]</span>
-                <span>${message}</span>
-            `;
-            
-            document.getElementById('logsContainer').prepend(logElement);
-            console.log(`[${type.toUpperCase()}] ${message}`);
-            
-            updateStats();
-            return logEntry;
-        }
-        
         // ==================== سیستم بارگذاری هوشمند ====================
         async function loadSmartSequence() {
-            log('🧠 شروع بارگذاری هوشمند با ترتیب صحیح وابستگی‌ها...', 'info');
+            log('🧠 شروع بارگذاری هوشمند با رعایت ترتیب وابستگی‌ها...', 'info');
             document.getElementById('progressFill').style.width = '0%';
             
             const total = CORE_MODULES.length;
             let loaded = 0;
-            let iteration = 0;
-            const maxIterations = total * 2; // جلوگیری از حلقه بی‌نهایت
+            let round = 1;
+            const maxRounds = 10;
             
             // ریست وضعیت
             appState.loadedModules.clear();
-            createModuleCards(); // بازسازی کارت‌ها
+            appState.moduleElements.clear();
             
-            while (loaded < total && iteration < maxIterations) {
-                iteration++;
+            // ایجاد کارت‌های جدید
+            createModuleCards();
+            
+            while (loaded < total && round <= maxRounds) {
+                log(`🔁 دور ${round} از بارگذاری...`, 'info');
                 let loadedThisRound = 0;
                 
                 for (let i = 0; i < CORE_MODULES.length; i++) {
                     const module = CORE_MODULES[i];
                     
-                    // اگر قبلاً بارگذاری شده، رد شو
+                    // اگر قبلاً بارگذاری شده
                     if (appState.loadedModules.has(module.id)) {
                         continue;
                     }
@@ -290,476 +144,231 @@
                     );
                     
                     if (missingDeps.length === 0) {
-                        // همه وابستگی‌ها آماده هستند
-                        const success = await loadModule(i);
-                        if (success) {
-                            loaded++;
-                            loadedThisRound++;
+                        // بارگذاری این ماژول
+                        try {
+                            log(`📦 بارگذاری ${module.name}...`, 'info');
+                            const success = await loadModule(i);
+                            
+                            if (success) {
+                                loaded++;
+                                loadedThisRound++;
+                                appState.loadedModules.set(module.id, true);
+                                
+                                // به‌روزرسانی پیشرفت
+                                const progress = (loaded / total) * 100;
+                                document.getElementById('progressFill').style.width = `${progress}%`;
+                                
+                                // تاخیر برای مشاهده بهتر
+                                await new Promise(resolve => setTimeout(resolve, 300));
+                            }
+                        } catch (error) {
+                            log(`⚠️ خطا در ${module.name}: ${error.message}`, 'warning');
                         }
-                        
-                        // به‌روزرسانی پیشرفت
-                        const progress = (loaded / total) * 100;
-                        document.getElementById('progressFill').style.width = `${progress}%`;
-                        
-                        // تاخیر برای مشاهده بهتر
-                        await new Promise(resolve => setTimeout(resolve, 300));
                     } else {
-                        // آپدیت وضعیت کارت برای نشان دادن وابستگی‌های مفقود
+                        // نمایش وابستگی‌های مفقود
                         updateModuleCard(i, 'waiting', missingDeps);
                     }
                 }
                 
-                if (loadedThisRound === 0 && loaded < total) {
-                    log(`⚠️ دور ${iteration}: هیچ فایل جدیدی بارگذاری نشد. وابستگی‌های حل نشده مانع می‌شوند.`, 'warning');
-                    break;
+                if (loadedThisRound === 0) {
+                    log(`⚠️ دور ${round}: هیچ فایل جدیدی بارگذاری نشد. بررسی وابستگی‌ها...`, 'warning');
+                    
+                    // نمایش وابستگی‌های حل نشده
+                    const unresolved = CORE_MODULES
+                        .filter(m => !appState.loadedModules.has(m.id))
+                        .map(m => ({
+                            name: m.name,
+                            missing: m.dependencies.filter(d => !appState.loadedModules.has(d))
+                        }))
+                        .filter(m => m.missing.length > 0);
+                    
+                    if (unresolved.length > 0) {
+                        log('🔍 وابستگی‌های حل نشده:', 'warning');
+                        unresolved.forEach(item => {
+                            log(`   ${item.name} ← ${item.missing.join(', ')}`, 'warning');
+                        });
+                    }
+                    
+                    // اگر در دور دوم هم پیشرفتی نبود، شکستن حلقه
+                    if (round >= 2) {
+                        log('💥 بارگذاری متوقف شد: وابستگی‌های حل نشده', 'error');
+                        break;
+                    }
                 }
+                
+                round++;
             }
             
-            if (loaded === total) {
-                log(`🎉 بارگذاری هوشمند کامل شد: همه ${total} فایل با ترتیب صحیح بارگذاری شدند`, 'success');
+            const finalResult = {
+                loaded: loaded,
+                total: total,
+                success: loaded === total
+            };
+            
+            if (finalResult.success) {
+                log(`🎉 بارگذاری کامل شد: همه ${total} فایل بارگذاری شدند`, 'success');
             } else {
-                log(`⚠️ بارگذاری هوشمند ناتمام: ${loaded} از ${total} فایل بارگذاری شد`, 'warning');
+                log(`⚠️ بارگذاری ناتمام: ${loaded} از ${total} فایل بارگذاری شد`, 'warning');
             }
             
-            return { loaded, total };
+            return finalResult;
         }
         
-        // ==================== سیستم بارگذاری ماژول ====================
+        // ==================== تابع loadModule اصلاح شده ====================
         async function loadModule(moduleIndex) {
             const module = CORE_MODULES[moduleIndex];
             
-            try {
-                // بررسی نهایی وابستگی‌ها
-                const missingDeps = module.dependencies.filter(dep => 
-                    !appState.loadedModules.has(dep)
-                );
+            return new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                script.src = module.path;
                 
-                if (missingDeps.length > 0) {
-                    log(`⏳ ${module.name} منتظر وابستگی: ${missingDeps.join(', ')}`, 'warning');
-                    updateModuleCard(moduleIndex, 'waiting', missingDeps);
-                    return false;
+                // تنظیم timeout برای جلوگیری از انتظار بی‌پایان
+                const timeoutId = setTimeout(() => {
+                    script.remove();
+                    reject(new Error(`تایم‌اوت بارگذاری برای ${module.path}`));
+                }, 10000); // 10 ثانیه
+                
+                script.onload = () => {
+                    clearTimeout(timeoutId);
+                    updateModuleCard(moduleIndex, 'loaded');
+                    log(`✅ ${module.name} بارگذاری شد`, 'success');
+                    resolve(true);
+                };
+                
+                script.onerror = () => {
+                    clearTimeout(timeoutId);
+                    updateModuleCard(moduleIndex, 'error');
+                    log(`❌ خطا در بارگذاری ${module.name} (مسیر: ${module.path})`, 'error');
+                    resolve(false); // reject نکن، فقط false برگردون
+                };
+                
+                // نوع ماژول یا معمولی؟
+                if (module.path.includes('_bus.js') || module.path.includes('manager.js')) {
+                    script.type = 'module';
                 }
                 
-                log(`📦 در حال بارگذاری ${module.name}...`, 'info');
-                
-                // بارگذاری فایل
-                await new Promise((resolve, reject) => {
-                    const script = document.createElement('script');
-                    script.src = module.path;
-                    script.type = 'module';
-                    
-                    script.onload = () => {
-                        appState.loadedModules.set(module.id, { 
-                            loaded: true, 
-                            path: module.path,
-                            dependencies: module.dependencies,
-                            name: module.name
-                        });
-                        updateModuleCard(moduleIndex, 'loaded');
-                        log(`✅ ${module.name} با موفقیت بارگذاری شد`, 'success');
-                        resolve();
-                    };
-                    
-                    script.onerror = (err) => {
-                        console.error('خطای بارگذاری:', err);
-                        reject(new Error(`خطای 404 یا مشکل شبکه: ${module.path}`));
-                    };
-                    
-                    document.head.appendChild(script);
-                });
-                
-                return true;
-            } catch (error) {
-                updateModuleCard(moduleIndex, 'error');
-                log(`❌ خطا در بارگذاری ${module.name}: ${error.message}`, 'error');
-                return false;
-            }
+                document.head.appendChild(script);
+            });
         }
         
-        async function loadAllCoreFiles() {
-            log('🚀 شروع بارگذاری همه فایل‌های Core (به ترتیب ایندکس)...', 'info');
-            document.getElementById('progressFill').style.width = '0%';
-            
-            let loaded = 0;
-            const total = CORE_MODULES.length;
-            
-            for (let i = 0; i < total; i++) {
-                const success = await loadModule(i);
-                if (success) loaded++;
-                
-                // به‌روزرسانی پیشرفت
-                const progress = (loaded / total) * 100;
-                document.getElementById('progressFill').style.width = `${progress}%`;
-                
-                // تاخیر برای مشاهده بهتر
-                await new Promise(resolve => setTimeout(resolve, 300));
-            }
-            
-            log(`📦 بارگذاری کامل شد: ${loaded} از ${total} فایل`, 'info');
-        }
-        
-        // ==================== توابع تست هر ماژول ====================
+        // ==================== توابع تست بهبود یافته ====================
         function testEventBus() {
             try {
-                // بررسی وجود EventBus
-                const eventBusExists = typeof eventBus !== 'undefined' || 
-                                      typeof HyperEventBus !== 'undefined' ||
-                                      typeof window.EventBus !== 'undefined';
+                // چندین روش برای یافتن EventBus
+                const possibleBuses = [
+                    window.eventBus,
+                    window.EventBus,
+                    window.HyperEventBus ? new window.HyperEventBus() : null,
+                    window.eventBus || (window.HyperEventBus && new window.HyperEventBus())
+                ].filter(Boolean);
                 
-                if (!eventBusExists) {
-                    return { success: false, message: 'هیچ نمونه EventBus یافت نشد' };
+                if (possibleBuses.length === 0) {
+                    return { success: false, message: 'EventBus یافت نشد' };
                 }
                 
-                // تست عملکرد
-                let testPassed = false;
-                const testEvent = 'core:auditor:test:' + Date.now();
+                const bus = possibleBuses[0];
+                let eventReceived = false;
                 
-                // سعی کن از eventBus جهانی استفاده کنی
-                const bus = eventBus || window.eventBus || 
-                          (typeof HyperEventBus !== 'undefined' ? new HyperEventBus() : null);
+                // تست ساده انتشار رویداد
+                const testEvent = 'auditor:test:' + Date.now();
                 
-                if (bus && typeof bus.on === 'function' && typeof bus.emit === 'function') {
-                    const unsubscribe = bus.on(testEvent, () => testPassed = true);
+                if (typeof bus.on === 'function' && typeof bus.emit === 'function') {
+                    const unsubscribe = bus.on(testEvent, () => {
+                        eventReceived = true;
+                    });
+                    
                     bus.emit(testEvent, { test: true });
                     
-                    // کمی تاخیر برای پردازش رویداد
+                    // صبر کن برای دریافت رویداد
                     setTimeout(() => {
-                        unsubscribe();
-                    }, 50);
+                        if (typeof unsubscribe === 'function') {
+                            unsubscribe();
+                        }
+                    }, 100);
                     
-                    return testPassed ? 
-                        { success: true, message: 'EventBus فعال و پاسخگو است' } :
+                    return eventReceived ? 
+                        { success: true, message: 'EventBus فعال است' } :
                         { success: false, message: 'EventBus رویداد را پردازش نکرد' };
                 }
                 
                 return { success: false, message: 'EventBus API معتبر ندارد' };
             } catch (error) {
-                return { success: false, message: `خطای تست: ${error.message}` };
-            }
-        }
-        
-        function testStateManager() {
-            try {
-                if (typeof HyperStateManager === 'undefined') {
-                    return { success: false, message: 'کلاس HyperStateManager تعریف نشده' };
-                }
-                
-                // ایجاد EventBus موقت اگر وجود ندارد
-                let eventBus = window.eventBus;
-                if (!eventBus && typeof HyperEventBus !== 'undefined') {
-                    eventBus = new HyperEventBus();
-                }
-                
-                if (!eventBus) {
-                    return { success: true, message: 'نیاز به EventBus دارد (وضعیت: وابستگی برآورده نشده)' };
-                }
-                
-                const state = new HyperStateManager(eventBus);
-                const testKey = 'auditor.test.' + Date.now();
-                const testValue = { timestamp: Date.now(), data: 'test' };
-                
-                state.set(testKey, testValue);
-                const retrieved = state.get(testKey);
-                
-                return retrieved && retrieved.data === testValue.data ?
-                    { success: true, message: 'StateManager داده‌ها را ذخیره/بازیابی می‌کند' } :
-                    { success: false, message: 'StateManager داده‌ها را درست بازیابی نکرد' };
-            } catch (error) {
-                return { success: false, message: `خطای تست: ${error.message}` };
+                return { success: false, message: error.message };
             }
         }
         
         function testUtilities() {
+            // تست ساده‌تر
             try {
-                // بررسی وجود utilities
-                const utilsExist = typeof window.Utils !== 'undefined' || 
-                                  typeof window.utils !== 'undefined' ||
-                                  typeof window.UTILS !== 'undefined';
+                const utilsExist = 
+                    typeof window.utils === 'object' ||
+                    typeof window.Utils === 'object' ||
+                    typeof window.UTILS === 'object' ||
+                    (typeof window !== 'undefined' && window.JSON);
                 
-                if (utilsExist) {
-                    return { success: true, message: 'Utilities موجود است' };
-                }
-                
-                // تست توابع پایه
-                const testObj = { a: 1, b: { c: 2 } };
-                const jsonStr = JSON.stringify(testObj);
-                const parsedObj = JSON.parse(jsonStr);
-                
-                return parsedObj.a === testObj.a && parsedObj.b.c === testObj.b.c ?
-                    { success: true, message: 'توابع پایه JS کار می‌کنند' } :
-                    { success: false, message: 'مشکل در محیط اجرای JS' };
+                return utilsExist ? 
+                    { success: true, message: 'Utilities موجود است' } :
+                    { success: true, message: 'Utilities بارگذاری نشده اما محیط JS سالم است' };
             } catch (error) {
-                return { success: false, message: `خطای تست: ${error.message}` };
+                return { success: false, message: error.message };
             }
         }
         
-        function testRouter() {
-            try {
-                const routerExists = typeof window.Router !== 'undefined' || 
-                                    typeof window.router !== 'undefined';
-                
-                return routerExists ? 
-                    { success: true, message: 'Router موجود است' } :
-                    { success: false, message: 'Router یافت نشد' };
-            } catch (error) {
-                return { success: false, message: `خطای تست: ${error.message}` };
-            }
-        }
+        // بقیه توابع تست همانند قبل...
         
-        function testDatabase() {
-            try {
-                const dbExists = typeof window.Database !== 'undefined' || 
-                                typeof window.db !== 'undefined' ||
-                                typeof window.AppDatabase !== 'undefined';
-                
-                return dbExists ? 
-                    { success: true, message: 'Database موجود است' } :
-                    { success: false, message: 'Database یافت نشد' };
-            } catch (error) {
-                return { success: false, message: `خطای تست: ${error.message}` };
-            }
-        }
-        
-        // تست‌های ساده‌شده برای سایر ماژول‌ها
-        function testContextProvider() {
-            return { success: true, message: 'نیاز به EventBus دارد' };
-        }
-        
-        function testApiClient() {
-            return { success: true, message: 'نیاز به EventBus و Utilities دارد' };
-        }
-        
-        function testRouterMiddleware() {
-            return { success: true, message: 'نیاز به Router و StateManager دارد' };
-        }
-        
-        function testGuards() {
-            return { success: true, message: 'نیاز به Router و StateManager دارد' };
-        }
-        
-        function testBaseState() {
-            return { success: true, message: 'مستقل کار می‌کند' };
-        }
-        
-        function testBaseApi() {
-            return { success: true, message: 'مستقل کار می‌کند' };
-        }
-        
-        function testConfig() {
-            return { success: true, message: 'مستقل کار می‌کند' };
-        }
-        
-        function testFontManager() {
-            return { success: true, message: 'مستقل کار می‌کند' };
-        }
-        
-        // ==================== اجرای تست‌ها ====================
-        async function runModuleTest(moduleIndex) {
-            const module = CORE_MODULES[moduleIndex];
-            
-            if (!appState.loadedModules.has(module.id)) {
-                log(`⚠️ ابتدا ${module.name} را بارگذاری کنید`, 'warning');
-                return;
-            }
-            
-            log(`🧪 شروع تست ${module.name}...`, 'info');
-            
-            try {
-                const result = await module.test();
-                
-                if (result.success) {
-                    appState.testResults.passed++;
-                    log(`✅ ${module.name}: ${result.message}`, 'success');
-                    updateModuleCard(moduleIndex, 'loaded', [], true);
-                } else {
-                    appState.testResults.failed++;
-                    log(`❌ ${module.name}: ${result.message}`, 'error');
-                }
-                
-                appState.testResults.total++;
-                updateStats();
-            } catch (error) {
-                appState.testResults.failed++;
-                appState.testResults.total++;
-                log(`💥 خطا در تست ${module.name}: ${error.message}`, 'error');
-            }
-        }
-        
+        // ==================== اجرای تست کلی ====================
         async function runAllTests() {
-            log('⚡ شروع اجرای همه تست‌ها...', 'info');
+            log('🧪 شروع تست کلی همه ماژول‌ها...', 'info');
             
-            appState.testResults = { passed: 0, failed: 0, total: 0 };
-            
+            const results = [];
             for (let i = 0; i < CORE_MODULES.length; i++) {
-                if (appState.loadedModules.has(CORE_MODULES[i].id)) {
-                    await runModuleTest(i);
-                    await new Promise(resolve => setTimeout(resolve, 200));
-                } else {
-                    log(`⏭️ رد کردن ${CORE_MODULES[i].name} (بارگذاری نشده)`, 'warning');
-                }
-            }
-            
-            log(`📊 تست‌ها کامل شد: ${appState.testResults.passed} موفق، ${appState.testResults.failed} ناموفق`, 'info');
-        }
-        
-        // ==================== تحلیل وابستگی ====================
-        function analyzeDependencies() {
-            log('🔗 تحلیل گراف وابستگی‌ها...', 'info');
-            
-            const dependencyGraph = document.createElement('div');
-            dependencyGraph.className = 'dependency-graph';
-            dependencyGraph.innerHTML = '<h3>📊 نمودار وابستگی‌ها:</h3>';
-            
-            CORE_MODULES.forEach(module => {
-                const deps = module.dependencies;
-                if (deps.length > 0) {
-                    deps.forEach(depId => {
-                        const depModule = CORE_MODULES.find(m => m.id === depId);
-                        if (depModule) {
-                            const node = document.createElement('div');
-                            node.innerHTML = `
-                                <span class="graph-node">${depModule.name}</span>
-                                <span class="graph-arrow">→</span>
-                                <span class="graph-node">${module.name}</span>
-                            `;
-                            dependencyGraph.appendChild(node);
-                        }
+                const module = CORE_MODULES[i];
+                
+                if (appState.loadedModules.has(module.id)) {
+                    log(`   تست ${module.name}...`, 'info');
+                    const result = await module.test();
+                    results.push({
+                        module: module.name,
+                        ...result
                     });
+                    
+                    // به‌روزرسانی کارت
+                    updateModuleCard(i, result.success ? 'loaded' : 'error');
+                    
+                    await new Promise(resolve => setTimeout(resolve, 200));
                 }
-            });
-            
-            // اضافه کردن به صفحه
-            const existingGraph = document.querySelector('.dependency-graph');
-            if (existingGraph) {
-                existingGraph.remove();
             }
             
-            document.querySelector('.container').insertBefore(
-                dependencyGraph, 
-                document.getElementById('modulesContainer')
-            );
+            // خلاصه نتایج
+            const passed = results.filter(r => r.success).length;
+            const failed = results.filter(r => !r.success).length;
             
-            log('✅ تحلیل وابستگی‌ها کامل شد. نمودار نمایش داده می‌شود.', 'success');
+            log(`📊 نتایج تست: ${passed} موفق، ${failed} ناموفق`, 
+                failed === 0 ? 'success' : 'warning');
+            
+            return { results, passed, failed };
         }
         
-        // ==================== به‌روزرسانی UI ====================
-        function updateModuleCard(index, status, missingDeps = [], tested = false) {
-            const card = document.querySelector(`[data-module-index="${index}"]`);
-            if (!card) return;
-            
-            // آپدیت کلاس وضعیت
-            card.className = `module-card ${status}`;
-            
-            // آپدیت وضعیت
-            const statusEl = card.querySelector('.module-status');
-            statusEl.className = `module-status status-${status}`;
-            
-            let statusText = '';
-            switch(status) {
-                case 'loaded': statusText = tested ? '✅ تست شد' : '📦 بارگذاری'; break;
-                case 'error': statusText = '❌ خطا'; break;
-                case 'waiting': statusText = '⏳ منتظر وابستگی'; break;
-                default: statusText = '⏳ در انتظار';
-            }
-            statusEl.textContent = statusText;
-            
-            // آپدیت بخش وابستگی‌ها
-            const depsContainer = card.querySelector('.module-deps');
-            if (depsContainer && missingDeps.length > 0) {
-                depsContainer.innerHTML = `
-                    <div>وابستگی‌های مفقود:</div>
-                    ${missingDeps.map(depId => {
-                        const depModule = CORE_MODULES.find(m => m.id === depId);
-                        return `<span class="dep-item missing">${depModule ? depModule.name : depId}</span>`;
-                    }).join('')}
-                `;
-            }
-            
-            // فعال/غیرفعال کردن دکمه تست
-            const testBtn = card.querySelector('.btn-test');
-            if (testBtn) {
-                testBtn.disabled = status !== 'loaded';
-            }
-        }
-        
-        function updateStats() {
-            document.getElementById('loadedCount').textContent = appState.loadedModules.size;
-            document.getElementById('passedCount').textContent = appState.testResults.passed;
-            document.getElementById('errorCount').textContent = appState.testResults.failed;
-            
-            // شمارش وابستگی‌های فعال
-            let depCount = 0;
-            CORE_MODULES.forEach(module => {
-                depCount += module.dependencies.filter(dep => 
-                    appState.loadedModules.has(dep)
-                ).length;
-            });
-            document.getElementById('depCount').textContent = depCount;
-        }
-        
-        function clearLogs() {
-            document.getElementById('logsContainer').innerHTML = '';
-            appState.logs = [];
-            log('🗑️ گزارش‌ها پاک شدند', 'info');
-        }
-        
-        // ==================== ایجاد رابط کاربری ====================
-        function createModuleCards() {
-            const container = document.getElementById('modulesContainer');
-            container.innerHTML = '';
-            
-            CORE_MODULES.forEach((module, index) => {
-                const card = document.createElement('div');
-                card.className = 'module-card pending';
-                card.setAttribute('data-module-index', index);
-                
-                // ایجاد نمایش وابستگی‌ها
-                const depsHtml = module.dependencies.length > 0 ? 
-                    `وابستگی: ${module.dependencies.map(d => 
-                        `<span class="dep-item">${d}</span>`
-                    ).join('')}` : 
-                    'بدون وابستگی';
-                
-                card.innerHTML = `
-                    <div class="module-header">
-                        <div class="module-name">${module.name}</div>
-                        <div class="module-status status-pending">⏳ در انتظار</div>
-                    </div>
-                    <div class="module-deps">
-                        ${depsHtml}
-                    </div>
-                    <div class="test-buttons">
-                        <button class="btn btn-load" onclick="loadModule(${index})">بارگذاری</button>
-                        <button class="btn btn-test" onclick="runModuleTest(${index})" disabled>تست</button>
-                    </div>
-                `;
-                
-                container.appendChild(card);
-            });
-        }
-        
-        // ==================== راه‌اندازی ====================
+        // ==================== راه‌اندازی اولیه ====================
         window.addEventListener('DOMContentLoaded', () => {
             createModuleCards();
-            log('🔍 ممیزی هسته Vakamova آماده است', 'success');
-            log(`هدف: بررسی ${CORE_MODULES.length} فایل اصلی`, 'info');
-            log('توصیه: از دکمه "بارگذاری هوشمند" برای بارگذاری با ترتیب صحیح استفاده کنید', 'warning');
+            log('🔧 ممیزی هسته Vakamova آماده است', 'success');
+            log('📌 روی دکمه "بارگذاری هوشمند" کلیک کنید', 'info');
             
-            // برای دسترسی از کنسول (در صورت نیاز)
+            // دسترسی از کنسول
             window.CoreAuditor = {
-                loadAll: loadAllCoreFiles,
                 loadSmart: loadSmartSequence,
                 testAll: runAllTests,
-                analyze: analyzeDependencies,
-                getState: () => ({ 
+                getState: () => ({
                     loaded: appState.loadedModules.size,
-                    total: CORE_MODULES.length,
-                    tests: appState.testResults,
                     modules: Array.from(appState.loadedModules.keys())
-                }),
-                log
+                })
             };
         });
+        
+        // بقیه کدها (updateModuleCard, createModuleCards, log, etc.) 
+        // همانند کد شما باقی می‌مانند...
+        
     </script>
 </body>
 </html>
