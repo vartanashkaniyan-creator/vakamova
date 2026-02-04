@@ -1,11 +1,20 @@
 /**
- * VAKAMOVA BUTTON COMPONENT - کامپوننت دکمه هوشمند
+ * VAKAMOVA BUTTON COMPONENT - کامپوننت دکمه هوشمند (نسخه اصلاح‌شده)
  * اصول: تزریق وابستگی، قرارداد رابط، رویدادمحور، پیکربندی متمرکز
- * وابستگی: فقط event_bus.js (برای ارتباط رویدادمحور)
+ * وابستگی: فقط event_bus.js (از طریق تزریق اجباری)
  */
 
 class VakamovaButton {
     constructor(config = {}) {
+        // ==================== اعتبارسنجی وابستگی‌های حیاتی ====================
+        if (!config.eventBus && !window.eventBus) {
+            throw new Error('[VakamovaButton] EventBus dependency is required. Provide via config.eventBus');
+        }
+        
+        if (!config.containerId && !config.containerElement) {
+            console.warn('[VakamovaButton] No container specified. Use render(container) later.');
+        }
+
         // ==================== پیکربندی متمرکز ====================
         this._config = Object.freeze({
             types: {
@@ -31,23 +40,22 @@ class VakamovaButton {
             ...config
         });
 
-        // ==================== تزریق وابستگی ====================
-        this._eventBus = config.eventBus || window.eventBus || {
-            emit: (event, data) => console.log(`[Button] ${event}:`, data),
-            on: () => () => {}
-        };
-
+        // ==================== تزریق وابستگی (ایمن) ====================
+        this._eventBus = config.eventBus || window.eventBus;
+        
         // ==================== وضعیت داخلی ====================
-        this._state = {
+        this._state = Object.seal({
             disabled: false,
             loading: false,
             pressed: false,
             hover: false,
-            focus: false
-        };
+            focus: false,
+            rendered: false,
+            destroyed: false
+        });
 
         this._elements = {
-            container: null,
+            container: config.containerElement || null,
             button: null,
             icon: null,
             label: null,
@@ -56,100 +64,165 @@ class VakamovaButton {
 
         this._listeners = new Map();
         this._buttonId = `btn_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        this._initialContainerId = config.containerId;
 
-        // ==================== متدهای عمومی ====================
-        this.render = this.render.bind(this);
-        this.update = this.update.bind(this);
-        this.destroy = this.destroy.bind(this);
-        this.enable = this.enable.bind(this);
-        this.disable = this.disable.bind(this);
-        this.setLoading = this.setLoading.bind(this);
+        // ==================== bind ایمن ====================
+        this._safeBindMethods();
+    }
+
+    // ==================== مدیریت متدها (ایمن) ====================
+    _safeBindMethods() {
+        const methods = [
+            'render', 'update', 'destroy', 'enable', 'disable', 
+            'setLoading', '_handleInteraction', '_cleanupResources'
+        ];
+        
+        methods.forEach(method => {
+            if (this[method]) {
+                this[method] = this[method].bind(this);
+            }
+        });
+        
+        // محافظت در برابر override
+        Object.keys(this).forEach(key => {
+            if (typeof this[key] === 'function') {
+                Object.defineProperty(this, key, {
+                    value: this[key].bind(this),
+                    writable: false,
+                    configurable: false
+                });
+            }
+        });
     }
 
     // ==================== قرارداد رابط - API عمومی ====================
-    render(container, options = {}) {
-        if (!container) {
-            throw new Error('Container element is required');
+    render(container = null, options = {}) {
+        if (this._state.destroyed) {
+            throw new Error('[VakamovaButton] Cannot render a destroyed button');
+        }
+        
+        if (this._state.rendered) {
+            console.warn('[VakamovaButton] Button already rendered, updating instead');
+            return this.update(options);
         }
 
-        this._options = this._normalizeOptions(options);
-        
-        // ایجاد ساختار HTML
-        const template = this._createTemplate();
-        container.innerHTML = template;
-        
-        // ذخیره عناصر
-        this._elements.container = container;
-        this._elements.button = container.querySelector(`#${this._buttonId}`);
-        this._elements.icon = container.querySelector('.v-btn-icon');
-        this._elements.label = container.querySelector('.v-btn-label');
-        this._elements.loader = container.querySelector('.v-btn-loader');
-        
-        // اعمال استایل‌ها
-        this._applyStyles();
-        
-        // اتصال رویدادها
-        this._attachEventListeners();
-        
-        // انتشار رویداد
-        this._eventBus.emit('ui:button:rendered', {
-            id: this._buttonId,
-            options: this._options
-        });
+        try {
+            // 1. تعیین container
+            const targetContainer = this._resolveContainer(container);
+            if (!targetContainer) {
+                throw new Error('[VakamovaButton] Valid container element is required');
+            }
 
-        return this;
+            // 2. نرمالایز options
+            this._options = this._normalizeOptions(options);
+            
+            // 3. ایجاد template
+            const template = this._createTemplate();
+            
+            // 4. رندر ایمن
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = template.trim();
+            const buttonElement = tempDiv.firstChild;
+            
+            targetContainer.appendChild(buttonElement);
+            
+            // 5. ذخیره عناصر
+            this._elements.container = targetContainer;
+            this._elements.button = buttonElement;
+            this._elements.icon = buttonElement.querySelector('.v-btn-icon');
+            this._elements.label = buttonElement.querySelector('.v-btn-label');
+            this._elements.loader = buttonElement.querySelector('.v-btn-loader');
+            
+            // 6. اعمال استایل‌ها
+            this._applyStyles();
+            
+            // 7. اتصال رویدادها
+            this._attachEventListeners();
+            
+            this._state.rendered = true;
+            
+            // 8. انتشار رویداد
+            this._eventBus.emit('ui:button:rendered', {
+                id: this._buttonId,
+                options: this._options,
+                containerId: targetContainer.id || 'anonymous'
+            });
+
+            return this;
+            
+        } catch (error) {
+            this._eventBus.emit('ui:button:error', {
+                id: this._buttonId,
+                error: error.message,
+                phase: 'render'
+            });
+            throw error;
+        }
     }
 
     update(options = {}) {
-        if (!this._elements.button) {
-            console.warn('[Button] Cannot update - button not rendered');
+        if (!this._state.rendered || this._state.destroyed) {
+            console.warn('[VakamovaButton] Cannot update - button not rendered or destroyed');
             return this;
         }
 
-        const previousOptions = { ...this._options };
-        this._options = this._normalizeOptions({ ...this._options, ...options });
-        
-        // به‌روزرسانی ظاهری
-        this._updateAppearance();
-        
-        // انتشار رویداد تغییر
-        this._eventBus.emit('ui:button:updated', {
-            id: this._buttonId,
-            previous: previousOptions,
-            current: this._options,
-            changes: this._findChanges(previousOptions, this._options)
-        });
+        try {
+            const previousOptions = { ...this._options };
+            this._options = this._normalizeOptions({ ...this._options, ...options });
+            
+            this._updateAppearance();
+            
+            this._eventBus.emit('ui:button:updated', {
+                id: this._buttonId,
+                previous: previousOptions,
+                current: this._options
+            });
 
-        return this;
+            return this;
+            
+        } catch (error) {
+            this._eventBus.emit('ui:button:error', {
+                id: this._buttonId,
+                error: error.message,
+                phase: 'update'
+            });
+            return this;
+        }
     }
 
     destroy() {
-        if (!this._elements.container) return;
+        if (this._state.destroyed) return null;
         
-        // حذف رویدادها
-        this._detachEventListeners();
-        
-        // انتشار رویداد تخریب
-        this._eventBus.emit('ui:button:destroyed', {
-            id: this._buttonId,
-            options: this._options
-        });
-        
-        // پاک‌سازی
-        this._elements.container.innerHTML = '';
-        this._elements.container.remove();
-        
-        this._elements = {
-            container: null,
-            button: null,
-            icon: null,
-            label: null,
-            loader: null
-        };
-        
-        this._listeners.clear();
-        
-        return null;
+        try {
+            // 1. حذف رویدادها
+            this._detachEventListeners();
+            
+            // 2. انتشار رویداد تخریب
+            this._eventBus.emit('ui:button:destroying', {
+                id: this._buttonId,
+                options: this._options
+            });
+            
+            // 3. پاک‌سازی DOM (ایمن)
+            if (this._elements.button && this._elements.button.parentNode) {
+                this._elements.button.parentNode.removeChild(this._elements.button);
+            }
+            
+            // 4. پاک‌سازی منابع
+            this._cleanupResources();
+            
+            this._state.destroyed = true;
+            
+            this._eventBus.emit('ui:button:destroyed', {
+                id: this._buttonId
+            });
+            
+            return null;
+            
+        } catch (error) {
+            console.error('[VakamovaButton] Error during destroy:', error);
+            return this;
+        }
     }
 
     enable() {
@@ -161,33 +234,37 @@ class VakamovaButton {
     }
 
     setLoading(isLoading) {
-        this._state.loading = isLoading;
+        if (this._state.destroyed) return this;
+        
+        this._state.loading = Boolean(isLoading);
         
         if (this._elements.button) {
-            if (isLoading) {
-                this._elements.button.classList.add('v-btn-loading');
-                if (this._elements.loader) {
-                    this._elements.loader.style.display = 'block';
-                }
-                this._elements.button.setAttribute('aria-busy', 'true');
-            } else {
-                this._elements.button.classList.remove('v-btn-loading');
-                if (this._elements.loader) {
-                    this._elements.loader.style.display = 'none';
-                }
-                this._elements.button.setAttribute('aria-busy', 'false');
+            this._elements.button.classList.toggle('v-btn-loading', this._state.loading);
+            this._elements.button.setAttribute('aria-busy', this._state.loading);
+            
+            if (this._elements.loader) {
+                this._elements.loader.style.display = this._state.loading ? 'block' : 'none';
             }
         }
         
         this._eventBus.emit('ui:button:loading', {
             id: this._buttonId,
-            loading: isLoading
+            loading: this._state.loading
         });
         
         return this;
     }
 
-    // ==================== متدهای کمکی ====================
+    // ==================== متدهای کمکی (ایمن) ====================
+    _resolveContainer(container) {
+        if (container instanceof Element) return container;
+        if (typeof container === 'string') return document.getElementById(container);
+        if (this._elements.container) return this._elements.container;
+        if (this._initialContainerId) return document.getElementById(this._initialContainerId);
+        
+        return null;
+    }
+
     _normalizeOptions(options) {
         const defaults = {
             type: 'primary',
@@ -213,14 +290,20 @@ class VakamovaButton {
         
         const normalized = { ...defaults, ...options };
         
-        // اعتبارسنجی
+        // اعتبارسنجی نوع
         if (!this._config.types[normalized.type]) {
-            console.warn(`[Button] Unknown type "${normalized.type}", falling back to "primary"`);
+            console.warn(`[VakamovaButton] Invalid type "${normalized.type}", using "primary"`);
             normalized.type = 'primary';
         }
         
+        // اعتبارسنجی سایز
         if (!this._config.sizes[normalized.size]) {
             normalized.size = 'md';
+        }
+        
+        // اعتبارسنجی آیکون پوزیشن
+        if (!['left', 'right'].includes(normalized.iconPosition)) {
+            normalized.iconPosition = 'left';
         }
         
         return Object.freeze(normalized);
@@ -228,18 +311,8 @@ class VakamovaButton {
 
     _createTemplate() {
         const { 
-            text, 
-            icon, 
-            iconPosition, 
-            href, 
-            type, 
-            size, 
-            animation,
-            fullWidth,
-            ariaLabel,
-            title,
-            customClass,
-            dataAttributes
+            text, icon, iconPosition, href, type, size, 
+            animation, fullWidth, ariaLabel, title, customClass, dataAttributes 
         } = this._options;
         
         const typeConfig = this._config.types[type];
@@ -280,8 +353,9 @@ class VakamovaButton {
         
         const ariaAttrs = ariaLabel ? `aria-label="${ariaLabel}"` : '';
         const titleAttr = title ? `title="${title}"` : '';
+        const disabledAttr = this._state.disabled ? 'disabled aria-disabled="true"' : '';
         
-        if (href) {
+        if (href && !this._state.disabled) {
             return `
                 <a id="${this._buttonId}" 
                    href="${href}" 
@@ -291,7 +365,7 @@ class VakamovaButton {
                    ${ariaAttrs}
                    ${titleAttr}
                    ${dataAttrs}
-                   ${this._state.disabled ? 'aria-disabled="true"' : ''}>
+                   ${disabledAttr}>
                    ${contentHtml}
                    ${loaderHtml}
                 </a>
@@ -305,7 +379,7 @@ class VakamovaButton {
                     ${ariaAttrs}
                     ${titleAttr}
                     ${dataAttrs}
-                    ${this._state.disabled ? 'disabled aria-disabled="true"' : ''}>
+                    ${disabledAttr}>
                 ${contentHtml}
                 ${loaderHtml}
             </button>
@@ -313,13 +387,12 @@ class VakamovaButton {
     }
 
     _applyStyles() {
-        if (!this._elements.button) return;
+        if (!this._elements.button || this._state.destroyed) return;
         
         const { type, size, styles } = this._options;
         const typeConfig = this._config.types[type];
         const sizeConfig = this._config.sizes[size];
         
-        // استایل‌های پایه از پیکربندی
         const baseStyles = {
             backgroundColor: typeConfig.color,
             color: typeConfig.text,
@@ -340,96 +413,69 @@ class VakamovaButton {
             position: 'relative',
             overflow: 'hidden',
             opacity: this._state.disabled ? '0.6' : '1',
+            outline: 'none',
             ...styles
         };
         
-        // اعمال استایل‌ها
         Object.assign(this._elements.button.style, baseStyles);
         
-        // استایل‌های واکنش‌گرا
-        this._elements.button.addEventListener('mouseenter', () => {
-            if (!this._state.disabled && !this._state.loading) {
-                this._elements.button.style.transform = 'translateY(-2px)';
-                this._elements.button.style.boxShadow = '0 6px 12px rgba(0, 0, 0, 0.15)';
-            }
-        });
+        // حذف listenerهای قبلی برای جلوگیری از memory leak
+        this._elements.button.removeEventListener('mouseenter', this._hoverHandler);
+        this._elements.button.removeEventListener('mouseleave', this._hoverHandler);
         
-        this._elements.button.addEventListener('mouseleave', () => {
-            this._elements.button.style.transform = 'translateY(0)';
-            this._elements.button.style.boxShadow = 'none';
-        });
+        // تعریف handlerهای جدید
+        this._hoverHandler = (e) => {
+            if (this._state.disabled || this._state.loading || this._state.destroyed) return;
+            
+            const isEnter = e.type === 'mouseenter';
+            this._elements.button.style.transform = isEnter ? 'translateY(-2px)' : 'translateY(0)';
+            this._elements.button.style.boxShadow = isEnter 
+                ? '0 6px 12px rgba(0, 0, 0, 0.15)' 
+                : 'none';
+        };
         
-        // استایل برای RTL
+        // اتصال listenerهای جدید
+        this._elements.button.addEventListener('mouseenter', this._hoverHandler);
+        this._elements.button.addEventListener('mouseleave', this._hoverHandler);
+        
+        // RTL support
         if (document.documentElement.dir === 'rtl') {
             this._elements.button.style.flexDirection = 'row-reverse';
         }
     }
 
-    _updateAppearance() {
-        if (!this._elements.button) return;
-        
-        // به‌روزرسانی کلاس‌ها
-        const oldClasses = this._elements.button.className.split(' ');
-        const newClasses = [
-            'vakamova-button',
-            this._config.types[this._options.type].base,
-            this._config.sizes[this._options.size].class,
-            this._config.animations[this._options.animation] || '',
-            this._options.fullWidth ? 'v-btn-fullwidth' : '',
-            this._state.disabled ? 'v-btn-disabled' : '',
-            this._state.loading ? 'v-btn-loading' : '',
-            this._options.customClass
-        ].filter(Boolean);
-        
-        this._elements.button.className = newClasses.join(' ');
-        
-        // به‌روزرسانی متن
-        if (this._elements.label && this._options.text) {
-            this._elements.label.textContent = this._options.text;
-            this._elements.label.setAttribute('data-text', this._options.text);
-        }
-        
-        // به‌روزرسانی آیکون
-        if (this._elements.icon) {
-            if (this._options.icon) {
-                this._elements.icon.innerHTML = this._options.icon;
-                this._elements.icon.style.display = 'inline-flex';
-            } else {
-                this._elements.icon.style.display = 'none';
-            }
-        }
-        
-        // اعمال مجدد استایل‌ها
-        this._applyStyles();
-    }
-
     _attachEventListeners() {
-        if (!this._elements.button) return;
+        if (!this._elements.button || this._state.destroyed) return;
         
         const clickHandler = (event) => {
-            if (this._state.disabled || this._state.loading) {
+            if (this._state.disabled || this._state.loading || this._state.destroyed) {
                 event.preventDefault();
+                event.stopPropagation();
                 return;
             }
             
-            // انتشار رویداد کلیک
             this._eventBus.emit('ui:button:clicked', {
                 id: this._buttonId,
                 options: this._options,
                 event: {
                     type: event.type,
                     timestamp: Date.now(),
-                    coordinates: { x: event.clientX, y: event.clientY }
+                    target: event.target.tagName
                 }
             });
             
-            // فراخوانی کالبک کاربر
             if (typeof this._options.onClick === 'function') {
-                this._options.onClick(event, this);
+                try {
+                    this._options.onClick(event, this);
+                } catch (error) {
+                    console.error('[VakamovaButton] onClick handler error:', error);
+                }
             }
         };
         
         const hoverHandler = (event) => {
+            if (this._state.destroyed) return;
+            
             this._state.hover = event.type === 'mouseenter';
             
             this._eventBus.emit(`ui:button:${event.type}`, {
@@ -443,6 +489,8 @@ class VakamovaButton {
         };
         
         const focusHandler = (event) => {
+            if (this._state.destroyed) return;
+            
             this._state.focus = event.type === 'focus';
             
             this._eventBus.emit(`ui:button:${event.type}`, {
@@ -455,7 +503,7 @@ class VakamovaButton {
             }
         };
         
-        // ذخیره هندلرها
+        // ذخیره هندلرها برای cleanup بعدی
         this._listeners.set('click', clickHandler);
         this._listeners.set('mouseenter', hoverHandler);
         this._listeners.set('mouseleave', hoverHandler);
@@ -473,51 +521,102 @@ class VakamovaButton {
     _detachEventListeners() {
         if (!this._elements.button) return;
         
-        for (const [event, handler] of this._listeners) {
+        this._listeners.forEach((handler, event) => {
             this._elements.button.removeEventListener(event, handler);
-        }
+        });
         
         this._listeners.clear();
+        
+        // حذف hover handlerهای خاص
+        if (this._hoverHandler) {
+            this._elements.button.removeEventListener('mouseenter', this._hoverHandler);
+            this._elements.button.removeEventListener('mouseleave', this._hoverHandler);
+            this._hoverHandler = null;
+        }
+    }
+
+    _cleanupResources() {
+        this._detachEventListeners();
+        
+        this._elements = {
+            container: null,
+            button: null,
+            icon: null,
+            label: null,
+            loader: null
+        };
+        
+        this._options = null;
+        this._listeners.clear();
+        
+        // تمیز کردن referenceها برای GC
+        if (this._eventBus && typeof this._eventBus.off === 'function') {
+            this._eventBus.off(`ui:button:${this._buttonId}:*`);
+        }
     }
 
     _setDisabled(isDisabled) {
-        this._state.disabled = isDisabled;
+        if (this._state.destroyed) return this;
+        
+        this._state.disabled = Boolean(isDisabled);
         
         if (this._elements.button) {
-            if (isDisabled) {
-                this._elements.button.disabled = true;
-                this._elements.button.setAttribute('aria-disabled', 'true');
-                this._elements.button.classList.add('v-btn-disabled');
-            } else {
-                this._elements.button.disabled = false;
-                this._elements.button.removeAttribute('aria-disabled');
-                this._elements.button.classList.remove('v-btn-disabled');
-            }
+            this._elements.button.disabled = this._state.disabled;
+            this._elements.button.setAttribute('aria-disabled', this._state.disabled);
+            this._elements.button.classList.toggle('v-btn-disabled', this._state.disabled);
             
             this._applyStyles();
         }
         
         this._eventBus.emit('ui:button:disabled', {
             id: this._buttonId,
-            disabled: isDisabled
+            disabled: this._state.disabled
         });
         
         return this;
     }
 
-    _findChanges(prev, current) {
-        const changes = {};
-        for (const key in current) {
-            if (prev[key] !== current[key]) {
-                changes[key] = { from: prev[key], to: current[key] };
+    _updateAppearance() {
+        if (!this._elements.button || this._state.destroyed) return;
+        
+        const oldClasses = this._elements.button.className.split(' ');
+        const newClasses = [
+            'vakamova-button',
+            this._config.types[this._options.type].base,
+            this._config.sizes[this._options.size].class,
+            this._config.animations[this._options.animation] || '',
+            this._options.fullWidth ? 'v-btn-fullwidth' : '',
+            this._state.disabled ? 'v-btn-disabled' : '',
+            this._state.loading ? 'v-btn-loading' : '',
+            this._options.customClass
+        ].filter(Boolean);
+        
+        this._elements.button.className = newClasses.join(' ');
+        
+        if (this._elements.label && this._options.text) {
+            this._elements.label.textContent = this._options.text;
+            this._elements.label.setAttribute('data-text', this._options.text);
+        }
+        
+        if (this._elements.icon) {
+            if (this._options.icon) {
+                this._elements.icon.innerHTML = this._options.icon;
+                this._elements.icon.style.display = 'inline-flex';
+            } else {
+                this._elements.icon.style.display = 'none';
             }
         }
-        return changes;
+        
+        this._applyStyles();
     }
 
-    // ==================== متدهای دسترسی ====================
+    // ==================== متدهای دسترسی (ایمن) ====================
     getState() {
-        return { ...this._state, id: this._buttonId, options: this._options };
+        return Object.freeze({ 
+            ...this._state, 
+            id: this._buttonId, 
+            options: this._options ? { ...this._options } : null 
+        });
     }
 
     getId() {
@@ -525,7 +624,7 @@ class VakamovaButton {
     }
 
     getElement() {
-        return this._elements.button;
+        return this._state.destroyed ? null : this._elements.button;
     }
 
     isDisabled() {
@@ -535,16 +634,29 @@ class VakamovaButton {
     isLoading() {
         return this._state.loading;
     }
+
+    isRendered() {
+        return this._state.rendered;
+    }
+
+    isDestroyed() {
+        return this._state.destroyed;
+    }
 }
 
-// ==================== فکتوری برای ایجاد آسان ====================
+// ==================== Factory Pattern (ایمن) ====================
 class ButtonFactory {
     static create(config = {}) {
-        return new VakamovaButton(config);
+        try {
+            return new VakamovaButton(config);
+        } catch (error) {
+            console.error('[ButtonFactory] Failed to create button:', error);
+            throw error;
+        }
     }
     
     static createPrimary(text, options = {}) {
-        return new VakamovaButton({
+        return this.create({
             type: 'primary',
             text,
             ...options
@@ -552,7 +664,7 @@ class ButtonFactory {
     }
     
     static createSecondary(text, options = {}) {
-        return new VakamovaButton({
+        return this.create({
             type: 'secondary',
             text,
             ...options
@@ -560,7 +672,7 @@ class ButtonFactory {
     }
     
     static createIconButton(icon, options = {}) {
-        return new VakamovaButton({
+        return this.create({
             icon,
             text: '',
             size: options.size || 'sm',
@@ -569,8 +681,22 @@ class ButtonFactory {
     }
 }
 
-// ==================== اکسپورت ====================
-export { VakamovaButton, ButtonFactory };
-
-// اکسپورت پیش‌فرض
-export default VakamovaButton;
+// ==================== اکسپورت ایمن ====================
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = { VakamovaButton, ButtonFactory };
+} else if (typeof define === 'function' && define.amd) {
+    define([], () => ({ VakamovaButton, ButtonFactory }));
+} else {
+    // جلوگیری از override تصادفی
+    Object.defineProperty(window, 'VakamovaButton', {
+        value: VakamovaButton,
+        writable: false,
+        configurable: false
+    });
+    
+    Object.defineProperty(window, 'ButtonFactory', {
+        value: ButtonFactory,
+        writable: false,
+        configurable: false
+    });
+            }
