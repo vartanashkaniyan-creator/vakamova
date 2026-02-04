@@ -1,6 +1,5 @@
-
 /**
- *  HYPERLNG EVENT BUS - سیستم ارتباط رویدادمحور
+ * HYPERLANG EVENT BUS - سیستم ارتباط رویدادمحور
  * اصل: ارتباط رویدادمحور، قرارداد رابط، پیکربندی متمرکز
  * وابستگی: هیچ (خودکفا)
  */
@@ -40,6 +39,29 @@ class HyperEventBus {
             context: options.context || null,
             id: Symbol(`listener_${Date.now()}`)
         };
+        
+        // 🔧 پشتیبانی از Wildcard Listener
+        if (this._config.enableWildcards && (eventName.includes('*') || eventName.includes('?'))) {
+            const pattern = eventName;
+            if (!this._wildcards.has(pattern)) {
+                this._wildcards.set(pattern, []);
+            }
+            this._wildcards.get(pattern).push(eventConfig);
+            
+            // بازگرداندن تابع unregister برای wildcard
+            return () => {
+                const wildcardListeners = this._wildcards.get(pattern);
+                if (wildcardListeners) {
+                    const index = wildcardListeners.findIndex(l => l.id === eventConfig.id);
+                    if (index > -1) {
+                        wildcardListeners.splice(index, 1);
+                    }
+                    if (wildcardListeners.length === 0) {
+                        this._wildcards.delete(pattern);
+                    }
+                }
+            };
+        }
         
         if (!this._events.has(eventName)) {
             this._events.set(eventName, []);
@@ -197,7 +219,7 @@ class HyperEventBus {
             throw new TypeError('Event name must be a non-empty string');
         }
         
-        if (this._config.strictMode && !/^[a-z0-9_:.-]+$/i.test(eventName)) {
+        if (this._config.strictMode && !/^[a-z0-9_:.*?-]+$/i.test(eventName)) {
             throw new Error(`Invalid event name format: "${eventName}"`);
         }
     }
