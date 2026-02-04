@@ -3,6 +3,8 @@
  * اصول: ۱. تزریق وابستگی ۲. قرارداد رابط ۳. رویدادمحور ۴. پیکربندی متمرکز
  */
 
+import { LANGUAGE_FLAGS, LANGUAGE_NAMES, getAllLanguages } from '../../core/language_constants.js'; // ← خط جدید اضافه شد
+
 class HomeView {
     constructor(dependencies = {}, config = {}) {
         // اصل ۱: تزریق وابستگی
@@ -19,6 +21,7 @@ class HomeView {
             animationSpeed: config.animationSpeed || 300,
             maxStatsCards: config.maxStatsCards || 3,
             recentLessonsLimit: config.recentLessonsLimit || 4,
+            languagesToShow: config.languagesToShow || 6, // ← تنظیم جدید: تعداد زبان‌های قابل نمایش
             uiStrings: {
                 welcome: 'خوش آمدید',
                 dailyGoal: 'هدف روزانه',
@@ -27,18 +30,22 @@ class HomeView {
                 viewAll: 'مشاهده همه',
                 startLesson: 'شروع درس',
                 resumeLesson: 'ادامه درس',
+                availableLanguages: 'زبان‌های موجود', // ← متن جدید
+                seeAllLanguages: 'مشاهده همه زبان‌ها', // ← متن جدید
                 ...config.uiStrings
             },
             selectors: {
                 lessonGrid: '.lessons-grid',
                 statsSection: '.stats-section',
                 userWelcome: '.user-welcome',
-                quickActions: '.quick-actions'
+                quickActions: '.quick-actions',
+                languagesGrid: '.languages-grid' // ← سلکتور جدید
             },
             events: {
                 LESSON_SELECTED: 'home:lesson:selected',
                 QUICK_ACTION: 'home:quick:action',
                 VIEW_CHANGED: 'home:view:changed',
+                LANGUAGE_SELECTED: 'home:language:selected', // ← رویداد جدید
                 ...config.events
             },
             ...config
@@ -50,6 +57,7 @@ class HomeView {
             currentUser: null,
             recentLessons: [],
             stats: {},
+            availableLanguages: getAllLanguages(), // ← داده‌های زبان‌ها
             domElements: {}
         };
         
@@ -57,6 +65,7 @@ class HomeView {
         this.render = this.render.bind(this);
         this.update = this.update.bind(this);
         this.cleanup = this.cleanup.bind(this);
+        this._handleLanguageSelect = this._handleLanguageSelect.bind(this); // ← متد جدید
         
         // ثبت درخواست‌های انیمیشن
         this.rafIds = new Set();
@@ -172,8 +181,11 @@ class HomeView {
     
     // ==================== HTML GENERATION ====================
     _generateHTML() {
-        const { currentUser, recentLessons, stats } = this.state;
+        const { currentUser, recentLessons, stats, availableLanguages } = this.state;
         const { uiStrings } = this.config;
+        
+        // محاسبه زبان‌های قابل نمایش (تا ۶ زبان اول)
+        const languagesToShow = availableLanguages.slice(0, this.config.languagesToShow);
         
         return `
             <div class="home-view" data-view="home">
@@ -208,6 +220,20 @@ class HomeView {
                 <!-- Stats Cards -->
                 <section class="stats-section">
                     ${this._generateStatsCards()}
+                </section>
+                
+                <!-- Available Languages Section (بخش جدید) -->
+                <section class="languages-section">
+                    <div class="section-header">
+                        <h2 class="section-title">${uiStrings.availableLanguages}</h2>
+                        <button class="text-button view-all-btn" data-action="view-all-languages">
+                            ${uiStrings.seeAllLanguages}
+                        </button>
+                    </div>
+                    
+                    <div class="languages-grid">
+                        ${languagesToShow.map(lang => this._generateLanguageCard(lang)).join('')}
+                    </div>
                 </section>
                 
                 <!-- Quick Actions -->
@@ -260,6 +286,27 @@ class HomeView {
                 
                 <!-- Error Display (hidden by default) -->
                 <div class="view-error" style="display: none;"></div>
+            </div>
+        `;
+    }
+    
+    // ==================== NEW METHOD: LANGUAGE CARD GENERATION ====================
+    _generateLanguageCard(language) {
+        return `
+            <div class="language-card" data-language-code="${language.code}" role="button" tabindex="0">
+                <div class="language-flag">${language.flag}</div>
+                <div class="language-info">
+                    <h3 class="language-name">${this._escapeHTML(language.name)}</h3>
+                    <div class="language-progress">
+                        <div class="progress-bar small" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
+                            <div class="progress-fill" style="width: 0%"></div>
+                        </div>
+                        <span class="progress-text">شروع کنید</span>
+                    </div>
+                </div>
+                <button class="language-action-btn" data-language-code="${language.code}" aria-label="شروع یادگیری ${language.name}">
+                    شروع
+                </button>
             </div>
         `;
     }
@@ -371,7 +418,7 @@ class HomeView {
         `;
     }
     
-    // ==================== EVENT HANDLING ====================
+    // ==================== EVENT HANDLING (با افزوده‌های جدید) ====================
     _attachEventListeners() {
         if (!this.state.domElements.container) return;
         
@@ -390,6 +437,21 @@ class HomeView {
                 const lessonId = lessonCard.dataset.lessonId;
                 this._handleLessonSelect(lessonId);
             }
+            
+            // کلیک روی زبان‌ها (افزوده جدید)
+            const languageCard = e.target.closest('.language-card');
+            if (languageCard) {
+                const languageCode = languageCard.dataset.languageCode;
+                this._handleLanguageSelect(languageCode);
+            }
+            
+            // کلیک روی دکمه شروع زبان (افزوده جدید)
+            const languageBtn = e.target.closest('.language-action-btn');
+            if (languageBtn) {
+                const languageCode = languageBtn.dataset.languageCode;
+                e.stopPropagation();
+                this._handleLanguageSelect(languageCode);
+            }
         });
         
         // Quick Actions
@@ -404,7 +466,14 @@ class HomeView {
         // View All Lessons
         const viewAllBtn = container.querySelector('.view-all-btn');
         if (viewAllBtn) {
-            viewAllBtn.addEventListener('click', () => this._handleViewAllLessons());
+            viewAllBtn.addEventListener('click', (e) => {
+                const action = e.target.dataset.action;
+                if (action === 'view-all-lessons') {
+                    this._handleViewAllLessons();
+                } else if (action === 'view-all-languages') {
+                    this._handleViewAllLanguages();
+                }
+            });
         }
         
         // Browse Lessons (از empty state)
@@ -419,6 +488,33 @@ class HomeView {
         // تغییر وضعیت آنلاین/آفلاین
         window.addEventListener('online', this._handleOnlineStatus.bind(this));
         window.addEventListener('offline', this._handleOnlineStatus.bind(this));
+    }
+    
+    // ==================== NEW METHOD: HANDLE LANGUAGE SELECTION ====================
+    _handleLanguageSelect(languageCode) {
+        if (!languageCode) return;
+        
+        // پیدا کردن اطلاعات زبان
+        const selectedLanguage = this.state.availableLanguages.find(
+            lang => lang.code === languageCode
+        );
+        
+        if (!selectedLanguage) return;
+        
+        // ارسال رویداد
+        this.deps.eventBus.emit(this.config.events.LANGUAGE_SELECTED, {
+            languageCode,
+            languageName: selectedLanguage.name,
+            timestamp: Date.now(),
+            userId: this.state.currentUser?.id
+        });
+        
+        // ناوبری به صفحه زبان (می‌تواند به لیست دروس آن زبان هدایت کند)
+        if (this.deps.router) {
+            this.deps.router.navigateTo(`/language/${languageCode}`);
+        }
+        
+        console.log(`[HomeView] Language selected: ${selectedLanguage.name} (${languageCode})`);
     }
     
     _handleLessonSelect(lessonId) {
@@ -458,6 +554,11 @@ class HomeView {
         this.deps.router?.navigateTo('/lessons');
     }
     
+    // ==================== NEW METHOD: HANDLE VIEW ALL LANGUAGES ====================
+    _handleViewAllLanguages() {
+        this.deps.router?.navigateTo('/languages');
+    }
+    
     _handleBrowseLessons() {
         this.deps.router?.navigateTo('/browse');
     }
@@ -485,8 +586,8 @@ class HomeView {
             container.style.transition = `opacity ${this.config.animationSpeed}ms ease`;
             container.style.opacity = '1';
             
-            // انیمیشن کارت‌ها با تأخیر
-            const cards = container.querySelectorAll('.stat-card, .lesson-card');
+            // انیمیشن کارت‌ها با تأخیر (شامل کارت‌های زبان جدید)
+            const cards = container.querySelectorAll('.stat-card, .lesson-card, .language-card');
             cards.forEach((card, index) => {
                 card.style.opacity = '0';
                 card.style.transform = 'translateY(20px)';
@@ -593,7 +694,8 @@ class HomeView {
             userWelcome: container.querySelector(this.config.selectors.userWelcome),
             statsSection: container.querySelector(this.config.selectors.statsSection),
             lessonsGrid: container.querySelector(this.config.selectors.lessonGrid),
-            quickActions: container.querySelector(this.config.selectors.quickActions)
+            quickActions: container.querySelector(this.config.selectors.quickActions),
+            languagesGrid: container.querySelector(this.config.selectors.languagesGrid) // ← المان جدید
         };
     }
     
@@ -625,10 +727,11 @@ class HomeView {
     
     _getLanguageColor(language) {
         const colorMap = {
-            en: '#3498db', fa: '#e74c3c', ar: '#2ecc71',
+            en: '#3498db', fa: '#e74c3c', 'ar-IQ': '#2ecc71',
             tr: '#9b59b6', de: '#e67e22', es: '#1abc9c',
-            fr: '#e84393', ru: '#7f8c8d', zh: '#c0392b',
-            ja: '#d35400', ko: '#8e44ad', it: '#27ae60'
+            fr: '#e84393', ru: '#7f8c8d', 'pt-BR': '#c0392b',
+            it: '#d35400', 'en-GB': '#27ae60', sv: '#8e44ad',
+            nl: '#16a085'
         };
         return colorMap[language] || '#95a5a6';
     }
