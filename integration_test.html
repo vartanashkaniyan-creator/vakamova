@@ -1,116 +1,746 @@
 <!DOCTYPE html>
-<html lang="fa">
+<html lang="fa" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>تست یکپارچگی Vakamova</title>
+    <title>تستر یکپارچگی Vakamova</title>
     <style>
-        body { font-family: system-ui; padding: 20px; direction: rtl; }
-        .success { color: green; }
-        .error { color: red; }
-        .log { border: 1px solid #ccc; padding: 15px; margin-top: 20px; min-height: 100px; }
+        :root {
+            --success: #10b981;
+            --error: #ef4444;
+            --warning: #f59e0b;
+            --info: #3b82f6;
+            --bg: #0f172a;
+            --card-bg: #1e293b;
+        }
+        
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background: var(--bg);
+            color: #e2e8f0;
+            min-height: 100vh;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 25px;
+            background: var(--card-bg);
+            border-radius: 16px;
+            border: 1px solid #334155;
+        }
+        
+        h1 {
+            color: #38bdf8;
+            font-size: 2.2rem;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            color: #94a3b8;
+            font-size: 1.1rem;
+        }
+        
+        .control-panel {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 25px 0;
+        }
+        
+        .btn {
+            padding: 15px 25px;
+            border: none;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #0ea5e9, #3b82f6);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(14, 165, 233, 0.3);
+        }
+        
+        .btn-secondary {
+            background: #334155;
+            color: #cbd5e1;
+            border: 1px solid #475569;
+        }
+        
+        .btn-secondary:hover {
+            background: #475569;
+        }
+        
+        .status-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin: 30px 0;
+        }
+        
+        .status-card {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid #334155;
+        }
+        
+        .status-card h3 {
+            color: #94a3b8;
+            font-size: 0.9rem;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .status-card .value {
+            font-size: 2.5rem;
+            font-weight: bold;
+        }
+        
+        .status-card.passed .value { color: var(--success); }
+        .status-card.failed .value { color: var(--error); }
+        .status-card.warning .value { color: var(--warning); }
+        
+        .file-list {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 20px;
+            margin: 25px 0;
+            border: 1px solid #334155;
+        }
+        
+        .file-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 15px;
+            border-bottom: 1px solid #334155;
+        }
+        
+        .file-item:last-child { border-bottom: none; }
+        
+        .file-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .file-icon {
+            font-size: 1.2rem;
+        }
+        
+        .file-status {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+        
+        .status-pending { background: #475569; color: #cbd5e1; }
+        .status-loaded { background: rgba(16, 185, 129, 0.2); color: var(--success); }
+        .status-error { background: rgba(239, 68, 68, 0.2); color: var(--error); }
+        
+        .log-container {
+            background: #111827;
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 25px;
+            border: 1px solid #334155;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+        
+        .log-entry {
+            padding: 12px 15px;
+            border-bottom: 1px solid #1e293b;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+        }
+        
+        .log-entry:last-child { border-bottom: none; }
+        
+        .log-success { 
+            color: var(--success);
+            border-right: 4px solid var(--success);
+        }
+        
+        .log-error { 
+            color: var(--error);
+            border-right: 4px solid var(--error);
+        }
+        
+        .log-warning { 
+            color: var(--warning);
+            border-right: 4px solid var(--warning);
+        }
+        
+        .log-info { 
+            color: var(--info);
+            border-right: 4px solid var(--info);
+        }
+        
+        .progress-container {
+            margin: 25px 0;
+        }
+        
+        .progress-bar {
+            height: 8px;
+            background: #334155;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #0ea5e9, #3b82f6);
+            width: 0%;
+            transition: width 0.5s ease;
+        }
+        
+        @media (max-width: 768px) {
+            .control-panel {
+                grid-template-columns: 1fr;
+            }
+            
+            .status-cards {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            h1 {
+                font-size: 1.8rem;
+            }
+        }
     </style>
 </head>
 <body>
-    <h1>🧪 تست یکپارچگی Vakamova</h1>
-    <button id="runTest">اجرای تست</button>
-    <div id="log" class="log"></div>
+    <div class="container">
+        <header>
+            <h1>🧪 تستر یکپارچگی Vakamova</h1>
+            <p class="subtitle">بررسی ارتباط ۱۳ فایل هسته + ماژول‌های جدید</p>
+        </header>
+        
+        <div class="control-panel">
+            <button class="btn btn-primary" onclick="runFullTest()">
+                <span>🚀 اجرای تست کامل</span>
+            </button>
+            <button class="btn btn-secondary" onclick="loadCoreFiles()">
+                <span>📦 بارگذاری فایل‌های Core</span>
+            </button>
+            <button class="btn btn-secondary" onclick="testEventBus()">
+                <span>🔗 تست EventBus</span>
+            </button>
+            <button class="btn btn-secondary" onclick="clearLogs()">
+                <span>🗑️ پاک کردن لاگ‌ها</span>
+            </button>
+        </div>
+        
+        <div class="progress-container">
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+        </div>
+        
+        <div class="status-cards">
+            <div class="status-card" id="cardLoaded">
+                <h3>فایل‌های بارگذاری شده</h3>
+                <div class="value">0</div>
+            </div>
+            <div class="status-card" id="cardPassed">
+                <h3>تست‌های موفق</h3>
+                <div class="value">0</div>
+            </div>
+            <div class="status-card" id="cardFailed">
+                <h3>تست‌های ناموفق</h3>
+                <div class="value">0</div>
+            </div>
+            <div class="status-card">
+                <h3>زمان اجرا</h3>
+                <div class="value" id="executionTime">0s</div>
+            </div>
+        </div>
+        
+        <div class="file-list">
+            <h3 style="margin-bottom: 15px; color: #e2e8f0;">📁 فایل‌های در حال بررسی</h3>
+            <div id="fileListContainer">
+                <!-- فایل‌ها اینجا نمایش داده می‌شوند -->
+            </div>
+        </div>
+        
+        <div class="log-container">
+            <h3 style="margin-bottom: 15px; color: #e2e8f0;">📋 گزارش اجرا</h3>
+            <div id="logContainer"></div>
+        </div>
+    </div>
 
     <script>
-        const log = document.getElementById('log');
-        const output = (msg, type = 'info') => {
-            const p = document.createElement('p');
-            p.innerHTML = `[${new Date().toLocaleTimeString('fa-IR')}] ${msg}`;
-            p.className = type === 'success' ? 'success' : type === 'error' ? 'error' : '';
-            log.appendChild(p);
-        };
-
-        // لیست فایل‌ها برای بارگذاری
-        const coreFiles = [
-            'core/event_bus.js',
-            'core/utils.js',
-            'core/state_manager.js',
-            'core/security.layer.js',
-            'core/core.operation.js',
-            'core/persistence.js',
-            'modules/auth/auth_manager.js'
+        // ==================== تنظیمات پروژه ====================
+        const PROJECT_FILES = [
+            // فایل‌های هسته اصلی (با مسیرهای اصلاح‌شده)
+            { name: 'Event Bus', path: './core/event_bus.js', type: 'core', required: true },
+            { name: 'Utils', path: './core/utils.js', type: 'core', required: true },
+            { name: 'State Manager', path: './core/state_manager.js', type: 'core', required: true },
+            { name: 'Context Provider', path: './core/context_provider.js', type: 'core', required: false },
+            { name: 'API Client', path: './core/api_client.js', type: 'core', required: false },
+            { name: 'Router', path: './core/router.js', type: 'core', required: false },
+            { name: 'Database', path: './core/database.js', type: 'core', required: false },
+            { name: 'API Base', path: './core/api.js', type: 'core', required: false },
+            { name: 'Config', path: './core/config.js', type: 'core', required: false },
+            { name: 'Font Manager', path: './core/font_manager.js', type: 'core', required: false },
+            { name: 'Guards', path: './core/guards.js', type: 'core', required: false },
+            { name: 'Router Middleware', path: './core/router_middleware.js', type: 'core', required: false },
+            { name: 'State (Base)', path: './core/state.js', type: 'core', required: false },
+            
+            // فایل‌های جدید شما
+            { name: 'Security Layer', path: './core/security.layer.js', type: 'custom', required: true },
+            { name: 'Core Operations', path: './core/core.operation.js', type: 'custom', required: true },
+            { name: 'Persistence', path: './core/persistence.js', type: 'custom', required: true },
+            
+            // ماژول Auth
+            { name: 'Auth Manager', path: './modules/auth/auth_manager.js', type: 'auth', required: true },
+            { name: 'Token Manager', path: './modules/auth/token_manager.js', type: 'auth', required: false },
+            
+            // صفحات
+            { name: 'Home Page', path: './pages/home/page.js', type: 'page', required: false },
+            { name: 'Auth View', path: './pages/auth/view.js', type: 'page', required: false }
         ];
 
-        async function loadScript(src) {
+        // ==================== وضعیت تستر ====================
+        const testerState = {
+            loadedFiles: new Map(),
+            testResults: { passed: 0, failed: 0 },
+            startTime: null,
+            logs: []
+        };
+
+        // ==================== سیستم لاگینگ ====================
+        function addLog(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString('fa-IR');
+            const logEntry = { message, type, timestamp };
+            testerState.logs.push(logEntry);
+            
+            // نمایش در صفحه
+            const logElement = document.createElement('div');
+            logElement.className = `log-entry log-${type}`;
+            logElement.innerHTML = `
+                <strong>[${timestamp}]</strong> 
+                <span>${message}</span>
+            `;
+            
+            document.getElementById('logContainer').appendChild(logElement);
+            
+            // اسکرول به پایین
+            logElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            
+            // آپدیت وضعیت
+            updateStatus();
+        }
+
+        // ==================== سیستم بارگذاری فایل ====================
+        function loadScript(fileInfo) {
             return new Promise((resolve, reject) => {
+                // بررسی کش مرورگر
                 const script = document.createElement('script');
-                script.src = src;
-                script.onload = () => resolve(src);
-                script.onerror = () => reject(new Error(`خطا در بارگذاری ${src}`));
+                script.src = `${fileInfo.path}?v=${Date.now()}`;
+                script.type = 'module';
+                
+                script.onload = () => {
+                    testerState.loadedFiles.set(fileInfo.name, {
+                        ...fileInfo,
+                        loaded: true,
+                        timestamp: Date.now()
+                    });
+                    
+                    updateFileUI(fileInfo.name, 'loaded');
+                    addLog(`✅ ${fileInfo.name} بارگذاری شد`, 'success');
+                    resolve(fileInfo.name);
+                };
+                
+                script.onerror = (error) => {
+                    testerState.loadedFiles.set(fileInfo.name, {
+                        ...fileInfo,
+                        loaded: false,
+                        error: error.message
+                    });
+                    
+                    updateFileUI(fileInfo.name, 'error');
+                    
+                    if (fileInfo.required) {
+                        addLog(`❌ خطا در ${fileInfo.name}: فایل ضروری یافت نشد`, 'error');
+                        reject(new Error(`Required file not found: ${fileInfo.path}`));
+                    } else {
+                        addLog(`⚠️ ${fileInfo.name} یافت نشد (اختیاری)`, 'warning');
+                        resolve(null); // فایل اختیاری - رد نشو
+                    }
+                };
+                
                 document.head.appendChild(script);
             });
         }
 
-        async function runIntegrationTest() {
-            log.innerHTML = '';
-            output('شروع تست یکپارچگی...');
-
-            // مرحله ۱: بارگذاری فایل‌های اصلی
-            output('بارگذاری فایل‌های core...');
-            try {
-                for (const file of coreFiles) {
+        async function loadCoreFiles() {
+            addLog('شروع بارگذاری فایل‌های هسته...', 'info');
+            testerState.startTime = Date.now();
+            
+            document.getElementById('progressFill').style.width = '0%';
+            
+            const requiredFiles = PROJECT_FILES.filter(f => f.required);
+            const optionalFiles = PROJECT_FILES.filter(f => !f.required);
+            
+            let loadedCount = 0;
+            
+            // اول فایل‌های ضروری
+            for (let i = 0; i < requiredFiles.length; i++) {
+                const file = requiredFiles[i];
+                try {
                     await loadScript(file);
-                    output(`✅ ${file} بارگذاری شد`, 'success');
+                    loadedCount++;
+                    
+                    // آپدیت progress bar
+                    const progress = (loadedCount / PROJECT_FILES.length) * 100;
+                    document.getElementById('progressFill').style.width = `${progress}%`;
+                    
+                    // تأخیر کوچک برای جلوگیری از blocking
+                    await new Promise(r => setTimeout(r, 50));
+                } catch (error) {
+                    addLog(`توقف بارگذاری: ${error.message}`, 'error');
+                    return;
                 }
-            } catch (e) {
-                output(`❌ خطا در بارگذاری: ${e.message}`, 'error');
-                return;
             }
-
-            // مرحله ۲: تست EventBus
-            output('تست EventBus...');
-            if (typeof eventBus !== 'undefined') {
+            
+            // سپس فایل‌های اختیاری
+            for (let i = 0; i < optionalFiles.length; i++) {
+                const file = optionalFiles[i];
                 try {
-                    eventBus.emit('test:integration', { message: 'سلام Vakamova' });
-                    output('✅ EventBus پاسخ داد', 'success');
-                } catch (e) {
-                    output(`❌ EventBus خطا: ${e.message}`, 'error');
-                }
-            } else {
-                output('❌ eventBus تعریف نشده', 'error');
-            }
-
-            // مرحله ۳: تست State Manager
-            output('تست State Manager...');
-            if (typeof HyperStateManager !== 'undefined') {
-                try {
-                    const testState = new HyperStateManager(eventBus);
-                    testState.set('integration.test', 'مقدار تست');
-                    const value = testState.get('integration.test');
-                    if (value === 'مقدار تست') {
-                        output('✅ State Manager کار می‌کند', 'success');
-                    }
-                } catch (e) {
-                    output(`❌ State Manager خطا: ${e.message}`, 'error');
+                    await loadScript(file);
+                    loadedCount++;
+                    
+                    const progress = (loadedCount / PROJECT_FILES.length) * 100;
+                    document.getElementById('progressFill').style.width = `${progress}%`;
+                    
+                    await new Promise(r => setTimeout(r, 30));
+                } catch (error) {
+                    // فایل‌های اختیاری خطا نمی‌دهند
                 }
             }
-
-            // مرحله ۴: تست Auth Manager (اگر موجود باشد)
-            output('بررسی Auth Manager...');
-            if (typeof auth_manager !== 'undefined') {
-                output('✅ Auth Manager موجود است', 'success');
-                // می‌توانید تست‌های بیشتر برای auth_manager اینجا اضافه کنید
-            }
-
-            // مرحله ۵: تست فایل‌های جدید
-            output('بررسی فایل‌های جدید...');
-            const newFiles = ['security.layer.js', 'core.operation.js', 'persistence.js'];
-            newFiles.forEach(file => {
-                if (typeof window[file.replace('.js', '')] !== 'undefined') {
-                    output(`✅ ${file} بارگذاری شد`, 'success');
-                } else {
-                    output(`⚠️ ${file} به صورت global تعریف نشده`, 'info');
-                }
-            });
-
-            output('تست کامل شد!', 'success');
+            
+            document.getElementById('progressFill').style.width = '100%';
+            addLog(`بارگذاری کامل شد: ${loadedCount} از ${PROJECT_FILES.length} فایل`, 'success');
         }
 
-        document.getElementById('runTest').addEventListener('click', runIntegrationTest);
+        // ==================== تست‌های واحد ====================
+        async function testEventBus() {
+            addLog('تست EventBus...', 'info');
+            
+            if (typeof eventBus === 'undefined') {
+                addLog('❌ EventBus تعریف نشده است', 'error');
+                testerState.testResults.failed++;
+                return false;
+            }
+            
+            try {
+                // تست انتشار رویداد
+                let eventReceived = false;
+                
+                const unsubscribe = eventBus.on('test:integration', (data) => {
+                    eventReceived = true;
+                    addLog(`رویداد دریافت شد: ${JSON.stringify(data)}`, 'success');
+                });
+                
+                eventBus.emit('test:integration', { 
+                    test: true, 
+                    timestamp: Date.now(),
+                    project: 'Vakamova' 
+                });
+                
+                // منتظر بمان برای دریافت رویداد
+                await new Promise(r => setTimeout(r, 100));
+                
+                if (eventReceived) {
+                    addLog('✅ EventBus به درستی کار می‌کند', 'success');
+                    testerState.testResults.passed++;
+                    
+                    // تمیزکاری
+                    if (typeof unsubscribe === 'function') {
+                        unsubscribe();
+                    }
+                    
+                    return true;
+                } else {
+                    addLog('❌ رویداد منتشر شد اما دریافت نشد', 'error');
+                    testerState.testResults.failed++;
+                    return false;
+                }
+            } catch (error) {
+                addLog(`❌ خطا در EventBus: ${error.message}`, 'error');
+                testerState.testResults.failed++;
+                return false;
+            }
+        }
+
+        async function testStateManager() {
+            addLog('تست State Manager...', 'info');
+            
+            if (typeof HyperStateManager === 'undefined') {
+                addLog('⚠️ HyperStateManager تعریف نشده', 'warning');
+                return false;
+            }
+            
+            try {
+                const testState = new HyperStateManager(eventBus);
+                const testKey = 'integration.test';
+                const testValue = { data: 'test', number: 42 };
+                
+                testState.set(testKey, testValue);
+                const retrieved = testState.get(testKey);
+                
+                if (retrieved && retrieved.data === testValue.data) {
+                    addLog('✅ State Manager به درستی کار می‌کند', 'success');
+                    testerState.testResults.passed++;
+                    return true;
+                } else {
+                    addLog('❌ State Manager داده را برنگرداند', 'error');
+                    testerState.testResults.failed++;
+                    return false;
+                }
+            } catch (error) {
+                addLog(`❌ خطا در State Manager: ${error.message}`, 'error');
+                testerState.testResults.failed++;
+                return false;
+            }
+        }
+
+        async function testNewModules() {
+            addLog('بررسی ماژول‌های جدید...', 'info');
+            
+            const newModules = [
+                { name: 'Security Layer', globalName: 'securityLayer' },
+                { name: 'Core Operations', globalName: 'coreOperation' },
+                { name: 'Persistence', globalName: 'persistence' }
+            ];
+            
+            let passed = 0;
+            
+            for (const module of newModules) {
+                if (typeof window[module.globalName] !== 'undefined') {
+                    addLog(`✅ ${module.name} موجود است`, 'success');
+                    passed++;
+                } else {
+                    addLog(`⚠️ ${module.name} به صورت global تعریف نشده`, 'warning');
+                }
+            }
+            
+            if (passed === newModules.length) {
+                testerState.testResults.passed++;
+            }
+            
+            return passed === newModules.length;
+        }
+
+        async function testAuthManager() {
+            addLog('بررسی Auth Manager...', 'info');
+            
+            if (typeof auth_manager === 'undefined') {
+                addLog('⚠️ Auth Manager تعریف نشده', 'warning');
+                return false;
+            }
+            
+            try {
+                // تست ساده وجود متدها
+                const requiredMethods = ['login', 'register', 'logout'];
+                let hasAllMethods = true;
+                
+                for (const method of requiredMethods) {
+                    if (typeof auth_manager[method] !== 'function') {
+                        addLog(`⚠️ Auth Manager.${method} تعریف نشده`, 'warning');
+                        hasAllMethods = false;
+                    }
+                }
+                
+                if (hasAllMethods) {
+                    addLog('✅ Auth Manager متدهای اصلی را دارد', 'success');
+                    testerState.testResults.passed++;
+                    return true;
+                } else {
+                    addLog('⚠️ Auth Manager برخی متدها را ندارد', 'warning');
+                    return false;
+                }
+            } catch (error) {
+                addLog(`⚠️ خطا در بررسی Auth Manager: ${error.message}`, 'warning');
+                return false;
+            }
+        }
+
+        // ==================== تست کامل ====================
+        async function runFullTest() {
+            addLog('شروع تست یکپارچه کامل...', 'info');
+            testerState.startTime = Date.now();
+            
+            // ریست نتایج قبلی
+            testerState.testResults = { passed: 0, failed: 0 };
+            testerState.loadedFiles.clear();
+            
+            // ریست UI
+            document.getElementById('cardPassed').querySelector('.value').textContent = '0';
+            document.getElementById('cardFailed').querySelector('.value').textContent = '0';
+            document.getElementById('logContainer').innerHTML = '';
+            initializeFileList();
+            
+            try {
+                // مرحله ۱: بارگذاری فایل‌ها
+                await loadCoreFiles();
+                
+                // مرحله ۲: تست‌های واحد
+                await testEventBus();
+                await testStateManager();
+                await testNewModules();
+                await testAuthManager();
+                
+                // مرحله ۳: محاسبه زمان
+                const endTime = Date.now();
+                const duration = ((endTime - testerState.startTime) / 1000).toFixed(2);
+                document.getElementById('executionTime').textContent = `${duration}s`;
+                
+                // مرحله ۴: خلاصه نتایج
+                addLog('='.repeat(50), 'info');
+                addLog(`نتایج نهایی: ${testerState.testResults.passed} موفق، ${testerState.testResults.failed} ناموفق`, 
+                      testerState.testResults.failed === 0 ? 'success' : 'warning');
+                addLog(`زمان اجرا: ${duration} ثانیه`, 'info');
+                addLog('='.repeat(50), 'info');
+                
+                // پیشنهاد بعدی
+                if (testerState.testResults.failed === 0) {
+                    addLog('🎉 همه تست‌ها موفق بودند! می‌توانی ادامه توسعه را شروع کنی.', 'success');
+                } else {
+                    addLog('🔧 برخی تست‌ها ناموفق بودند. خطاهای بالا را بررسی کن.', 'warning');
+                }
+                
+            } catch (error) {
+                addLog(`❌ خطا در اجرای تست: ${error.message}`, 'error');
+            }
+        }
+
+        // ==================== UI Helpers ====================
+        function initializeFileList() {
+            const container = document.getElementById('fileListContainer');
+            container.innerHTML = '';
+            
+            PROJECT_FILES.forEach(file => {
+                const fileElement = document.createElement('div');
+                fileElement.className = 'file-item';
+                fileElement.id = `file-${file.name.replace(/\s+/g, '-')}`;
+                fileElement.innerHTML = `
+                    <div class="file-info">
+                        <span class="file-icon">
+                            ${file.type === 'core' ? '🧠' : 
+                              file.type === 'auth' ? '🔐' : 
+                              file.type === 'page' ? '📄' : '⚙️'}
+                        </span>
+                        <div>
+                            <div style="font-weight: 600;">${file.name}</div>
+                            <div style="font-size: 0.8rem; color: #94a3b8;">${file.path}</div>
+                        </div>
+                    </div>
+                    <div class="file-status status-pending">در انتظار</div>
+                `;
+                
+                container.appendChild(fileElement);
+            });
+        }
+
+        function updateFileUI(fileName, status) {
+            const element = document.getElementById(`file-${fileName.replace(/\s+/g, '-')}`);
+            if (!element) return;
+            
+            const statusEl = element.querySelector('.file-status');
+            statusEl.className = 'file-status';
+            
+            switch (status) {
+                case 'loaded':
+                    statusEl.classList.add('status-loaded');
+                    statusEl.textContent = 'بارگذاری شد';
+                    break;
+                case 'error':
+                    statusEl.classList.add('status-error');
+                    statusEl.textContent = 'خطا';
+                    break;
+                case 'warning':
+                    statusEl.classList.add('status-warning');
+                    statusEl.textContent = 'اختیاری';
+                    break;
+            }
+        }
+
+        function updateStatus() {
+            const loadedCount = Array.from(testerState.loadedFiles.values())
+                .filter(f => f.loaded).length;
+            
+            document.getElementById('cardLoaded').querySelector('.value').textContent = 
+                `${loadedCount}/${PROJECT_FILES.length}`;
+            
+            document.getElementById('cardPassed').querySelector('.value').textContent = 
+                testerState.testResults.passed;
+            
+            document.getElementById('cardFailed').querySelector('.value').textContent = 
+                testerState.testResults.failed;
+            
+            // تغییر رنگ کارت‌ها بر اساس وضعیت
+            document.getElementById('cardPassed').className = 
+                `status-card ${testerState.testResults.passed > 0 ? 'passed' : ''}`;
+            
+            document.getElementById('cardFailed').className = 
+                `status-card ${testerState.testResults.failed > 0 ? 'failed' : ''}`;
+        }
+
+        function clearLogs() {
+            document.getElementById('logContainer').innerHTML = '';
+            addLog('لاگ‌ها پاک شدند', 'info');
+        }
+
+        // ==================== راه‌اندازی اولیه ====================
+        window.addEventListener('DOMContentLoaded', () => {
+            initializeFileList();
+            addLog('تستر Vakamova آماده است. برای شروع روی "اجرای تست کامل" کلیک کن.', 'info');
+            
+            // کلیدهای میانبر
+            document.addEventListener('keydown', (e) => {
+                if (e.ctrlKey && e.key === 'r') {
+                    e.preventDefault();
+                    runFullTest();
+                }
+            });
+        });
+
+        // برای دسترسی از کنسول
+        window.VakamovaTester = {
+            runFullTest,
+            loadCoreFiles,
+            testEventBus,
+            testStateManager,
+            testNewModules,
+            testAuthManager,
+            getState: () => ({ ...testerState }),
+            clearLogs
+        };
     </script>
 </body>
 </html>
