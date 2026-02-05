@@ -331,3 +331,12 @@ const eventBus = new HyperEventBus();
 Object.freeze(eventBus);
 
 export { HyperEventBus, eventBus };
+
+// در انتهای event_bus.js، قبل از exportها:
+window.eventBus = eventBus; // این خط را اضافه کن
+window.HyperEventBus = HyperEventBus; // این هم اگر نیاز است
+
+// سپس exportهای فعلی
+export { HyperEventBus, eventBus };
+
+
