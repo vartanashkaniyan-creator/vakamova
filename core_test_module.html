@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html dir="rtl">
+<head>
+    <title>تست Core (نسخه Module)</title>
+    <style>
+        body { font-family: Tahoma; margin: 20px; }
+        button { padding: 10px 20px; background: #2196F3; color: white; border: none; border-radius: 5px; margin: 5px; }
+        .result { padding: 10px; margin: 5px 0; border-right: 4px solid; }
+        .success { background: #E8F5E9; border-color: #4CAF50; }
+        .error { background: #FFEBEE; border-color: #F44336; }
+    </style>
+</head>
+<body>
+    <h2>⚙️ تست ماژول‌های Core (نسخه Module)</h2>
+    <button onclick="runModuleTest()">اجرای تست Module</button>
+    <div id="results"></div>
+
+    <script type="module">
+        const results = document.getElementById('results');
+        
+        function showResult(module, message, isSuccess) {
+            const div = document.createElement('div');
+            div.className = `result ${isSuccess ? 'success' : 'error'}`;
+            div.innerHTML = `<strong>${module}:</strong> ${message}`;
+            results.appendChild(div);
+        }
+
+        async function runModuleTest() {
+            results.innerHTML = '<h3>🎯 در حال تست Module‌ها...</h3>';
+            
+            try {
+                // تست event_bus.js
+                try {
+                    const eventBusModule = await import('./core/event_bus.js');
+                    showResult('event_bus.js', '✅ فایل به عنوان Module لود شد', true);
+                    console.log('صادرات event_bus.js:', eventBusModule);
+                } catch (e) {
+                    showResult('event_bus.js', `❌ خطا در لود Module: ${e.message}`, false);
+                }
+
+                // تست db.js
+                try {
+                    const dbModule = await import('./core/db.js');
+                    showResult('db.js', '✅ فایل به عنوان Module لود شد', true);
+                    console.log('صادرات db.js:', dbModule);
+                } catch (e) {
+                    showResult('db.js', `❌ خطا در لود Module: ${e.message}`, false);
+                }
+
+                // تست router.js
+                try {
+                    const routerModule = await import('./core/router.js');
+                    showResult('router.js', '✅ فایل به عنوان Module لود شد', true);
+                    console.log('صادرات router.js:', routerModule);
+                } catch (e) {
+                    showResult('router.js', `❌ خطا در لود Module: ${e.message}`, false);
+                }
+
+            } catch (error) {
+                showResult('سیستم', `❌ خطای کلی: ${error.message}`, false);
+            }
+        }
+    </script>
+</body>
+</html>
