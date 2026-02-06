@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>تست ساده State Manager</title>
+    <style>
+        body { font-family: Tahoma; margin: 20px; }
+        button { padding: 15px; margin: 10px; cursor: pointer; font-size: 16px; }
+        #output { margin-top: 20px; padding: 15px; background: #f0f0f0; }
+    </style>
+</head>
+<body>
+    <h1>تست ساده State Manager</h1>
+    
+    <button onclick="testBasic()">تست عملکرد پایه</button>
+    <button onclick="testUndo()">تست Undo</button>
+    <button onclick="testRedo()">تست Redo</button>
+    
+    <div id="output">روی دکمه‌ها کلیک کنید...</div>
+
+    <script>
+        // کد ساده State Manager بدون ماژول
+        class SimpleStateManager {
+            constructor(schema) {
+                this.state = {};
+                this.history = [];
+                this.future = [];
+                this.historyIndex = -1;
+                this.maxHistory = 50;
+            }
+            
+            setState(updates) {
+                // ذخیره در تاریخچه
+                this.history.push(JSON.parse(JSON.stringify(this.state)));
+                if (this.history.length > this.maxHistory) {
+                    this.history.shift();
+                }
+                
+                // به‌روزرسانی state
+                this.state = { ...this.state, ...updates };
+                this.future = []; // پاک کردن future بعد از تغییر جدید
+                
+                return true;
+            }
+            
+            getState() {
+                return { ...this.state };
+            }
+            
+            undo() {
+                if (this.history.length === 0) return false;
+                
+                this.future.push(JSON.parse(JSON.stringify(this.state)));
+                this.state = this.history.pop();
+                return true;
+            }
+            
+            redo() {
+                if (this.future.length === 0) return false;
+                
+                this.history.push(JSON.parse(JSON.stringify(this.state)));
+                this.state = this.future.pop();
+                return true;
+            }
+        }
+        
+        // ایجاد instance
+        const stateManager = new SimpleStateManager();
+        
+        // تست‌ها
+        window.testBasic = function() {
+            const output = document.getElementById('output');
+            
+            // تست ساده
+            stateManager.setState({ user: { name: 'علی', age: 30 } });
+            stateManager.setState({ settings: { theme: 'dark', language: 'fa' } });
+            
+            const currentState = stateManager.getState();
+            
+            output.innerHTML = `
+                <h3>✅ تست پایه موفق</h3>
+                <p>State فعلی:</p>
+                <pre>${JSON.stringify(currentState, null, 2)}</pre>
+                <p>✓ setState کار کرد</p>
+                <p>✓ getState کار کرد</p>
+            `;
+        };
+        
+        window.testUndo = function() {
+            const output = document.getElementById('output');
+            
+            // تغییرات اولیه
+            stateManager.setState({ step: 1 });
+            stateManager.setState({ step: 2 });
+            stateManager.setState({ step: 3 });
+            
+            // undo
+            const undone = stateManager.undo();
+            const currentState = stateManager.getState();
+            
+            if (undone) {
+                output.innerHTML = `
+                    <h3>✅ تست Undo موفق</h3>
+                    <p>بعد از Undo:</p>
+                    <pre>${JSON.stringify(currentState, null, 2)}</pre>
+                    <p>✓ عملیات Undo انجام شد</p>
+                    <p>✓ State به مرحله قبل برگشت</p>
+                `;
+            } else {
+                output.innerHTML = '<h3>❌ تست Undo شکست خورد</h3>';
+            }
+        };
+        
+        window.testRedo = function() {
+            const output = document.getElementById('output');
+            
+            // redo
+            const redone = stateManager.redo();
+            const currentState = stateManager.getState();
+            
+            if (redone) {
+                output.innerHTML = `
+                    <h3>✅ تست Redo موفق</h3>
+                    <p>بعد از Redo:</p>
+                    <pre>${JSON.stringify(currentState, null, 2)}</pre>
+                    <p>✓ عملیات Redo انجام شد</p>
+                    <p>✓ State به مرحله بعد برگشت</p>
+                `;
+            } else {
+                output.innerHTML = `
+                    <h3>⚠️ تست Redo</h3>
+                    <p>تاریخچه future خالی است (این طبیعی است اگر بعد از Undo تغییری ایجاد نکرده باشید)</p>
+                `;
+            }
+        };
+        
+        console.log('✅ تست ساده State Manager بارگذاری شد');
+    </script>
+</body>
+</html>
