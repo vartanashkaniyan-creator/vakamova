@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>تست Auth Manager</title>
+    <style>
+        body { font-family: Tahoma; margin: 20px; }
+        button { padding: 10px 15px; margin: 5px; cursor: pointer; }
+        .auth-status { padding: 15px; margin: 10px 0; border: 2px solid #ccc; }
+        .authenticated { border-color: green; background: #e8f5e9; }
+        .not-authenticated { border-color: red; background: #ffebee; }
+    </style>
+</head>
+<body>
+    <h1>🧪 تست Auth Manager</h1>
+    
+    <div id="authStatus" class="auth-status not-authenticated">
+        وضعیت: در حال بارگذاری...
+    </div>
+    
+    <div>
+        <button onclick="testLogin()">ورود کاربر</button>
+        <button onclick="testLogout()">خروج کاربر</button>
+        <button onclick="testRegister()">ثبت‌نام کاربر جدید</button>
+        <button onclick="testPermissions()">بررسی دسترسی‌ها</button>
+    </div>
+    
+    <div id="output" style="margin-top: 20px; padding: 15px; background: #f5f5f5;"></div>
+
+    <script>
+        // ابتدا StateManager و SessionManager ساده را تعریف می‌کنیم
+        class SimpleStateManager {
+            constructor() {
+                this.state = {};
+                this.history = [];
+            }
+            
+            setState(updates) {
+                this.state = { ...this.state, ...updates };
+                return true;
+            }
+            
+            getState(path) {
+                if (!path) return this.state;
+                return this.state.auth || null;
+            }
+        }
+        
+        class SimpleSessionManager {
+            constructor() {
+                this.session = null;
+            }
+            
+            startSession(user) {
+                this.session = {
+                    user,
+                    startedAt: new Date(),
+                    token: 'simulated_token_' + Date.now()
+                };
+                sessionStorage.setItem('vakamova_session', JSON.stringify(this.session));
+                return true;
+            }
+            
+            endSession() {
+                this.session = null;
+                sessionStorage.removeItem('vakamova_session');
+                return true;
+            }
+            
+            getSession() {
+                return this.session;
+            }
+        }
+        
+        // حالا AuthManager را تعریف می‌کنیم
+        class AuthManager {
+            constructor(stateManager, sessionManager) {
+                this.stateManager = stateManager;
+                this.sessionManager = sessionManager;
+                this.eventBus = {
+                    events: {},
+                    publish: function(event, data) {
+                        console.log(`[EventBus] ${event}:`, data);
+                        if (this.events[event]) {
+                            this.events[event].forEach(handler => handler(data));
+                        }
+                    },
+                    subscribe: function(event, handler) {
+                        if (!this.events[event]) this.events[event] = [];
+                        this.events[event].push(handler);
+                    }
+                };
+                
+                // مقداردهی اولیه state
+                this.stateManager.setState({
+                    auth: {
+                        user: null,
+                        isAuthenticated: false,
+                        permissions: []
+                    }
+                });
+                
+                // ثبت event listeners
+                this.eventBus.subscribe('auth:loggedIn', (user) => {
+                    this._updateUI();
+                });
+                
+                this.eventBus.subscribe('auth:loggedOut', (user) => {
+                    this._updateUI();
+                });
+                
+                this.eventBus.subscribe('auth:registered', (user) => {
+                    this._updateUI();
+                });
+            }
+            
+            async login(credentials) {
+                console.log('🔑 در حال ورود با:', credentials);
+                
+                // شبیه‌سازی لاگین موفق
+                const user = {
+                    id: 1,
+                    email: credentials.email,
+                    name: 'کاربر تست',
+                    permissions: ['user', 'premium', 'lesson_access'],
+                    subscription: 'premium'
+                };
+                
+                // به‌روزرسانی state
+                this.stateManager.setState({
+                    auth: {
+                        user,
+                        isAuthenticated: true,
+                        permissions: user.permissions
+                    }
+                });
+                
+                // شروع session
+                this.sessionManager.startSession(user);
+                
+                // انتشار رویداد
+                this.eventBus.publish('auth:loggedIn', user);
+                
+                return user;
+            }
+            
+            async logout() {
+                console.log('🚪 در حال خروج...');
+                const user = this.getCurrentUser();
+                
+                // به‌روزرسانی state
+                this.stateManager.setState({
+                    auth: {
+                        user: null,
+                        isAuthenticated: false,
+                        permissions: []
+                    }
+                });
+                
+                // پایان session
+                this.sessionManager.endSession();
+                
+                // انتشار رویداد
+                this.eventBus.publish('auth:loggedOut', user);
+                
+                return true;
+            }
+            
+            async register(userData) {
+                console.log('📝 در حال ثبت‌نام:', userData);
+                
+                const newUser = {
+                    id: Date.now(),
+                    email: userData.email,
+                    name: userData.name,
+                    permissions: ['user'],
+                    subscription: 'free'
+                };
+                
+                this.stateManager.setState({
+                    auth: {
+                        user: newUser,
+                        isAuthenticated: true,
+                        permissions: newUser.permissions
+                    }
+                });
+                
+                this.sessionManager.startSession(newUser);
+                this.eventBus.publish('auth:registered', newUser);
+                
+                return newUser;
+            }
+            
+            getCurrentUser() {
+                return this.stateManager.getState('auth')?.user;
+            }
+            
+            isAuthenticated() {
+                return this.stateManager.getState('auth')?.isAuthenticated || false;
+            }
+            
+            hasPermission(permission) {
+                const permissions = this.stateManager.getState('auth')?.permissions || [];
+                return permissions.includes(permission);
+            }
+            
+            _updateUI() {
+                const authStatus = document.getElementById('authStatus');
+                const output = document.getElementById('output');
+                const user = this.getCurrentUser();
+                const isAuth = this.isAuthenticated();
+                
+                if (isAuth && user) {
+                    authStatus.className = 'auth-status authenticated';
+                    authStatus.innerHTML = `
+                        <h3>✅ کاربر وارد شده است</h3>
+                        <p><strong>نام:</strong> ${user.name}</p>
+                        <p><strong>ایمیل:</strong> ${user.email}</p>
+                        <p><strong>دسترسی‌ها:</strong> ${user.permissions.join(', ')}</p>
+                        <p><strong>اشتراک:</strong> ${user.subscription}</p>
+                        <p><small>شناسه: ${user.id}</small></p>
+                    `;
+                } else {
+                    authStatus.className = 'auth-status not-authenticated';
+                    authStatus.innerHTML = `
+                        <h3>❌ کاربر وارد نشده است</h3>
+                        <p>لطفاً وارد شوید یا ثبت‌نام کنید</p>
+                    `;
+                }
+            }
+        }
+        
+        // ایجاد نمونه‌ها
+        const stateManager = new SimpleStateManager();
+        const sessionManager = new SimpleSessionManager();
+        const authManager = new AuthManager(stateManager, sessionManager);
+        
+        // ذخیره در window برای دسترسی از دکمه‌ها
+        window.authManager = authManager;
+        
+        // توابع تست
+        window.testLogin = async function() {
+            const output = document.getElementById('output');
+            output.innerHTML = '<p>🔑 در حال ورود...</p>';
+            
+            try {
+                const credentials = {
+                    email: 'user@vakamova.com',
+                    password: 'test123'
+                };
+                
+                const user = await authManager.login(credentials);
+                
+                output.innerHTML = `
+                    <div style="background: #d4edda; padding: 10px; margin: 5px 0;">
+                        ✅ ورود موفق<br>
+                        <strong>کاربر:</strong> ${user.name}<br>
+                        <strong>دسترسی‌ها:</strong> ${user.permissions.length} دسترسی
+                    </div>
+                    ${output.innerHTML}
+                `;
+                
+                console.log('ورود موفق:', user);
+            } catch (error) {
+                output.innerHTML = `
+                    <div style="background: #f8d7da; padding: 10px; margin: 5px 0;">
+                        ❌ خطا در ورود: ${error.message}
+                    </div>
+                    ${output.innerHTML}
+                `;
+            }
+        };
+        
+        window.testLogout = async function() {
+            const output = document.getElementById('output');
+            output.innerHTML = '<p>🚪 در حال خروج...</p>';
+            
+            try {
+                await authManager.logout();
+                
+                output.innerHTML = `
+                    <div style="background: #fff3cd; padding: 10px; margin: 5px 0;">
+                        🔐 خروج موفق<br>
+                        کاربر از سیستم خارج شد
+                    </div>
+                    ${output.innerHTML}
+                `;
+                
+                console.log('خروج موفق');
+            } catch (error) {
+                output.innerHTML = `
+                    <div style="background: #f8d7da; padding: 10px; margin: 5px 0;">
+                        ❌ خطا در خروج: ${error.message}
+                    </div>
+                    ${output.innerHTML}
+                `;
+            }
+        };
+        
+        window.testRegister = async function() {
+            const output = document.getElementById('output');
+            output.innerHTML = '<p>📝 در حال ثبت‌نام...</p>';
+            
+            try {
+                const userData = {
+                    name: 'کاربر جدید',
+                    email: 'newuser@vakamova.com',
+                    password: 'newpass123'
+                };
+                
+                const user = await authManager.register(userData);
+                
+                output.innerHTML = `
+                    <div style="background: #cce5ff; padding: 10px; margin: 5px 0;">
+                        🎉 ثبت‌نام موفق<br>
+                        <strong>کاربر جدید:</strong> ${user.name}<br>
+                        <strong>ایمیل:</strong> ${user.email}<br>
+                        <strong>شناسه:</strong> ${user.id}
+                    </div>
+                    ${output.innerHTML}
+                `;
+                
+                console.log('ثبت‌نام موفق:', user);
+            } catch (error) {
+                output.innerHTML = `
+                    <div style="background: #f8d7da; padding: 10px; margin: 5px 0;">
+                        ❌ خطا در ثبت‌نام: ${error.message}
+                    </div>
+                    ${output.innerHTML}
+                `;
+            }
+        };
+        
+        window.testPermissions = async function() {
+            const output = document.getElementById('output');
+            output.innerHTML = '<p>🔐 در حال بررسی دسترسی‌ها...</p>';
+            
+            try {
+                const permissions = ['user', 'premium', 'lesson_access', 'admin'];
+                const results = [];
+                
+                for (const perm of permissions) {
+                    const hasPerm = await authManager.hasPermission(perm);
+                    results.push({ permission: perm, granted: hasPerm });
+                }
+                
+                let resultHTML = '<div style="background: #e2e3e5; padding: 10px; margin: 5px 0;">';
+                resultHTML += '<strong>نتیجه بررسی دسترسی‌ها:</strong><br>';
+                
+                results.forEach(result => {
+                    resultHTML += `${result.granted ? '✅' : '❌'} ${result.permission}<br>`;
+                });
+                
+                resultHTML += '</div>';
+                output.innerHTML = resultHTML + output.innerHTML;
+                
+            } catch (error) {
+                output.innerHTML = `
+                    <div style="background: #f8d7da; padding: 10px; margin: 5px 0;">
+                        ❌ خطا در بررسی دسترسی‌ها: ${error.message}
+                    </div>
+                    ${output.innerHTML}
+                `;
+            }
+        };
+        
+        // به‌روزرسانی اولیه UI
+        setTimeout(() => {
+            authManager._updateUI();
+            console.log('✅ Auth Manager تست بارگذاری شد');
+        }, 100);
+    </script>
+</body>
+</html>
