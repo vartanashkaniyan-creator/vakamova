@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head><title>تست سریع</title><meta charset="utf-8"></head>
+<body style="padding:20px;">
+    <button onclick="runTest()">آزمایش</button>
+    <div id="result" style="margin-top:20px;"></div>
+    
+    <script src="modules/lesson-engine/lesson-engine.js"></script>
+    <script>
+        async function runTest() {
+            const mockDeps = {
+                database: {},
+                eventBus: { publish: () => console.log('رویداد') },
+                progressTracker: { 
+                    startSession: async () => {},
+                    getUserProgress: async () => ({})
+                }
+            };
+            
+            try {
+                const engine = new LessonEngine(mockDeps);
+                const course = await engine.loadCourse('test', 'fa');
+                document.getElementById('result').innerHTML = 
+                    `✅ موفق! <br> دوره: ${course.title}`;
+            } catch(e) {
+                document.getElementById('result').innerHTML = 
+                    `❌ خطا: ${e.message}`;
+            }
+        }
+    </script>
+</body>
+</html>
