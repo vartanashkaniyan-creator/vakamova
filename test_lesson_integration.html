@@ -493,16 +493,26 @@
                             break;
                         case 5:
                             const progressSession = await localEngine.startLesson('lesson_1', `user_all_prog_${testId}`);
+                            
+                            // 🔥 اصلاح: ارسال هر دو تمرین برای کامل کردن درس
                             await localEngine.submitExercise({
                                 sessionId: progressSession.id,
                                 exerciseId: 'ex1',
                                 answers: ['Hello'],
                                 timeSpent: 30
                             });
+                            await localEngine.submitExercise({
+                                sessionId: progressSession.id,
+                                exerciseId: 'ex2',
+                                answers: ['Goodbye'],
+                                timeSpent: 40
+                            });
+                            
                             const progress = await localEngine.getProgress(`user_all_prog_${testId}`, 'english_a1');
                             result = {
-                                success: progress && typeof progress.completionPercentage === 'number',
-                                message: progress ? `پیشرفت: ${progress.completionPercentage}%` : 'دریافت پیشرفت شکست خورد'
+                                // 🔥 اصلاح: بررسی 100% شدن پیشرفت
+                                success: progress && progress.completionPercentage === 100,
+                                message: progress ? `پیشرفت: ${progress.completionPercentage}% (درس کامل)` : 'دریافت پیشرفت شکست خورد'
                             };
                             break;
                     }
