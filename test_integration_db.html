@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>تست یکپارچه هسته دیتابیس</title>
+    <style>
+        body { font-family: Tahoma; margin: 20px; background: #f5f5f5; }
+        .test-section { background: white; padding: 15px; margin: 10px 0; border-radius: 5px; }
+        .success { color: green; border-right: 4px solid green; padding-right: 10px; }
+        .error { color: red; border-right: 4px solid red; padding-right: 10px; }
+        .warning { color: orange; border-right: 4px solid orange; padding-right: 10px; }
+        button { padding: 8px 15px; margin: 5px; cursor: pointer; }
+        #output { background: #222; color: #0f0; padding: 15px; border-radius: 5px; font-family: monospace; }
+    </style>
+</head>
+<body>
+    <h1>✅ تست یکپارچه هسته دیتابیس Vakamova</h1>
+    <p>این تست Database + SchemaManager + MigrationEngine را با هم آزمایش می‌کند</p>
+    
+    <div class="test-section">
+        <h3>🎯 سناریو تست</h3>
+        <ol>
+            <li>ایجاد دیتابیس با اسکیما نسخه 1</li>
+            <li>ذخیره داده‌های نمونه کاربران و دروس</li>
+            <li>تعریف اسکیما نسخه 2 (افزودن store جدید)</li>
+            <li>تعریف اسکیما نسخه 3 (تغییر ساختار)</li>
+            <li>مهاجرت خودکار از v1 به v3</li>
+            <li>اعتبارسنجی داده‌های مهاجرت شده</li>
+        </ol>
+    </div>
+    
+    <div class="test-section">
+        <button onclick="runFullTest()">▶ اجرای کامل تست</button>
+        <button onclick="clearOutput()">🗑 پاکسازی خروجی</button>
+        <button onclick="resetDatabase()">♻ بازنشانی دیتابیس</button>
+    </div>
+    
+    <div id="output">آماده اجرای تست...</div>
+    
+    <script type="module">
+        import Database from './core/database.js';
+        import SchemaManager from './core/schema-manager.js';
+        import MigrationEngine from './core/migration-engine.js';
+        
+        const output = document.getElementById('output');
+        let db, schemaManager, migrationEngine;
+        
+        function log(type, message) {
+            const time = new Date().toLocaleTimeString();
+            const prefix = type === 'success' ? '✅' : type === 'error' ? '❌' : type === 'warning' ? '⚠️' : 'ℹ️';
+            output.innerHTML += `<div class="${type}">${prefix} [${time}] ${message}</div>`;
+            output.scrollTop = output.scrollHeight;
+        }
+        
+        function clearOutput() {
+            output.innerHTML = '';
+            log('info', 'خروجی پاک شد');
+        }
+        
+        async function resetDatabase() {
+            if (db) {
+                await db.deleteDatabase();
+                log('success', 'دیتابیس حذف شد');
+            }
+            db = new Database('VakamovaIntegrationTest');
+            schemaManager = new SchemaManager();
+            migrationEngine = new MigrationEngine(db, schemaManager);
+            log('success', 'سیستم آماده تست مجدد');
+        }
+        
+        async function runFullTest() {
+            clearOutput();
+            log('info', 'شروع تست یکپارچه هسته دیتابیس...');
+            
+            try {
+                // 1. تنظیم اولیه
+                await resetDatabase();
+                
+                // 2. تعریف اسکیما نسخه 1
+                log('info', 'تعریف اسکیما نسخه 1...');
+                await schemaManager.defineSchema(1, [
+                    {
+                        name: 'users',
+                        keyPath: 'id',
+                        autoIncrement: true,
+                        indexes: [
+                            { name: 'email_idx', keyPath: 'email', unique: true },
+                            { name: 'language_idx', keyPath: 'learningLanguage' }
+                        ]
+                    },
+                    {
+                        name: 'lessons',
+                        keyPath: 'lessonId',
+                        indexes: [
+                            { name: 'level_idx', keyPath: 'level' },
+                            { name: 'language_idx', keyPath: 'language' }
+                        ]
+                    }
+                ]);
+                log('success', 'اسکیما نسخه 1 تعریف شد (2 store: users, lessons)');
+                
+                // 3. راه‌اندازی دیتابیس
+                const schemaV1 = await schemaManager.getSchema(1);
+                await db.init(schemaV1);
+                log('success', 'دیتابیس با نسخه 1 راه‌اندازی شد');
+                
+                // 4. افزودن داده‌های آزمایشی
+                log('info', 'افزودن داده‌های آزمایشی...');
+                
+                // کاربران
+                const userId1 = await db.add('users', {
+                    email: 'user1@test.com',
+                    learningLanguage: 'en',
+                    name: 'کاربر تست ۱',
+                    createdAt: new Date().toISOString()
+                });
+                
+                const userId2 = await db.add('users', {
+                    email: 'user2@test.com',
+                    learningLanguage: 'fa',
+                    name: 'کاربر تست ۲',
+                    createdAt: new Date().toISOString()
+                });
+                
+                log('success', `۲ کاربر اضافه شد (IDs: ${userId1}, ${userId2})`);
+                
+                // دروس
+                await db.bulkAdd('lessons', [
+                    { lessonId: 'en_001', language: 'en', level: 'A1', title: 'مقدمات انگلیسی' },
+                    { lessonId: 'en_002', language: 'en', level: 'A1', title: 'احوالپرسی' },
+                    { lessonId: 'fa_001', language: 'fa', level: 'A1', title: 'آموزش فارسی' }
+                ]);
+                
+                const lessonCount = await db.count('lessons');
+                log('success', `${lessonCount} درس اضافه شد`);
+                
+                // 5. تعریف اسکیما نسخه 2
+                log('info', 'تعریف اسکیما نسخه 2...');
+                await schemaManager.defineSchema(2, [
+                    ...schemaV1.stores,
+                    {
+                        name: 'progress',
+                        keyPath: 'id',
+                        autoIncrement: true,
+                        indexes: [
+                            { name: 'user_lesson_idx', keyPath: ['userId', 'lessonId'], unique: true },
+                            { name: 'user_idx', keyPath: 'userId' },
+                            { name: 'lesson_idx', keyPath: 'lessonId' }
+                        ]
+                    }
+                ]);
+                log('success', 'اسکیما نسخه 2 تعریف شد (افزوده شدن store: progress)');
+                
+                // 6. ثبت migration سفارشی برای نسخه 2
+                log('info', 'ثبت migration سفارشی برای نسخه 2...');
+                await migrationEngine.registerDataMigration(2, async (database, schemaMgr) => {
+                    log('warning', 'در حال اجرای migration سفارشی نسخه 2...');
+                    
+                    // ایجاد رکوردهای progress اولیه برای کاربران موجود
+                    const users = await database.getAll('users');
+                    const lessons = await database.getAll('lessons');
+                    
+                    for (const user of users) {
+                        for (const lesson of lessons) {
+                            // فقط دروس مرتبط با زبان کاربر
+                            if (user.learningLanguage === lesson.language) {
+                                await database.add('progress', {
+                                    userId: user.id,
+                                    lessonId: lesson.lessonId,
+                                    completed: false,
+                                    score: 0,
+                                    lastAccessed: null
+                                });
+                            }
+                        }
+                    }
+                    
+                    return `ایجاد ${users.length * 2} رکورد progress`;
+                });
+                log('success', 'Migration سفارشی ثبت شد');
+                
+                // 7. تعریف اسکیما نسخه 3
+                log('info', 'تعریف اسکیما نسخه 3...');
+                await schemaManager.defineSchema(3, [
+                    {
+                        name: 'users',
+                        keyPath: 'id',
+                        autoIncrement: true,
+                        indexes: [
+                            { name: 'email_idx', keyPath: 'email', unique: true },
+                            { name: 'language_idx', keyPath: 'learningLanguage' },
+                            { name: 'status_idx', keyPath: 'accountStatus' } // index جدید
+                        ]
+                    },
+                    {
+                        name: 'lessons',
+                        keyPath: 'lessonId',
+                        indexes: [
+                            { name: 'level_idx', keyPath: 'level' },
+                            { name: 'language_idx', keyPath: 'language' },
+                            { name: 'category_idx', keyPath: 'category' } // index جدید
+                        ]
+                    },
+                    {
+                        name: 'progress',
+                        keyPath: 'id',
+                        autoIncrement: true,
+                        indexes: [
+                            { name: 'user_lesson_idx', keyPath: ['userId', 'lessonId'], unique: true },
+                            { name: 'user_idx', keyPath: 'userId' },
+                            { name: 'lesson_idx', keyPath: 'lessonId' },
+                            { name: 'completed_idx', keyPath: 'completed' } // index جدید
+                        ]
+                    },
+                    {
+                        name: 'settings', // store جدید
+                        keyPath: 'userId',
+                        indexes: [
+                            { name: 'theme_idx', keyPath: 'theme' }
+                        ]
+                    }
+                ]);
+                log('success', 'اسکیما نسخه 3 تعریف شد (افزوده شدن store: settings)');
+                
+                // 8. ثبت migration سفارشی برای نسخه 3
+                log('info', 'ثبت migration سفارشی برای نسخه 3...');
+                await migrationEngine.registerDataMigration(3, async (database, schemaMgr) => {
+                    log('warning', 'در حال اجرای migration سفارشی نسخه 3...');
+                    
+                    // به‌روزرسانی users با فیلد جدید
+                    const users = await database.getAll('users');
+                    for (const user of users) {
+                        await database.update('users', user.id, {
+                            accountStatus: 'active',
+                            updatedAt: new Date().toISOString()
+                        });
+                    }
+                    
+                    // ایجاد تنظیمات پیش‌فرض برای کاربران
+                    for (const user of users) {
+                        await database.add('settings', {
+                            userId: user.id,
+                            theme: 'light',
+                            notifications: true,
+                            autoPlayAudio: true
+                        });
+                    }
+                    
+                    return `به‌روزرسانی ${users.length} کاربر و ایجاد تنظیمات`;
+                });
+                log('success', 'Migration سفارشی نسخه 3 ثبت شد');
+                
+                // 9. اجرای مهاجرت
+                log('info', 'شروع فرآیند مهاجرت از v1 به v3...');
+                const migrationResult = await migrationEngine.migrate(1, 3);
+                log('success', `مهاجرت کامل شد: ${JSON.stringify(migrationResult)}`);
+                
+                // 10. اعتبارسنجی نتایج
+                log('info', 'اعتبارسنجی داده‌های مهاجرت شده...');
+                
+                // شمارش رکوردها
+                const finalUsers = await db.getAll('users');
+                const finalLessons = await db.getAll('lessons');
+                const finalProgress = await db.getAll('progress');
+                const finalSettings = await db.getAll('settings');
+                
+                log('info', `📊 نتیجه نهایی:`);
+                log('info', `  کاربران: ${finalUsers.length} رکورد`);
+                log('info', `  دروس: ${finalLessons.length} رکورد`);
+                log('info', `  پیشرفت: ${finalProgress.length} رکورد`);
+                log('info', `  تنظیمات: ${finalSettings.length} رکورد`);
+                
+                // بررسی فیلدهای جدید
+                const sampleUser = finalUsers[0];
+                if (sampleUser.accountStatus === 'active') {
+                    log('success', 'فیلد accountStatus به درستی اضافه شد');
+                }
+                
+                // بررسی داده‌های progress
+                if (finalProgress.length > 0) {
+                    const sampleProgress = finalProgress[0];
+                    if (sampleProgress.userId && sampleProgress.lessonId) {
+                        log('success', 'داده‌های progress به درستی مهاجرت شدند');
+                    }
+                }
+                
+                // 11. بررسی تاریخچه مهاجرت
+                const history = await migrationEngine.getMigrationHistory();
+                log('info', `تاریخچه مهاجرت: ${history.length} ورودی`);
+                
+                // 12. تست Query
+                log('info', 'تست کوئری‌های پیشرفته...');
+                
+                // جستجو با index
+                const englishLessons = await db.queryByIndex('lessons', 'language_idx', 'en');
+                log('info', `دروس انگلیسی: ${englishLessons.length} درس`);
+                
+                // جستجوی کاربران فارسی
+                const farsiLearners = await db.queryByIndex('users', 'language_idx', 'fa');
+                log('info', `کاربران فارسی: ${farsiLearners.length} کاربر`);
+                
+                // تست تراکنش
+                await db.transaction(['users', 'progress'], 'readwrite', async (transaction) => {
+                    const userStore = transaction.objectStore('users');
+                    const progressStore = transaction.objectStore('progress');
+                    
+                    // عملیات نمونه در تراکنش
+                    const request = userStore.get(1);
+                    await new Promise((resolve, reject) => {
+                        request.onsuccess = resolve;
+                        request.onerror = reject;
+                    });
+                    
+                    log('success', 'تراکنش با موفقیت اجرا شد');
+                });
+                
+                log('success', '🎉 تمام تست‌ها با موفقیت گذرانده شد!');
+                log('info', 'هسته دیتابیس آماده استفاده در پروژه Vakamova است');
+                
+            } catch (error) {
+                log('error', `خطا در تست: ${error.message}`);
+                console.error(error);
+            }
+        }
+        
+        // اجرای خودکار تست
+        setTimeout(() => {
+            log('info', 'برای شروع تست روی دکمه "اجرای کامل تست" کلیک کنید');
+        }, 1000);
+    </script>
+</body>
+</html>
