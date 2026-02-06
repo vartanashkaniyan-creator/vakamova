@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>تست EventBus - Vakamova</title>
+    <style>
+        /* استایل ساده و شفاف */
+        body {
+            font-family: Tahoma, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f0f2f5;
+            color: #333;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #3498db;
+        }
+        
+        .status {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 25px;
+            text-align: center;
+            font-weight: bold;
+            font-size: 18px;
+        }
+        
+        .status.loading {
+            background: #e3f2fd;
+            color: #1565c0;
+            border: 2px solid #2196f3;
+        }
+        
+        .status.ready {
+            background: #e8f5e9;
+            color: #2e7d32;
+            border: 2px solid #4caf50;
+        }
+        
+        .status.error {
+            background: #ffebee;
+            color: #c62828;
+            border: 2px solid #f44336;
+        }
+        
+        .test-buttons {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        
+        @media (max-width: 600px) {
+            .test-buttons {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .test-btn {
+            padding: 15px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        
+        .test-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        
+        .test-btn.primary {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            color: white;
+        }
+        
+        .test-btn.success {
+            background: linear-gradient(135deg, #2ecc71, #27ae60);
+            color: white;
+        }
+        
+        .test-btn.warning {
+            background: linear-gradient(135deg, #f39c12, #e67e22);
+            color: white;
+        }
+        
+        .test-btn.danger {
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+            color: white;
+        }
+        
+        .output {
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 20px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.8;
+            min-height: 300px;
+            max-height: 500px;
+            overflow-y: auto;
+            margin-top: 20px;
+        }
+        
+        .log-item {
+            padding: 8px 0;
+            border-bottom: 1px solid #34495e;
+            animation: fadeIn 0.3s;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateX(-10px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        
+        .success { color: #2ecc71; }
+        .error { color: #e74c3c; }
+        .info { color: #3498db; }
+        .warning { color: #f1c40f; }
+        
+        .results {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 25px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 1px solid #dee2e6;
+        }
+        
+        .result-box {
+            text-align: center;
+        }
+        
+        .result-value {
+            font-size: 32px;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        
+        .passed .result-value { color: #27ae60; }
+        .failed .result-value { color: #e74c3c; }
+        .total .result-value { color: #3498db; }
+        
+        footer {
+            text-align: center;
+            margin-top: 30px;
+            color: #7f8c8d;
+            font-size: 14px;
+            padding-top: 20px;
+            border-top: 1px solid #ecf0f1;
+        }
+        
+        .clear-btn {
+            display: block;
+            width: 100%;
+            padding: 12px;
+            margin-top: 20px;
+            background: #95a5a6;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        
+        .clear-btn:hover {
+            background: #7f8c8d;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 تست EventBus پروژه Vakamova</h1>
+        
+        <div class="status loading" id="status">
+            🔄 در حال بارگذاری EventBus...
+        </div>
+        
+        <div class="test-buttons">
+            <button class="test-btn primary" onclick="runTest('basic')">
+                <span>🎯</span> تست پایه
+            </button>
+            <button class="test-btn success" onclick="runTest('multiple')">
+                <span>👂</span> تست چند Listener
+            </button>
+            <button class="test-btn warning" onclick="runTest('once')">
+                <span>1️⃣</span> تست Once
+            </button>
+            <button class="test-btn danger" onclick="runTest('scenario')">
+                <span>🚀</span> سناریوی واقعی
+            </button>
+        </div>
+        
+        <button class="clear-btn" onclick="clearOutput()">
+            🗑️ پاکسازی نتایج
+        </button>
+        
+        <div class="output" id="output">
+            <!-- نتایج تست اینجا نمایش داده می‌شود -->
+        </div>
+        
+        <div class="results" id="results" style="display: none;">
+            <div class="result-box passed">
+                <div>تست‌های موفق</div>
+                <div class="result-value" id="passedCount">0</div>
+                <div>passed</div>
+            </div>
+            <div class="result-box failed">
+                <div>تست‌های شکست خورده</div>
+                <div class="result-value" id="failedCount">0</div>
+                <div>failed</div>
+            </div>
+            <div class="result-box total">
+                <div>کل تست‌ها</div>
+                <div class="result-value" id="totalCount">0</div>
+                <div>total</div>
+            </div>
+        </div>
+        
+        <footer>
+            <p>پروژه Vakamova - اپ آموزش زبان ۱۲ زبانه</p>
+            <p>سیستم EventBus مبتنی بر اصول SOLID</p>
+        </footer>
+    </div>
+
+    <!-- بارگذاری SimpleEventBus -->
+    <script src="simple_eventbus.js"></script>
+    
+    <script>
+        // متغیرهای تست
+        let passed = 0;
+        let failed = 0;
+        
+        // المنت‌های DOM
+        const statusEl = document.getElementById('status');
+        const outputEl = document.getElementById('output');
+        const resultsEl = document.getElementById('results');
+        
+        // تابع لاگ
+        function log(message, type = 'info') {
+            const div = document.createElement('div');
+            div.className = `log-item ${type}`;
+            div.textContent = message;
+            outputEl.appendChild(div);
+            outputEl.scrollTop = outputEl.scrollHeight;
+        }
+        
+        // پاکسازی خروجی
+        function clearOutput() {
+            outputEl.innerHTML = '';
+            passed = 0;
+            failed = 0;
+            updateResults();
+            resultsEl.style.display = 'none';
+        }
+        
+        // بروزرسانی نتایج
+        function updateResults() {
+            document.getElementById('passedCount').textContent = passed;
+            document.getElementById('failedCount').textContent = failed;
+            document.getElementById('totalCount').textContent = passed + failed;
+            
+            if (passed + failed > 0) {
+                resultsEl.style.display = 'flex';
+            }
+        }
+        
+        // اجرای تست
+        function runTest(testType) {
+            log(`\n════════════════════════════════════════`, 'info');
+            log(`📋 شروع تست: ${getTestName(testType)}`, 'info');
+            log(`════════════════════════════════════════\n`, 'info');
+            
+            // بررسی بارگذاری EventBus
+            if (typeof SimpleEventBus === 'undefined') {
+                log('❌ SimpleEventBus پیدا نشد!', 'error');
+                log('مطمئن شوید فایل simple_eventbus.js بارگذاری شده است.', 'warning');
+                return;
+            }
+            
+            try {
+                const bus = new SimpleEventBus();
+                log('✅ نمونه EventBus ساخته شد', 'success');
+                
+                switch(testType) {
+                    case 'basic':
+                        runBasicTest(bus);
+                        break;
+                    case 'multiple':
+                        runMultipleTest(bus);
+                        break;
+                    case 'once':
+                        runOnceTest(bus);
+                        break;
+                    case 'scenario':
+                        runScenarioTest(bus);
+                        break;
+                }
+                
+                log(`\n🎉 تست "${getTestName(testType)}" کامل شد`, 'success');
+                
+            } catch (error) {
+                log(`❌ خطا در تست: ${error.message}`, 'error');
+                failed++;
+                console.error(error);
+            }
+            
+            updateResults();
+        }
+        
+        // تست پایه
+        function runBasicTest(bus) {
+            log('\n🔹 تست پایه (on/emit):', 'info');
+            
+            let received = null;
+            
+            // ثبت listener
+            bus.on('test-basic', (data) => {
+                received = data;
+                log('  📨 داده دریافت شد', 'success');
+            });
+            
+            // ارسال event
+            const result = bus.emit('test-basic', { 
+                message: 'سلام دنیا!',
+                project: 'Vakamova'
+            });
+            
+            // بررسی
+            if (received && received.message === 'سلام دنیا!') {
+                log('  ✅ داده‌ها درست دریافت شدند', 'success');
+                passed++;
+            } else {
+                log('  ❌ دریافت داده شکست خورد', 'error');
+                failed++;
+            }
+            
+            if (result.listenersTriggered === 1) {
+                log('  ✅ تعداد listeners درست است', 'success');
+                passed++;
+            } else {
+                log(`  ❌ تعداد listeners اشتباه: ${result.listenersTriggered}`, 'error');
+                failed++;
+            }
+        }
+        
+        // تست چند listener
+        function runMultipleTest(bus) {
+            log('\n🔹 تست چند Listener:', 'info');
+            
+            let counter = 0;
+            
+            // ثبت ۳ listener
+            bus.on('test-multi', () => {
+                counter++;
+                log(`  👂 Listener ${counter} فعال شد`, 'info');
+            });
+            
+            bus.on('test-multi', () => {
+                counter++;
+                log(`  👂 Listener ${counter} فعال شد`, 'info');
+            });
+            
+            bus.on('test-multi', () => {
+                counter++;
+                log(`  👂 Listener ${counter} فعال شد`, 'info');
+            });
+            
+            // ارسال
+            bus.emit('test-multi');
+            
+            // بررسی
+            if (counter === 3) {
+                log('  ✅ تمام ۳ listener فعال شدند', 'success');
+                passed++;
+            } else {
+                log(`  ❌ فقط ${counter} از ۳ listener فعال شد`, 'error');
+                failed++;
+            }
+        }
+        
+        // تست once
+        function runOnceTest(bus) {
+            log('\n🔹 تست Once Listener:', 'info');
+            
+            let onceCounter = 0;
+            
+            // ثبت once listener
+            bus.once('test-once', () => {
+                onceCounter++;
+                log('  🔂 Once Listener فعال شد', 'success');
+            });
+            
+            // ۳ بار ارسال
+            bus.emit('test-once');
+            bus.emit('test-once');
+            bus.emit('test-once');
+            
+            // بررسی
+            if (onceCounter === 1) {
+                log('  ✅ Once Listener فقط یکبار فعال شد', 'success');
+                passed++;
+            } else {
+                log(`  ❌ Once Listener ${onceCounter} بار فعال شد`, 'error');
+                failed++;
+            }
+        }
+        
+        // تست سناریوی واقعی
+        function runScenarioTest(bus) {
+            log('\n🔹 سناریوی واقعی Vakamova:', 'info');
+            
+            let lessonStarted = false;
+            let exerciseCompleted = false;
+            let paymentProcessed = false;
+            
+            // شبیه‌سازی رویدادهای اپ آموزش زبان
+            bus.on('app:lesson:started', (data) => {
+                lessonStarted = true;
+                log(`  📖 درس شروع شد: ${data.language} - سطح ${data.level}`, 'info');
+            });
+            
+            bus.on('app:exercise:completed', (data) => {
+                exerciseCompleted = true;
+                log(`  ✅ تمرین کامل شد: امتیاز ${data.score}/100`, 'info');
+            });
+            
+            bus.on('app:payment:success', (data) => {
+                paymentProcessed = true;
+                log(`  💰 پرداخت موفق: ${data.amount} تومان`, 'info');
+            });
+            
+            // اجرای سناریو
+            log('\n  🎬 اجرای سناریو...', 'info');
+            
+            bus.emit('app:lesson:started', {
+                language: 'انگلیسی',
+                level: 3,
+                lessonId: 101
+            });
+            
+            bus.emit('app:exercise:completed', {
+                exerciseId: 205,
+                score: 95,
+                timeSpent: 180
+            });
+            
+            bus.emit('app:payment:success', {
+                amount: 49000,
+                plan: 'ماهانه',
+                userId: 12345
+            });
+            
+            // بررسی
+            const allPassed = lessonStarted && exerciseCompleted && paymentProcessed;
+            
+            if (allPassed) {
+                log('\n  🎉 سناریوی آموزشی با موفقیت اجرا شد!', 'success');
+                passed++;
+            } else {
+                log('\n  ❌ سناریو کامل اجرا نشد', 'error');
+                failed++;
+            }
+        }
+        
+        // نام تست
+        function getTestName(type) {
+            const names = {
+                'basic': 'پایه',
+                'multiple': 'چند Listener',
+                'once': 'Once',
+                'scenario': 'سناریوی واقعی'
+            };
+            return names[type] || type;
+        }
+        
+        // وقتی صفحه بارگذاری شد
+        window.onload = function() {
+            setTimeout(() => {
+                if (typeof SimpleEventBus === 'undefined') {
+                    statusEl.textContent = '❌ SimpleEventBus بارگذاری نشد!';
+                    statusEl.className = 'status error';
+                    log('مشکل: فایل simple_eventbus.js بارگذاری نشد', 'error');
+                } else {
+                    statusEl.textContent = '✅ SimpleEventBus آماده تست است!';
+                    statusEl.className = 'status ready';
+                    log('🎯 SimpleEventBus با موفقیت بارگذاری شد', 'success');
+                    log('برای شروع یکی از دکمه‌های تست را بزنید', 'info');
+                }
+            }, 1000);
+        };
+    </script>
+</body>
+</html>
