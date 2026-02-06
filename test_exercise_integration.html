@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="fa">
+<head>
+    <meta charset="UTF-8">
+    <title>تست یکپارچه ExerciseManager - Vakamova</title>
+    <style>
+        body { font-family: Tahoma; max-width: 900px; margin: 20px auto; padding: 20px; }
+        .success { color: #27ae60; background: #eafaf1; padding: 12px; margin: 10px 0; border-right: 5px solid #27ae60; border-radius: 4px; }
+        .error { color: #c0392b; background: #fdedec; padding: 12px; margin: 10px 0; border-right: 5px solid #c0392b; border-radius: 4px; }
+        .section { background: #f8f9fa; padding: 15px; margin: 20px 0; border-radius: 8px; border: 1px solid #ddd; }
+        h2 { color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 8px; }
+        button { background: linear-gradient(to left, #3498db, #2ecc71); color: white; border: none; padding: 12px 25px; border-radius: 6px; cursor: pointer; font-size: 16px; font-weight: bold; }
+        .data-box { background: white; padding: 15px; margin: 10px 0; border-radius: 6px; border: 1px dashed #ccc; font-family: monospace; }
+    </style>
+</head>
+<body>
+    <h1>🧪 تست یکپارچه (Integration Test) - Vakamova</h1>
+    <p>این تست ارتباط ExerciseManager با LessonEngine و ProgressTracker را بررسی می‌کند.</p>
+    <button onclick="runIntegrationTest()">شروع تست یکپارچه</button>
+    <div id="results"></div>
+
+    <script>
+        // 🔹 ==================== MOCK MODELS ====================
+        class MockLesson {
+            constructor(id, title) {
+                this.id = id;
+                this.title = title;
+                this.exercises = [];
+                this.completed = false;
+            }
+        }
+
+        class MockProgress {
+            constructor() {
+                this.lessonsCompleted = 0;
+                this.totalScore = 0;
+                this.lastActivity = null;
+            }
+        }
+
+        // 🔹 ==================== MOCK LESSON ENGINE ====================
+        class MockLessonEngine {
+            constructor() {
+                this.lessons = new Map();
+                this.currentLessonId = null;
+                this.log = [];
+            }
+
+            createLesson(title) {
+                const lesson = new MockLesson(`lesson_${Date.now()}`, title);
+                this.lessons.set(lesson.id, lesson);
+                this.log.push(`📘 درس ایجاد شد: ${title} (${lesson.id})`);
+                return lesson;
+            }
+
+            addExerciseToLesson(lessonId, exercise) {
+                const lesson = this.lessons.get(lessonId);
+                if (!lesson) throw new Error(`درس پیدا نشد: ${lessonId}`);
+                
+                lesson.exercises.push(exercise);
+                this.log.push(`📝 تمرین به درس اضافه شد: ${exercise.id}`);
+                return lesson;
+            }
+
+            completeLesson(lessonId) {
+                const lesson = this.lessons.get(lessonId);
+                if (!lesson) throw new Error(`درس پیدا نشد: ${lessonId}`);
+                
+                lesson.completed = true;
+                this.log.push(`✅ درس تکمیل شد: ${lesson.title}`);
+                return lesson;
+            }
+
+            getLog() {
+                return this.log;
+            }
+        }
+
+        // 🔹 ==================== MOCK PROGRESS TRACKER ====================
+        class MockProgressTracker {
+            constructor() {
+                this.progress = new MockProgress();
+                this.history = [];
+            }
+
+            updateProgress(lessonId, exerciseId, score) {
+                this.progress.totalScore += score;
+                this.progress.lessonsCompleted += 1;
+                this.progress.lastActivity = new Date().toISOString();
+                
+                this.history.push({
+                    timestamp: new Date().toISOString(),
+                    lessonId,
+                    exerciseId,
+                    score,
+                    totalScore: this.progress.totalScore
+                });
+                
+                return this.progress;
+            }
+
+            getProgressReport() {
+                return {
+                    ...this.progress,
+                    history: this.history
+                };
+            }
+        }
+
+        // 🔹 ==================== EXERCISE MANAGER ====================
+        class ExerciseManager {
+            constructor(deps) {
+                this.exerciseRepo = deps.exerciseRepository;
+                this.evaluationService = deps.evaluationService;
+                this.scoringStrategy = deps.scoringStrategy;
+                this.logger = deps.logger;
+                this.exerciseTypes = new Map();
+                this.registerDefaultTypes();
+            }
+
+            registerDefaultTypes() {
+                this.registerExerciseType('multipleChoice', this.createMC.bind(this));
+                this.registerExerciseType('fillBlank', this.createFB.bind(this));
+            }
+
+            registerExerciseType(type, handler) {
+                this.exerciseTypes.set(type, handler);
+            }
+
+            async createExercise(type, config) {
+                if (!this.exerciseTypes.has(type)) throw new Error(`نوع نامعتبر: ${type}`);
+                const handler = this.exerciseTypes.get(type);
+                const exercise = await handler(config);
+                const saved = await this.exerciseRepo.save(exercise);
+                this.logger.info(`تمرین ایجاد شد: ${saved.id}`);
+                return saved;
+            }
+
+            async evaluateAnswer(exerciseId, userAnswer) {
+                const exercise = await this.exerciseRepo.findById(exerciseId);
+                if (!exercise) throw new Error(`تمرین پیدا نشد: ${exerciseId}`);
+                
+                const evaluation = await this.evaluationService.evaluate(exercise, userAnswer);
+                evaluation.score = this.scoringStrategy.calculate(exercise, evaluation);
+                await this.exerciseRepo.saveEvaluation(exerciseId, userAnswer, evaluation);
+                
+                return evaluation;
+            }
+
+            // هندلرهای ایجاد تمرین
+            async createMC(config) {
+                return {
+                    type: 'multipleChoice',
+                    id: 'ex_mc_' + Date.now(),
+                    question: config.question,
+                    options: config.options,
+                    correctAnswer: config.correctAnswer,
+                    lessonId: config.lessonId,
+                    difficulty: config.difficulty,
+                    createdAt: new Date().toISOString()
+                };
+            }
+
+            async createFB(config) {
+                return {
+                    type: 'fillBlank',
+                    id: 'ex_fb_' + Date.now(),
+                    sentence: config.sentence,
+                    blankPosition: config.blankPosition,
+                    correctAnswer: config.correctAnswer,
+                    lessonId: config.lessonId,
+                    difficulty: config.difficulty,
+                    createdAt: new Date().toISOString()
+                };
+            }
+        }
+
+        // 🔹 ==================== INTEGRATION TEST ====================
+        async function runIntegrationTest() {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '<div class="section"><h2>🧩 نتایج تست یکپارچه</h2></div>';
+            
+            try {
+                // 1. ایجاد mock وابستگی‌ها
+                addResult('1. راه‌اندازی Mockها...', 'info');
+                
+                const mockDeps = {
+                    exerciseRepository: {
+                        save: async (ex) => ({ ...ex, saved: true }),
+                        findById: async (id) => ({ id, type: 'multipleChoice', lessonId: 'test_lesson' }),
+                        saveEvaluation: async () => ({ recorded: true })
+                    },
+                    evaluationService: {
+                        evaluate: async (exercise, answer) => ({
+                            isCorrect: answer === exercise.correctAnswer,
+                            feedback: answer === exercise.correctAnswer ? 'صحیح!' : 'نادرست',
+                            correctAnswer: exercise.correctAnswer
+                        })
+                    },
+                    scoringStrategy: {
+                        calculate: () => Math.floor(Math.random() * 30) + 70  // نمره 70-100
+                    },
+                    logger: {
+                        info: (msg) => console.log('📘', msg),
+                        error: (msg) => console.error('❌', msg)
+                    }
+                };
+
+                // 2. ایجاد نمونه‌ها
+                addResult('2. ایجاد نمونه‌های ماژول...', 'info');
+                
+                const lessonEngine = new MockLessonEngine();
+                const progressTracker = new MockProgressTracker();
+                const exerciseManager = new ExerciseManager(mockDeps);
+
+                // 3. ایجاد یک درس جدید
+                addResult('3. ایجاد درس جدید...', 'info');
+                
+                const lesson = lessonEngine.createLesson('درس تست - مکالمه روزمره');
+                addResult(`   📖 درس ایجاد شد: <strong>${lesson.title}</strong> (${lesson.id})`, 'success');
+
+                // 4. ایجاد تمرین برای این درس
+                addResult('4. ایجاد تمرین برای درس...', 'info');
+                
+                const exerciseConfig = {
+                    lessonId: lesson.id,
+                    difficulty: 'medium',
+                    question: 'معادل انگلیسی "صبح بخیر" چیست؟',
+                    options: ['Good morning', 'Good night', 'Good afternoon'],
+                    correctAnswer: 'Good morning'
+                };
+                
+                const exercise = await exerciseManager.createExercise('multipleChoice', exerciseConfig);
+                addResult(`   📝 تمرین ایجاد شد: <strong>${exercise.question}</strong>`, 'success');
+                addResult(`   🔹 نوع: ${exercise.type} | سطح: ${exercise.difficulty}`, 'info');
+
+                // 5. اضافه کردن تمرین به درس
+                lessonEngine.addExerciseToLesson(lesson.id, exercise);
+                addResult(`   ✅ تمرین به درس اضافه شد.`, 'success');
+
+                // 6. ارزیابی پاسخ کاربر
+                addResult('5. ارزیابی پاسخ کاربر...', 'info');
+                
+                const userAnswer = 'Good morning';  // پاسخ صحیح
+                const evaluation = await exerciseManager.evaluateAnswer(exercise.id, userAnswer);
+                
+                addResult(`   ✨ نتیجه ارزیابی: <strong>${evaluation.isCorrect ? 'صحیح' : 'نادرست'}</strong>`, 
+                         evaluation.isCorrect ? 'success' : 'error');
+                addResult(`   📊 امتیاز کسب شده: <strong>${evaluation.score}</strong>`, 'info');
+                addResult(`   💬 بازخورد: ${evaluation.feedback}`, 'info');
+
+                // 7. ثبت پیشرفت کاربر
+                addResult('6. ثبت پیشرفت کاربر...', 'info');
+                
+                const updatedProgress = progressTracker.updateProgress(
+                    lesson.id, 
+                    exercise.id, 
+                    evaluation.score
+                );
+                
+                addResult(`   📈 امتیاز کل کاربر: <strong>${updatedProgress.totalScore}</strong>`, 'success');
+                addResult(`   🎯 تعداد درس‌های تکمیل شده: <strong>${updatedProgress.lessonsCompleted}</strong>`, 'success');
+
+                // 8. تکمیل درس
+                addResult('7. تکمیل درس...', 'info');
+                
+                const completedLesson = lessonEngine.completeLesson(lesson.id);
+                addResult(`   🎉 درس <strong>${completedLesson.title}</strong> با موفقیت تکمیل شد.`, 'success');
+
+                // 9. نمایش گزارش نهایی
+                addResult('8. تولید گزارش نهایی...', 'info');
+                
+                const progressReport = progressTracker.getProgressReport();
+                const lessonLog = lessonEngine.getLog();
+                
+                // نمایش گزارش در باکس جداگانه
+                const reportBox = document.createElement('div');
+                reportBox.className = 'data-box';
+                reportBox.innerHTML = `
+                    <h3>📊 گزارش نهایی یکپارچگی</h3>
+                    <p><strong>امتیاز کل:</strong> ${progressReport.totalScore}</p>
+                    <p><strongدرس‌های تکمیل شده:</strong> ${progressReport.lessonsCompleted}</p>
+                    <p><strong>آخرین فعالیت:</strong> ${new Date(progressReport.lastActivity).toLocaleString('fa-IR')}</p>
+                    <p><strong>لاگ اجرا:</strong></p>
+                    <ul>${lessonLog.map(log => `<li>${log}</li>`).join('')}</ul>
+                `;
+                
+                resultsDiv.appendChild(reportBox);
+                addResult('🎊 تست یکپارچه با موفقیت به پایان رسید!', 'success');
+
+            } catch (error) {
+                addResult(`❌ خطا در تست یکپارچه: ${error.message}`, 'error');
+                console.error(error);
+            }
+        }
+
+        // 🔹 تابع کمکی برای نمایش نتایج
+        function addResult(message, type = 'info') {
+            const div = document.createElement('div');
+            div.className = type === 'success' ? 'success' : 
+                           type === 'error' ? 'error' : 
+                           'info';
+            
+            // برای پیام‌های info استایل ساده‌تر
+            if (type === 'info') {
+                div.style.cssText = 'color: #7f8c8d; padding: 8px 12px; margin: 5px 0; background: #f8f9fa; border-right: 3px solid #bdc3c7;';
+            }
+            
+            div.innerHTML = message;
+            document.getElementById('results').appendChild(div);
+        }
+    </script>
+</body>
+</html>
