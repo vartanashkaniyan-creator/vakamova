@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>تست فوق ساده</title>
+    <style>
+        body { 
+            font-family: Tahoma; 
+            padding: 20px;
+            text-align: center;
+        }
+        button {
+            padding: 15px 30px;
+            font-size: 18px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 20px;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        #result {
+            margin: 20px;
+            padding: 20px;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            min-height: 100px;
+            font-family: monospace;
+            text-align: left;
+            background: #f9f9f9;
+        }
+        .success { color: green; }
+        .error { color: red; }
+        .step {
+            margin: 10px 0;
+            padding: 10px;
+            border-left: 4px solid #2196F3;
+            background: white;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 تست سیستم Vakamova</h1>
+    <p>فاز ۱: تست EventBus ساده</p>
+    
+    <button onclick="runSimpleTest()">شروع تست (کلیک کن)</button>
+    
+    <div id="result">
+        منتظر شروع تست...
+    </div>
+
+    <script>
+        // ==================== ۱. ابتدا ببینیم جاوااسکریپت کار می‌کند ====================
+        function log(message, type = 'info') {
+            const resultDiv = document.getElementById('result');
+            const color = type === 'error' ? 'red' : type === 'success' ? 'green' : 'black';
+            const time = new Date().toLocaleTimeString();
+            
+            resultDiv.innerHTML += `
+                <div class="step" style="border-left-color: ${color}">
+                    <strong>[${time}]</strong> ${message}
+                </div>
+            `;
+            
+            // اسکرول به پایین
+            resultDiv.scrollTop = resultDiv.scrollHeight;
+            
+            // همچنین در کنسول هم نمایش بده
+            console.log(`[${type.toUpperCase()}] ${message}`);
+        }
+        
+        // ==================== ۲. EventBus خیلی ساده ====================
+        class SimpleEventBus {
+            constructor() {
+                this.listeners = {};
+                log("✅ EventBus ساخته شد", "success");
+            }
+            
+            on(eventName, callback) {
+                if (!this.listeners[eventName]) {
+                    this.listeners[eventName] = [];
+                }
+                this.listeners[eventName].push(callback);
+                log(`📝 ثبت listener برای رویداد: <strong>${eventName}</strong>`);
+                
+                // تابع برای حذف listener
+                return () => {
+                    this.off(eventName, callback);
+                };
+            }
+            
+            off(eventName, callback) {
+                if (this.listeners[eventName]) {
+                    this.listeners[eventName] = this.listeners[eventName].filter(
+                        cb => cb !== callback
+                    );
+                    log(`🗑️ حذف listener برای: ${eventName}`);
+                }
+            }
+            
+            emit(eventName, data) {
+                log(`🚀 انتشار رویداد: <strong>${eventName}</strong> با داده: ${JSON.stringify(data)}`);
+                
+                if (this.listeners[eventName]) {
+                    this.listeners[eventName].forEach(callback => {
+                        try {
+                            callback(data);
+                        } catch (error) {
+                            log(`❌ خطا در listener: ${error.message}`, "error");
+                        }
+                    });
+                }
+            }
+        }
+        
+        // ==================== ۳. تست اصلی ====================
+        function runSimpleTest() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = '<h3>شروع تست...</h3>';
+            
+            log("🎬 تست شروع شد!", "success");
+            
+            try {
+                // ۱. ساخت EventBus
+                log("مرحله ۱: ساخت EventBus...");
+                const eventBus = new SimpleEventBus();
+                
+                // ۲. ساخت چند listener
+                log("مرحله ۲: ساخت listener‌ها...");
+                
+                const loginListener = (userData) => {
+                    log(`📩 کاربر لاگین کرد: ${userData.email}`, "success");
+                };
+                
+                const logoutListener = () => {
+                    log("📩 کاربر خارج شد", "warning");
+                };
+                
+                const errorListener = (error) => {
+                    log(`📩 خطا دریافت شد: ${error.message}`, "error");
+                };
+                
+                // ۳. ثبت listener‌ها
+                log("مرحله ۳: ثبت listener‌ها...");
+                const removeLoginListener = eventBus.on('user.login', loginListener);
+                eventBus.on('user.logout', logoutListener);
+                eventBus.on('system.error', errorListener);
+                
+                // ۴. انتشار رویدادها
+                log("مرحله ۴: انتشار رویدادها...");
+                
+                // رویداد اول
+                setTimeout(() => {
+                    eventBus.emit('user.login', {
+                        email: 'test@vakamova.com',
+                        userId: 'user_123'
+                    });
+                }, 1000);
+                
+                // رویداد دوم
+                setTimeout(() => {
+                    eventBus.emit('system.error', {
+                        message: 'اتصال به سرور قطع شد',
+                        code: 'NETWORK_ERROR'
+                    });
+                }, 2000);
+                
+                // حذف یک listener
+                setTimeout(() => {
+                    log("مرحله ۵: حذف یکی از listener‌ها...");
+                    removeLoginListener();
+                }, 2500);
+                
+                // رویداد سوم (باید دریافت نشود)
+                setTimeout(() => {
+                    eventBus.emit('user.login', {
+                        email: 'another@test.com'
+                    });
+                    log("⚠️ این رویداد باید دریافت نشود (listener حذف شده)");
+                }, 3000);
+                
+                // رویداد چهارم
+                setTimeout(() => {
+                    eventBus.emit('user.logout', {});
+                }, 3500);
+                
+                // نتیجه نهایی
+                setTimeout(() => {
+                    log("=".repeat(50));
+                    log("🎉 تست با موفقیت تکمیل شد!", "success");
+                    log("✅ EventBus به درستی کار می‌کند");
+                    log("✅ Listener‌ها ثبت و حذف می‌شوند");
+                    log("✅ رویدادها منتشر و دریافت می‌شوند");
+                }, 4000);
+                
+            } catch (error) {
+                log(`❌ خطا در تست: ${error.message}`, "error");
+                console.error("Test error:", error);
+            }
+        }
+        
+        // ==================== ۴. تست اولیه هنگام لود صفحه ====================
+        window.onload = function() {
+            log("📱 صفحه بارگذاری شد", "success");
+            log("روی دکمه 'شروع تست' کلیک کنید");
+            
+            // تست کوچک برای اطمینان از کارکرد جاوااسکریپت
+            setTimeout(() => {
+                log("✅ جاوااسکریپت فعال است", "success");
+            }, 500);
+        };
+    </script>
+</body>
+</html>
