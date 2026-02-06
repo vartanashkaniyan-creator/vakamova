@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>تست پیشرفته State Manager</title>
+    <style>
+        body { font-family: Tahoma; margin: 20px; }
+        button { padding: 10px; margin: 5px; cursor: pointer; }
+        .test-section { border: 1px solid #ccc; padding: 15px; margin: 10px 0; }
+        .success { background: #d4edda; padding: 10px; }
+        .error { background: #f8d7da; padding: 10px; }
+        #output { margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <h1>🧪 تست پیشرفته State Manager</h1>
+    
+    <div class="test-section">
+        <h3>تست Undo/Redo</h3>
+        <button onclick="testUndoRedo()">اجرای تست</button>
+        <div id="undoOutput"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>تست Performance (1000 تغییر)</h3>
+        <button onclick="testPerformance()">اجرای تست</button>
+        <div id="perfOutput"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>تست Validation State</h3>
+        <button onclick="testValidation()">اجرای تست</button>
+        <div id="validOutput"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>تست Error Handling</h3>
+        <button onclick="testErrorHandling()">اجرای تست</button>
+        <div id="errorOutput"></div>
+    </div>
+
+    <script type="module">
+        import StateManager from './core/state-manager.js';
+        
+        // ایجاد State Manager با اسکیما
+        const stateSchema = {
+            user: {
+                name: 'string',
+                email: 'string',
+                level: 'number'
+            },
+            lesson: {
+                id: 'string',
+                progress: 'number',
+                completed: 'boolean'
+            },
+            app: {
+                theme: 'string',
+                language: 'string'
+            }
+        };
+        
+        const stateManager = new StateManager(stateSchema);
+        
+        // --- توابع تست ---
+        
+        window.testUndoRedo = async function() {
+            const output = document.getElementById('undoOutput');
+            output.innerHTML = '<p>در حال اجرا...</p>';
+            
+            try {
+                // تغییرات اولیه
+                stateManager.setState({ user: { name: 'کاربر اول', email: 'test@test.com', level: 1 } });
+                stateManager.setState({ user: { name: 'کاربر دوم', email: 'test2@test.com', level: 2 } });
+                stateManager.setState({ app: { theme: 'dark', language: 'fa' } });
+                
+                let current = stateManager.getState();
+                output.innerHTML += `<p>✅ حالت فعلی: ${JSON.stringify(current.user)}</p>`;
+                
+                // Undo
+                const undone = stateManager.undo();
+                output.innerHTML += `<p>${undone ? '✅ عملیات Undo موفق' : '❌ Undo شکست خورد'}</p>`;
+                
+                current = stateManager.getState();
+                output.innerHTML += `<p>✅ بعد از Undo: ${JSON.stringify(current.user)}</p>`;
+                
+                // Redo
+                const redone = stateManager.redo();
+                output.innerHTML += `<p>${redone ? '✅ عملیات Redo موفق' : '❌ Redo شکست خورد'}</p>`;
+                
+                current = stateManager.getState();
+                output.innerHTML += `<p>✅ بعد از Redo: ${JSON.stringify(current.user)}</p>`;
+                
+                output.innerHTML = `<div class="success">${output.innerHTML}</div>`;
+            } catch (error) {
+                output.innerHTML = `<div class="error">❌ خطا: ${error.message}</div>`;
+            }
+        };
+        
+        window.testPerformance = async function() {
+            const output = document.getElementById('perfOutput');
+            output.innerHTML = '<p>در حال اجرا...</p>';
+            
+            try {
+                const startTime = performance.now();
+                
+                // 1000 تغییر سریع
+                for (let i = 1; i <= 1000; i++) {
+                    stateManager.setState({ 
+                        app: { theme: i % 2 === 0 ? 'dark' : 'light', language: 'fa' }
+                    });
+                }
+                
+                const endTime = performance.now();
+                const duration = endTime - startTime;
+                
+                output.innerHTML = `
+                    <div class="success">
+                        ✅ 1000 تغییر در ${duration.toFixed(2)} میلی‌ثانیه انجام شد<br>
+                        ⚡ سرعت: ${(1000 / duration * 1000).toFixed(2)} عملیات بر ثانیه<br>
+                        💾 اندازه state: ${JSON.stringify(stateManager.getState()).length} بایت
+                    </div>
+                `;
+            } catch (error) {
+                output.innerHTML = `<div class="error">❌ خطا: ${error.message}</div>`;
+            }
+        };
+        
+        window.testValidation = async function() {
+            const output = document.getElementById('validOutput');
+            output.innerHTML = '<p>در حال اجرا...</p>';
+            
+            try {
+                // تست اعتبارسنجی موفق
+                stateManager.setState({ user: { name: 'علی', email: 'ali@test.com', level: 5 } });
+                output.innerHTML += '<p>✅ اعتبارسنجی داده درست موفق بود</p>';
+                
+                // تست اعتبارسنجی شکست خورده (با try/catch)
+                try {
+                    stateManager.setState({ user: { name: 'رضا', email: 12345, level: 'high' } });
+                    output.innerHTML += '<p>❌ اعتبارسنجی باید خطا می‌داد اما نداد!</p>';
+                } catch (error) {
+                    output.innerHTML += `<p>✅ اعتبارسنجی خطا را گرفت: ${error.message}</p>`;
+                }
+                
+                output.innerHTML = `<div class="success">${output.innerHTML}</div>`;
+            } catch (error) {
+                output.innerHTML = `<div class="error">❌ خطا: ${error.message}</div>`;
+            }
+        };
+        
+        window.testErrorHandling = async function() {
+            const output = document.getElementById('errorOutput');
+            output.innerHTML = '<p>در حال اجرا...</p>';
+            
+            try {
+                // تست Undo وقتی تاریخچه خالی است
+                stateManager.clearHistory();
+                const undone = stateManager.undo();
+                output.innerHTML += `<p>${!undone ? '✅ Undo در تاریخچه خالی درست کار کرد' : '❌ باید false برمی‌گرداند'}</p>`;
+                
+                // تست Redo وقتی Redo history خالی است
+                const redone = stateManager.redo();
+                output.innerHTML += `<p>${!redone ? '✅ Redo در تاریخچه خالی درست کار کرد' : '❌ باید false برمی‌گرداند'}</p>`;
+                
+                // تست setState با داده null
+                try {
+                    stateManager.setState(null);
+                    output.innerHTML += '<p>❌ setState با null باید خطا می‌داد</p>';
+                } catch (error) {
+                    output.innerHTML += `<p>✅ خطای null گرفته شد: ${error.message}</p>`;
+                }
+                
+                // تست getState با مسیر ناموجود
+                const value = stateManager.getState('some.nonexistent.path');
+                output.innerHTML += `<p>✅ مسیر ناموجود برگشت: ${value}</p>`;
+                
+                output.innerHTML = `<div class="success">${output.innerHTML}</div>`;
+            } catch (error) {
+                output.innerHTML = `<div class="error">❌ خطا: ${error.message}</div>`;
+            }
+        };
+        
+        console.log('✅ State Manager تست پیشرفته بارگذاری شد');
+    </script>
+</body>
+</html>
