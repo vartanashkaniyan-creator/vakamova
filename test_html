@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>تست فوری Vakamova</title>
+    <style>
+        body { font-family: system-ui; padding: 40px; background: #f0f2f5; }
+        .box { background: white; padding: 30px; border-radius: 15px; max-width: 500px; margin: auto; box-shadow: 0 10px 30px rgba(0,0,0,0.1); text-align: center; }
+        button { background: #667eea; color: white; border: none; padding: 15px 30px; border-radius: 10px; font-size: 16px; cursor: pointer; margin: 10px; }
+        .success { color: green; }
+        .error { color: red; }
+    </style>
+</head>
+<body>
+    <div class="box">
+        <h1>🔧 تست Vakamova</h1>
+        <p>بررسی سیستم مدیریت وضعیت</p>
+        
+        <button onclick="testStateManager()">تست State Manager</button>
+        <button onclick="testLocalStorage()">تست ذخیره‌سازی</button>
+        <button onclick="showFileList()">نمایش فایل‌ها</button>
+        
+        <div id="result" style="margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px;"></div>
+    </div>
+
+    <script>
+        // تست State Manager ساده
+        function testStateManager() {
+            try {
+                const state = { user: null, lessons: {} };
+                state.user = { name: "کاربر تست", id: Date.now() };
+                state.lessons = { lesson1: { title: "درس اول" } };
+                
+                localStorage.setItem('vakamova_test_state', JSON.stringify(state));
+                
+                document.getElementById('result').innerHTML = 
+                    `<p class="success">✅ State Manager تست شد و در localStorage ذخیره شد</p>
+                     <pre>${JSON.stringify(state, null, 2)}</pre>`;
+            } catch(e) {
+                document.getElementById('result').innerHTML = 
+                    `<p class="error">❌ خطا: ${e.message}</p>`;
+            }
+        }
+        
+        // تست LocalStorage
+        function testLocalStorage() {
+            try {
+                localStorage.setItem('vakamova_test', 'test_value');
+                const value = localStorage.getItem('vakamova_test');
+                localStorage.removeItem('vakamova_test');
+                
+                document.getElementById('result').innerHTML = 
+                    `<p class="success">✅ localStorage کار می‌کند</p>
+                     <p>مقدار بازیابی شده: "${value}"</p>`;
+            } catch(e) {
+                document.getElementById('result').innerHTML = 
+                    `<p class="error">❌ localStorage در دسترس نیست</p>
+                     <p>${e.message}</p>`;
+            }
+        }
+        
+        // نمایش فایل‌های موجود
+        function showFileList() {
+            const files = [
+                'index.html',
+                'test/index.html', 
+                'core/state-manager.js',
+                'core/state-persistence.js',
+                'core/context-provider.js'
+            ];
+            
+            let html = '<h3>📁 فایل‌های مورد انتظار:</h3><ul>';
+            files.forEach(file => {
+                html += `<li>${file}</li>`;
+            });
+            html += '</ul>';
+            
+            document.getElementById('result').innerHTML = html;
+        }
+        
+        // تست اولیه
+        window.onload = function() {
+            testLocalStorage();
+        };
+    </script>
+</body>
+</html>
