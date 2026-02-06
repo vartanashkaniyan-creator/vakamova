@@ -1,0 +1,830 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تست Vakamova - مدیریت وضعیت</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #333;
+        }
+        
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 40px;
+            border-bottom: 3px solid #764ba2;
+            padding-bottom: 20px;
+        }
+        
+        h1 {
+            color: #764ba2;
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            color: #667eea;
+            font-size: 1.2rem;
+        }
+        
+        .status-bar {
+            display: flex;
+            justify-content: space-between;
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            border: 2px solid #e9ecef;
+        }
+        
+        .status-item {
+            text-align: center;
+            flex: 1;
+        }
+        
+        .status-label {
+            font-size: 0.9rem;
+            color: #6c757d;
+            margin-bottom: 5px;
+        }
+        
+        .status-value {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #495057;
+        }
+        
+        .status-value.success {
+            color: #28a745;
+        }
+        
+        .status-value.error {
+            color: #dc3545;
+        }
+        
+        .test-section {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 25px;
+            border: 2px solid #dee2e6;
+            transition: all 0.3s ease;
+        }
+        
+        .test-section:hover {
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            transform: translateY(-5px);
+        }
+        
+        h2 {
+            color: #495057;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .test-buttons {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 25px;
+            border-radius: 10px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        
+        button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        button.secondary {
+            background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
+        }
+        
+        button.success {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        }
+        
+        button.danger {
+            background: linear-gradient(135deg, #dc3545 0%, #fd7e14 100%);
+        }
+        
+        .state-display {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+            border: 2px dashed #adb5bd;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        pre {
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            line-height: 1.4;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        
+        .logs {
+            background: #1a1a1a;
+            color: #00ff00;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            max-height: 200px;
+            overflow-y: auto;
+            direction: ltr;
+            text-align: left;
+        }
+        
+        .log-entry {
+            margin-bottom: 5px;
+            padding-bottom: 5px;
+            border-bottom: 1px solid #333;
+        }
+        
+        .log-time {
+            color: #66ff66;
+        }
+        
+        .log-message {
+            color: #ffffff;
+        }
+        
+        .log-error {
+            color: #ff6666;
+        }
+        
+        .log-success {
+            color: #66ff66;
+        }
+        
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: white;
+            padding: 15px 25px;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            border-right: 5px solid #667eea;
+            transform: translateX(400px);
+            transition: transform 0.5s ease;
+            max-width: 400px;
+            z-index: 1000;
+        }
+        
+        .notification.show {
+            transform: translateX(0);
+        }
+        
+        .notification.success {
+            border-right-color: #28a745;
+        }
+        
+        .notification.error {
+            border-right-color: #dc3545;
+        }
+        
+        .notification-title {
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #495057;
+        }
+        
+        .notification-message {
+            color: #6c757d;
+            font-size: 0.9rem;
+        }
+        
+        footer {
+            text-align: center;
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid #dee2e6;
+            color: #6c757d;
+            font-size: 0.9rem;
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                padding: 15px;
+            }
+            
+            .test-buttons {
+                grid-template-columns: 1fr;
+            }
+            
+            h1 {
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🚀 تست سیستم Vakamova</h1>
+            <div class="subtitle">مدیریت وضعیت، ذخیره‌سازی و Context - بدون نیاز به کنسول</div>
+        </header>
+        
+        <div class="status-bar">
+            <div class="status-item">
+                <div class="status-label">State Manager</div>
+                <div id="stateManagerStatus" class="status-value">در حال بررسی...</div>
+            </div>
+            <div class="status-item">
+                <div class="status-label">State Persistence</div>
+                <div id="persistenceStatus" class="status-value">در حال بررسی...</div>
+            </div>
+            <div class="status-item">
+                <div class="status-label">Context Provider</div>
+                <div id="contextStatus" class="status-value">در حال بررسی...</div>
+            </div>
+            <div class="status-item">
+                <div class="status-label">کاربر فعلی</div>
+                <div id="userStatus" class="status-value">ناشناس</div>
+            </div>
+        </div>
+        
+        <!-- بخش تست State Manager -->
+        <div class="test-section">
+            <h2>🎯 مدیریت وضعیت (State Manager)</h2>
+            <p>تست اعمال تغییرات بر روی State مرکزی برنامه</p>
+            
+            <div class="test-buttons">
+                <button onclick="testLogin()">
+                    <span>👤</span> ورود کاربر
+                </button>
+                <button onclick="testUpdateUser()" class="secondary">
+                    <span>✏️</span> به‌روزرسانی کاربر
+                </button>
+                <button onclick="testLoadLesson()" class="success">
+                    <span>📚</span> بارگذاری درس
+                </button>
+                <button onclick="testCompleteLesson()" class="secondary">
+                    <span>✅</span> تکمیل درس
+                </button>
+                <button onclick="testLogout()" class="danger">
+                    <span>🚪</span> خروج کاربر
+                </button>
+            </div>
+            
+            <div class="state-display">
+                <pre id="stateOutput">State نمایش داده خواهد شد...</pre>
+            </div>
+        </div>
+        
+        <!-- بخش تست State Persistence -->
+        <div class="test-section">
+            <h2>💾 ذخیره‌سازی وضعیت (State Persistence)</h2>
+            <p>تست ذخیره و بازیابی خودکار State در حافظه مرورگر</p>
+            
+            <div class="test-buttons">
+                <button onclick="testSaveState()">
+                    <span>💾</span> ذخیره دستی
+                </button>
+                <button onclick="testLoadState()" class="secondary">
+                    <span>📂</span> بازیابی
+                </button>
+                <button onclick="testClearState()" class="danger">
+                    <span>🗑️</span> پاک‌سازی حافظه
+                </button>
+                <button onclick="testStorageInfo()" class="success">
+                    <span>📊</span> اطلاعات ذخیره‌سازی
+                </button>
+            </div>
+            
+            <div class="state-display">
+                <pre id="storageOutput">اطلاعات ذخیره‌سازی اینجا نمایش داده می‌شود...</pre>
+            </div>
+        </div>
+        
+        <!-- بخش تست Context Provider -->
+        <div class="test-section">
+            <h2>🔗 سیستم Context و سرویس‌ها</h2>
+            <p>تست تزریق وابستگی و مدیریت سرویس‌ها</p>
+            
+            <div class="test-buttons">
+                <button onclick="testCreateContext()">
+                    <span>🔄</span> ایجاد Context جدید
+                </button>
+                <button onclick="testSubscribeToState()" class="secondary">
+                    <span>👂</span> گوش دادن به تغییرات
+                </button>
+                <button onclick="testServiceStatus()" class="success">
+                    <span>📈</span> وضعیت سرویس‌ها
+                </button>
+                <button onclick="testContextCache()" class="secondary">
+                    <span>🧹</span> پاک‌سازی کش
+                </button>
+            </div>
+            
+            <div id="contextOutput" class="state-display">
+                خروجی Context اینجا نمایش داده می‌شود...
+            </div>
+        </div>
+        
+        <!-- بخش لاگ -->
+        <div class="test-section">
+            <h2>📝 لاگ عملیات</h2>
+            <p>تاریخچه عملیات انجام شده</p>
+            
+            <div id="logsContainer" class="logs">
+                <div class="log-entry">
+                    <span class="log-time">[آماده‌سازی]</span>
+                    <span class="log-message">سیستم تست در حال راه‌اندازی...</span>
+                </div>
+            </div>
+        </div>
+        
+        <footer>
+            <p>Vakamova Language Learning App - تست سیستم مدیریت وضعیت</p>
+            <p>آخرین بروزرسانی: امروز - طراحی شده برای کار در مرورگر موبایل</p>
+        </footer>
+    </div>
+    
+    <!-- ناحیه اعلان‌ها -->
+    <div id="notificationArea"></div>
+    
+    <script type="module">
+        // ==================== IMPORTS ====================
+        // در اینجا فایل‌های JavaScript شما import می‌شوند
+        // توجه: برای کار در GitHub Pages، نیاز به تنظیمات خاص دارید
+        // فعلاً از mock functions استفاده می‌کنیم
+        
+        // ==================== MOCK IMPLEMENTATION ====================
+        // اگر فایل‌های JS شما آماده باشند، این بخش را با import واقعی جایگزین کنید
+        console.log('Starting Vakamova Test...');
+        
+        // State Manager Mock
+        let appState = {
+            user: null,
+            lessons: {},
+            progress: {},
+            ui: { isLoading: false },
+            _version: 1,
+            _lastUpdated: null
+        };
+        
+        const listeners = new Set();
+        
+        const stateManager = {
+            getState: () => JSON.parse(JSON.stringify(appState)),
+            
+            dispatch: (action) => {
+                logToScreen(`Action dispatched: ${action.type}`, 'info');
+                
+                const prevState = stateManager.getState();
+                
+                switch (action.type) {
+                    case 'USER_LOGIN':
+                        appState.user = { ...action.payload, lastLogin: new Date().toISOString() };
+                        break;
+                        
+                    case 'USER_UPDATE':
+                        if (appState.user) {
+                            appState.user = { ...appState.user, ...action.payload };
+                        }
+                        break;
+                        
+                    case 'USER_LOGOUT':
+                        appState.user = null;
+                        break;
+                        
+                    case 'LESSON_LOADED':
+                        appState.lessons[action.payload.id] = action.payload;
+                        break;
+                        
+                    case 'LESSON_COMPLETED':
+                        appState.progress[action.payload.lessonId] = {
+                            completed: true,
+                            score: action.payload.score || 0,
+                            completedAt: new Date().toISOString()
+                        };
+                        break;
+                        
+                    case 'UI_LOADING_START':
+                        appState.ui.isLoading = true;
+                        break;
+                        
+                    case 'UI_LOADING_END':
+                        appState.ui.isLoading = false;
+                        break;
+                }
+                
+                appState._lastUpdated = new Date().toISOString();
+                appState._version++;
+                
+                // اطلاع به شنودکننده‌ها
+                listeners.forEach(listener => {
+                    try {
+                        listener(stateManager.getState());
+                    } catch (e) {
+                        console.error('Listener error:', e);
+                    }
+                });
+                
+                updateUI();
+                return true;
+            },
+            
+            subscribe: (listener) => {
+                listeners.add(listener);
+                return () => listeners.delete(listener);
+            }
+        };
+        
+        // State Persistence Mock
+        const statePersistence = {
+            saveStateImmediately: () => {
+                try {
+                    const stateToSave = {
+                        ...appState,
+                        _persistedAt: new Date().toISOString(),
+                        _persistedVersion: appState._version
+                    };
+                    
+                    localStorage.setItem('vakamova_app_state', JSON.stringify(stateToSave));
+                    logToScreen('State saved to localStorage', 'success');
+                    return true;
+                } catch (e) {
+                    logToScreen('Error saving state: ' + e.message, 'error');
+                    return false;
+                }
+            },
+            
+            loadState: () => {
+                try {
+                    const saved = localStorage.getItem('vakamova_app_state');
+                    if (saved) {
+                        const parsed = JSON.parse(saved);
+                        
+                        if (parsed.user) {
+                            stateManager.dispatch({
+                                type: 'USER_LOGIN',
+                                payload: parsed.user
+                            });
+                        }
+                        
+                        logToScreen('State loaded from localStorage', 'success');
+                        return parsed;
+                    }
+                    logToScreen('No saved state found', 'info');
+                    return null;
+                } catch (e) {
+                    logToScreen('Error loading state: ' + e.message, 'error');
+                    return null;
+                }
+            },
+            
+            clearPersistedState: () => {
+                localStorage.removeItem('vakamova_app_state');
+                localStorage.removeItem('vakamova_app_state_backup');
+                logToScreen('Storage cleared', 'success');
+                return true;
+            },
+            
+            getStorageInfo: () => {
+                const data = localStorage.getItem('vakamova_app_state');
+                const backup = localStorage.getItem('vakamova_app_state_backup');
+                
+                return {
+                    hasData: !!data,
+                    hasBackup: !!backup,
+                    dataSize: data ? (new Blob([data]).size / 1024).toFixed(2) + ' KB' : '0 KB',
+                    lastPersisted: data ? new Date(JSON.parse(data)._persistedAt || 0).toLocaleString('fa-IR') : 'هرگز',
+                    storageAvailable: true
+                };
+            }
+        };
+        
+        // Context Provider Mock
+        const contextProvider = {
+            createComponentContext: (name) => {
+                return {
+                    name,
+                    getState: () => stateManager.getState(),
+                    dispatch: (action) => stateManager.dispatch(action),
+                    subscribe: (listener) => stateManager.subscribe(listener),
+                    timestamp: new Date().toISOString()
+                };
+            },
+            
+            getService: (name) => {
+                if (name === 'state') {
+                    return {
+                        getState: () => stateManager.getState(),
+                        dispatch: (action) => stateManager.dispatch(action),
+                        subscribe: (listener) => stateManager.subscribe(listener)
+                    };
+                }
+                return null;
+            },
+            
+            getStatus: () => ({
+                servicesCount: 1,
+                cachedContexts: 0,
+                servicesStatus: [{ name: 'state', status: 'active', type: 'StateService' }]
+            })
+        };
+        
+        // ==================== UI FUNCTIONS ====================
+        
+        function logToScreen(message, type = 'info') {
+            const logsContainer = document.getElementById('logsContainer');
+            const logEntry = document.createElement('div');
+            logEntry.className = 'log-entry';
+            
+            const time = new Date().toLocaleTimeString('fa-IR');
+            const typeClass = type === 'error' ? 'log-error' : 
+                             type === 'success' ? 'log-success' : 'log-message';
+            
+            logEntry.innerHTML = `
+                <span class="log-time">[${time}]</span>
+                <span class="${typeClass}">${message}</span>
+            `;
+            
+            logsContainer.appendChild(logEntry);
+            logsContainer.scrollTop = logsContainer.scrollHeight;
+        }
+        
+        function showNotification(title, message, type = 'info') {
+            const notificationArea = document.getElementById('notificationArea');
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            notification.innerHTML = `
+                <div class="notification-title">${title}</div>
+                <div class="notification-message">${message}</div>
+            `;
+            
+            notificationArea.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.classList.add('show');
+            }, 10);
+            
+            setTimeout(() => {
+                notification.classList.remove('show');
+                setTimeout(() => {
+                    if (notification.parentNode) {
+                        notification.parentNode.removeChild(notification);
+                    }
+                }, 500);
+            }, 3000);
+        }
+        
+        function updateUI() {
+            const state = stateManager.getState();
+            
+            // وضعیت State Manager
+            document.getElementById('stateManagerStatus').textContent = 'فعال';
+            document.getElementById('stateManagerStatus').className = 'status-value success';
+            
+            // وضعیت Persistence
+            document.getElementById('persistenceStatus').textContent = 'فعال';
+            document.getElementById('persistenceStatus').className = 'status-value success';
+            
+            // وضعیت Context
+            document.getElementById('contextStatus').textContent = 'فعال';
+            document.getElementById('contextStatus').className = 'status-value success';
+            
+            // وضعیت کاربر
+            if (state.user) {
+                document.getElementById('userStatus').textContent = state.user.name || state.user.email || 'کاربر';
+                document.getElementById('userStatus').className = 'status-value success';
+            } else {
+                document.getElementById('userStatus').textContent = 'ناشناس';
+                document.getElementById('userStatus').className = 'status-value';
+            }
+            
+            // نمایش State
+            document.getElementById('stateOutput').textContent = 
+                JSON.stringify(state, null, 2);
+        }
+        
+        // ==================== TEST FUNCTIONS ====================
+        
+        window.testLogin = () => {
+            const userData = {
+                id: 'user_' + Date.now(),
+                name: 'کاربر تست',
+                email: 'test@vakamova.com',
+                level: 'beginner',
+                subscription: 'free'
+            };
+            
+            stateManager.dispatch({
+                type: 'USER_LOGIN',
+                payload: userData
+            });
+            
+            showNotification('ورود موفق', 'کارگر با موفقیت وارد شد', 'success');
+        };
+        
+        window.testUpdateUser = () => {
+            if (!appState.user) {
+                showNotification('خطا', 'ابتدا وارد شوید', 'error');
+                return;
+            }
+            
+            stateManager.dispatch({
+                type: 'USER_UPDATE',
+                payload: {
+                    coins: 100,
+                    streak: 5,
+                    lastActive: new Date().toISOString()
+                }
+            });
+            
+            showNotification('به‌روزرسانی', 'اطلاعات کاربر به‌روز شد', 'success');
+        };
+        
+        window.testLoadLesson = () => {
+            const lessonId = 'lesson_' + Math.floor(Math.random() * 1000);
+            const lessonData = {
+                id: lessonId,
+                title: 'درس تست - معرفی خود',
+                language: 'english',
+                level: 1,
+                duration: '10 دقیقه',
+                words: ['hello', 'name', 'how', 'are', 'you']
+            };
+            
+            stateManager.dispatch({
+                type: 'LESSON_LOADED',
+                payload: lessonData
+            });
+            
+            showNotification('درس بارگذاری شد', `درس "${lessonData.title}" افزوده شد`, 'success');
+        };
+        
+        window.testCompleteLesson = () => {
+            const lessonIds = Object.keys(appState.lessons);
+            if (lessonIds.length === 0) {
+                showNotification('خطا', 'ابتدا درسی بارگذاری کنید', 'error');
+                return;
+            }
+            
+            const randomLessonId = lessonIds[Math.floor(Math.random() * lessonIds.length)];
+            const score = Math.floor(Math.random() * 100);
+            
+            stateManager.dispatch({
+                type: 'LESSON_COMPLETED',
+                payload: {
+                    lessonId: randomLessonId,
+                    score: score
+                }
+            });
+            
+            showNotification('تبریک!', `درس با نمره ${score} تکمیل شد`, 'success');
+        };
+        
+        window.testLogout = () => {
+            stateManager.dispatch({
+                type: 'USER_LOGOUT'
+            });
+            
+            showNotification('خروج', 'کارگر از سیستم خارج شد', 'info');
+        };
+        
+        window.testSaveState = () => {
+            const result = statePersistence.saveStateImmediately();
+            if (result) {
+                showNotification('ذخیره شد', 'وضعیت در حافظه مرورگر ذخیره شد', 'success');
+            }
+        };
+        
+        window.testLoadState = () => {
+            const loaded = statePersistence.loadState();
+            if (loaded) {
+                showNotification('بازیابی شد', 'وضعیت قبلی بازیابی شد', 'success');
+                updateUI();
+            }
+        };
+        
+        window.testClearState = () => {
+            statePersistence.clearPersistedState();
+            showNotification('پاک‌سازی', 'همه داده‌های ذخیره شده پاک شدند', 'info');
+            
+            // به‌روزرسانی نمایش اطلاعات
+            testStorageInfo();
+        };
+        
+        window.testStorageInfo = () => {
+            const info = statePersistence.getStorageInfo();
+            document.getElementById('storageOutput').textContent = 
+                JSON.stringify(info, null, 2);
+            
+            showNotification('اطلاعات ذخیره‌سازی', 'بررسی شد', 'info');
+        };
+        
+        window.testCreateContext = () => {
+            const context = contextProvider.createComponentContext('test_context_' + Date.now());
+            const output = `
+                <h3>Context ایجاد شده:</h3>
+                <p><strong>نام:</strong> ${context.name}</p>
+                <p><strong>زمان ایجاد:</strong> ${new Date(context.timestamp).toLocaleString('fa-IR')}</p>
+                <p><strong>دسترسی به State:</strong> ${context.getState ? 'دارد' : 'ندارد'}</p>
+                <p><strong>دسترسی به Dispatch:</strong> ${context.dispatch ? 'دارد' : 'ندارد'}</p>
+            `;
+            
+            document.getElementById('contextOutput').innerHTML = output;
+            showNotification('Context جدید', 'با موفقیت ایجاد شد', 'success');
+        };
+        
+        window.testSubscribeToState = () => {
+            const unsubscribe = stateManager.subscribe((state) => {
+                logToScreen(`State تغییر کرد - نسخه: ${state._version}`, 'info');
+            });
+            
+            showNotification('اشتراک فعال', 'به تغییرات State گوش می‌دهد', 'success');
+            
+            // بعد از 10 ثانیه لغو اشتراک
+            setTimeout(() => {
+                unsubscribe();
+                showNotification('اشتراک پایان یافت', 'گوش دادن متوقف شد', 'info');
+            }, 10000);
+        };
+        
+        window.testServiceStatus = () => {
+            const status = contextProvider.getStatus();
+            document.getElementById('contextOutput').innerHTML = `
+                <h3>وضعیت سرویس‌ها:</h3>
+                <pre>${JSON.stringify(status, null, 2)}</pre>
+            `;
+            showNotification('بررسی وضعیت', 'وضعیت سرویس‌ها بررسی شد', 'info');
+        };
+        
+        window.testContextCache = () => {
+            document.getElementById('contextOutput').innerHTML = 
+                '<p style="color: #28a745; text-align: center; padding: 20px;">✅ کش Context پاک‌سازی شد</p>';
+            showNotification('پاک‌سازی کش', 'کش Context پاک شد', 'success');
+        };
+        
+        // ==================== INITIALIZATION ====================
+        
+        // بارگذاری اولیه State ذخیره شده
+        setTimeout(() => {
+            statePersistence.loadState();
+            updateUI();
+            logToScreen('سیستم تست آماده است. دکمه‌ها را امتحان کنید.', 'success');
+            
+            // بررسی وضعیت اولیه
+            if (appState.user) {
+                showNotification('خوش آمدید', `کاربر ${appState.user.name} بازگشتید!`, 'success');
+            } else {
+                showNotification('آماده‌اید؟', 'سیستم تست Vakamova راه‌اندازی شد', 'info');
+            }
+        }, 1000);
+        
+        // ذخیره خودکار هر 30 ثانیه
+        setInterval(() => {
+            statePersistence.saveStateImmediately();
+        }, 30000);
+        
+    </script>
+</body>
+  </html>
