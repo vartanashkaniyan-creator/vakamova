@@ -1,188 +1,542 @@
-// ==================== تابع اصلاح‌شده runSpecificTest ====================
-async function runSpecificTest(testId) {
-    const testIndex = testId - 1;
-    if (testIndex < 0 || testIndex >= testCases.length) return;
+<!DOCTYPE html>
+<html lang="fa">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تست یکپارچه LessonEngine</title>
+    <style>
+        body { font-family: Tahoma; direction: rtl; padding: 20px; background: #f5f7fa; }
+        .test-case { background: white; margin: 15px 0; padding: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .pass { border-right: 5px solid #4CAF50; }
+        .fail { border-right: 5px solid #f44336; }
+        .running { border-right: 5px solid #FFC107; }
+        button { padding: 10px 20px; margin: 5px; background: #2196F3; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        .summary { background: #e8f5e9; padding: 15px; border-radius: 8px; margin-top: 20px; }
+        code { background: #f1f1f1; padding: 2px 5px; border-radius: 3px; }
+        pre { background: #2d3748; color: #e2e8f0; padding: 10px; border-radius: 5px; overflow-x: auto; font-size: 0.9rem; }
+    </style>
+</head>
+<body>
+    <h1>🧪 تست یکپارچه LessonEngine</h1>
+    <p>بررسی عملکرد موتور آموزش در تعامل با ماژول‌های دیگر</p>
     
-    const test = testCases[testIndex];
-    const resultDiv = document.getElementById(`test${testId}`) || createTestResultElement(testId);
+    <div class="test-controls">
+        <button onclick="runAllTests()">▶️ اجرای تمام تست‌ها</button>
+        <button onclick="runSpecificTest(1)">۱. تست ساخت موتور</button>
+        <button onclick="runSpecificTest(2)">۲. تست بارگذاری دوره</button>
+        <button onclick="runSpecificTest(3)">۳. تست شروع درس</button>
+        <button onclick="runSpecificTest(4)">۴. تست ارسال تمرین</button>
+        <button onclick="runSpecificTest(5)">۵. تست پیشرفت کاربر</button>
+        <button onclick="clearResults()" style="background: #6c757d;">🗑️ پاک کردن نتایج</button>
+    </div>
     
-    // 🔥 اصلاح حیاتی: ایجاد Mock جدید برای هر تست تکی
-    const mockDB = new MockDatabase();
-    const mockEventBus = new MockEventBus();
-    const mockProgressTracker = new MockProgressTracker();
+    <div id="testResults"></div>
     
-    // ایجاد موتور جدید با Mockهای تازه
-    const localLessonEngine = new LessonEngine({
-        database: mockDB,
-        eventBus: mockEventBus,
-        progressTracker: mockProgressTracker
-    });
-    
-    resultDiv.className = 'test-case running';
-    resultDiv.innerHTML = `<h3>${test.id}. ${test.name}</h3><p>در حال اجرا...</p>`;
-    
-    try {
-        // 🔥 اجرای تست با موتور و Mockهای مستقل
-        let result;
-        switch(testId) {
-            case 1: // ساخت موتور
-                result = { 
-                    success: !!localLessonEngine, 
-                    message: 'موتور با وابستگی‌های Mock ساخته شد' 
-                };
-                break;
-                
-            case 2: // بارگذاری دوره
-                const course = await localLessonEngine.loadCourse('english_a1', 'en');
-                result = {
-                    success: course && course.id === 'english_a1',
-                    message: course ? 'دوره بارگذاری شد' : 'دوره پیدا نشد',
-                    data: course
-                };
-                break;
-                
-            case 3: // شروع درس
-                const session = await localLessonEngine.startLesson('lesson_1', 'user_1001');
-                const hasEvent = mockEventBus.events.some(e => e.event === 'lesson.started');
-                result = {
-                    success: session && session.id && hasEvent,
-                    message: session ? 'جلسه شروع شد' : 'شروع جلسه شکست خورد',
-                    data: session
-                };
-                break;
-                
-            case 4: // ارسال تمرین
-                // اول یک جلسه جدید می‌سازیم
-                const newSession = await localLessonEngine.startLesson('lesson_1', 'user_1002');
-                const submission = {
-                    sessionId: newSession.id,
-                    exerciseId: 'ex1',
-                    answers: ['Hello'],
-                    timeSpent: 45
-                };
-                const exerciseResult = await localLessonEngine.submitExercise(submission);
-                result = {
-                    success: exerciseResult && exerciseResult.score === 10,
-                    message: exerciseResult ? `تمرین ارسال شد (امتیاز: ${exerciseResult.score})` : 'ارسال تمرین شکست خورد',
-                    data: exerciseResult
-                };
-                break;
-                
-            case 5: // دریافت پیشرفت
-                const progress = await localLessonEngine.getProgress('user_1003', 'english_a1');
-                result = {
-                    success: progress && typeof progress.completionPercentage === 'number',
-                    message: progress ? `پیشرفت: ${progress.completionPercentage}%` : 'دریافت پیشرفت شکست خورد',
-                    data: progress
-                };
-                break;
-        }
-        
-        resultDiv.className = `test-case ${result.success ? 'pass' : 'fail'}`;
-        resultDiv.innerHTML = `
-            <h3>${test.id}. ${test.name}</h3>
-            <p><strong>نتیجه:</strong> ${result.success ? '✅ موفق' : '❌ ناموفق'}</p>
-            <p><strong>پیام:</strong> ${result.message}</p>
-            ${result.data ? `<p><strong>نمونه داده:</strong> <code>${JSON.stringify(result.data).substring(0, 100)}...</code></p>` : ''}
-        `;
-        
-    } catch (error) {
-        resultDiv.className = 'test-case fail';
-        resultDiv.innerHTML = `
-            <h3>${test.id}. ${test.name}</h3>
-            <p><strong>نتیجه:</strong> ❌ خطای اجرا</p>
-            <p><strong>خطا:</strong> ${error.message}</p>
-            <details style="margin-top:10px;">
-                <summary>مشاهده جزئیات خطا</summary>
-                <pre style="background:#f1f1f1;padding:10px;border-radius:5px;">${error.stack}</pre>
-            </details>
-        `;
-    }
-    
-    updateSummary();
-}
+    <div class="summary" id="summary">
+        <h3>📊 آماده برای اجرای تست‌ها</h3>
+        <p>بر روی یکی از دکمه‌های بالا کلیک کنید</p>
+    </div>
 
-// ==================== تابع اصلاح‌شده runAllTests ====================
-async function runAllTests() {
-    document.getElementById('testResults').innerHTML = '';
-    
-    // 🔥 ساخت Mockهای جدید برای هر تست در حالت گروهی
-    for (const test of testCases) {
-        const mockDB = new MockDatabase();
-        const mockEventBus = new MockEventBus();
-        const mockProgressTracker = new MockProgressTracker();
-        
-        const localEngine = new LessonEngine({
-            database: mockDB,
-            eventBus: mockEventBus,
-            progressTracker: mockProgressTracker
-        });
-        
-        const resultDiv = createTestResultElement(test.id);
-        resultDiv.className = 'test-case running';
-        resultDiv.innerHTML = `<h3>${test.id}. ${test.name}</h3><p>در حال اجرا...</p>`;
-        
-        try {
-            let result;
-            switch(test.id) {
-                case 1:
-                    result = { success: true, message: 'موتور ساخته شد' };
-                    break;
-                case 2:
-                    const course = await localEngine.loadCourse('english_a1', 'en');
-                    result = {
-                        success: course && course.id === 'english_a1',
-                        message: course ? 'دوره بارگذاری شد' : 'دوره پیدا نشد'
-                    };
-                    break;
-                case 3:
-                    const session = await localEngine.startLesson('lesson_1', 'user_all_1');
-                    result = {
-                        success: session && session.id,
-                        message: session ? 'جلسه شروع شد' : 'شروع جلسه شکست خورد'
-                    };
-                    break;
-                case 4:
-                    const newSession = await localEngine.startLesson('lesson_1', 'user_all_2');
-                    const exResult = await localEngine.submitExercise({
-                        sessionId: newSession.id,
-                        exerciseId: 'ex1',
-                        answers: ['Hello'],
-                        timeSpent: 30
-                    });
-                    result = {
-                        success: exResult && exResult.score === 10,
-                        message: exResult ? `تمرین ارسال شد (امتیاز: ${exResult.score})` : 'ارسال تمرین شکست خورد'
-                    };
-                    break;
-                case 5:
-                    const progress = await localEngine.getProgress('user_all_3', 'english_a1');
-                    result = {
-                        success: progress && typeof progress.completionPercentage === 'number',
-                        message: progress ? `پیشرفت: ${progress.completionPercentage}%` : 'دریافت پیشرفت شکست خورد'
-                    };
-                    break;
+    <script>
+        // ==================== Mock وابستگی‌های واقعی‌تر ====================
+        class MockDatabase {
+            constructor() {
+                this.data = {
+                    courses: [
+                        {
+                            id: 'english_a1',
+                            language: 'en',
+                            title: 'انگلیسی سطح A1',
+                            description: 'مبتدی کامل',
+                            estimatedHours: 30,
+                            lessons: [
+                                { id: 'lesson_1', title: 'آشنایی', exercises: [{ id: 'ex1', points: 10, correctAnswers: ['Hello'] }] },
+                                { id: 'lesson_2', title: 'اعداد', exercises: [{ id: 'ex2', points: 15, correctAnswers: ['One', 'Two'] }] }
+                            ]
+                        }
+                    ],
+                    lessons: [
+                        { 
+                            id: 'lesson_1', 
+                            title: 'آشنایی',
+                            exercises: [
+                                { id: 'ex1', correctAnswers: ['Hello'], points: 10 },
+                                { id: 'ex2', correctAnswers: ['Goodbye'], points: 10 }
+                            ]
+                        }
+                    ],
+                    exercises: [
+                        { id: 'ex1', correctAnswers: ['Hello'], points: 10 },
+                        { id: 'ex2', correctAnswers: ['Goodbye'], points: 10 }
+                    ]
+                };
             }
             
-            resultDiv.className = `test-case ${result.success ? 'pass' : 'fail'}`;
-            resultDiv.innerHTML = `
-                <h3>${test.id}. ${test.name}</h3>
-                <p><strong>نتیجه:</strong> ${result.success ? '✅ موفق' : '❌ ناموفق'}</p>
-                <p><strong>پیام:</strong> ${result.message}</p>
-            `;
+            query(table) {
+                const self = this;
+                const queryBuilder = {
+                    where(field, operator, value) {
+                        if (field === 'id' && value) {
+                            this.filteredData = self.data[table]?.filter(item => item.id === value);
+                        }
+                        return this;
+                    },
+                    andWhere(field, operator, value) {
+                        if (field === 'language' && this.filteredData) {
+                            this.filteredData = this.filteredData.filter(item => item.language === value);
+                        }
+                        return this;
+                    },
+                    with(relation) {
+                        // در Mock ساده، relationها از قبل بارگذاری شده
+                        return this;
+                    },
+                    first() {
+                        return this.filteredData?.[0] || self.data[table]?.[0] || null;
+                    }
+                };
+                return queryBuilder;
+            }
+        }
+
+        class MockEventBus {
+            constructor() {
+                this.events = [];
+            }
+            publish(event, data) {
+                this.events.push({ event, data, timestamp: new Date() });
+                console.log(`📢 [EventBus] ${event}:`, data);
+            }
+        }
+
+        class MockProgressTracker {
+            constructor() {
+                this.sessions = [];
+                this.exerciseResults = [];
+                this.completedLessons = [];
+            }
             
-        } catch (error) {
-            resultDiv.className = 'test-case fail';
-            resultDiv.innerHTML = `
-                <h3>${test.id}. ${test.name}</h3>
-                <p><strong>نتیجه:</strong> ❌ خطا</p>
-                <p><strong>خطا:</strong> ${error.message}</p>
+            async startSession(sessionId, userId, lessonId) {
+                this.sessions.push({ sessionId, userId, lessonId, startTime: new Date() });
+                return Promise.resolve();
+            }
+            
+            async recordExerciseResult(data) {
+                this.exerciseResults.push(data);
+                return Promise.resolve();
+            }
+            
+            async completeLesson(userId, lessonId, score, startTime, endTime) {
+                this.completedLessons.push({ userId, lessonId, score, startTime, endTime });
+                return Promise.resolve();
+            }
+            
+            async getUserProgress(userId, courseId) {
+                const userLessons = this.completedLessons.filter(l => l.userId === userId);
+                return Promise.resolve({
+                    completedLessons: userLessons.length,
+                    overallScore: userLessons.reduce((sum, l) => sum + l.score, 0),
+                    timeSpent: userLessons.length * 1800, // 30 دقیقه برای هر درس
+                    lastActive: new Date()
+                });
+            }
+        }
+
+        // ==================== پیاده‌سازی LessonEngine ====================
+        class LessonEngine {
+            constructor({ database, eventBus, progressTracker }) {
+                if (!database || !eventBus || !progressTracker) {
+                    throw new Error('تمام وابستگی‌ها الزامی هستند');
+                }
+                this._database = database;
+                this._eventBus = eventBus;
+                this._progressTracker = progressTracker;
+                this._activeSessions = new Map();
+            }
+
+            async loadCourse(courseId, languageCode) {
+                try {
+                    const course = await this._database.query('courses')
+                        .where('id', '=', courseId)
+                        .andWhere('language', '=', languageCode)
+                        .first();
+
+                    if (!course) {
+                        throw new Error(`دوره ${courseId} برای زبان ${languageCode} یافت نشد`);
+                    }
+
+                    return {
+                        id: course.id,
+                        title: course.title,
+                        description: course.description,
+                        totalLessons: course.lessons?.length || 0,
+                        estimatedHours: course.estimatedHours,
+                        lessons: course.lessons?.map(l => ({
+                            id: l.id,
+                            title: l.title,
+                            exerciseCount: l.exercises?.length || 0
+                        })) || []
+                    };
+                } catch (error) {
+                    this._eventBus.publish('lesson-engine.error', { action: 'loadCourse', error: error.message });
+                    throw error;
+                }
+            }
+
+            async startLesson(lessonId, userId) {
+                const lesson = await this._database.query('lessons').where('id', '=', lessonId).first();
+                if (!lesson) {
+                    throw new Error(`درس ${lessonId} یافت نشد`);
+                }
+                
+                const session = {
+                    id: `session_${Date.now()}_${lessonId}`,
+                    lessonId,
+                    userId,
+                    startTime: new Date(),
+                    status: 'active',
+                    currentExerciseIndex: 0,
+                    completedExercises: [],
+                    score: 0
+                };
+
+                await this._progressTracker.startSession(session.id, userId, lessonId);
+                this._activeSessions.set(session.id, session);
+                this._eventBus.publish('lesson.started', { 
+                    sessionId: session.id, 
+                    lessonId, 
+                    userId,
+                    timestamp: new Date().toISOString()
+                });
+
+                return session;
+            }
+
+            async submitExercise(submission) {
+                const { sessionId, exerciseId, answers, timeSpent } = submission;
+                const session = this._activeSessions.get(sessionId);
+
+                if (!session) {
+                    throw new Error(`جلسه ${sessionId} یافت نشد`);
+                }
+
+                const exercise = await this._database.query('exercises').where('id', '=', exerciseId).first();
+                if (!exercise) {
+                    throw new Error(`تمرین ${exerciseId} یافت نشد`);
+                }
+
+                // منطق ارزیابی ساده
+                const isCorrect = JSON.stringify(answers.sort()) === JSON.stringify(exercise.correctAnswers.sort());
+                const score = isCorrect ? exercise.points : 0;
+
+                await this._progressTracker.recordExerciseResult({
+                    sessionId,
+                    exerciseId,
+                    isCorrect,
+                    score,
+                    timeSpent
+                });
+
+                session.completedExercises.push(exerciseId);
+                session.score += score;
+
+                // بررسی اگر درس کامل شده باشد
+                const lesson = await this._database.query('lessons').where('id', '=', session.lessonId).first();
+                if (session.completedExercises.length >= (lesson?.exercises?.length || 0)) {
+                    session.status = 'completed';
+                    session.endTime = new Date();
+                    await this._progressTracker.completeLesson(
+                        session.userId,
+                        session.lessonId,
+                        session.score,
+                        session.startTime,
+                        session.endTime
+                    );
+                    this._activeSessions.delete(session.id);
+                    this._eventBus.publish('lesson.completed', {
+                        sessionId: session.id,
+                        lessonId: session.lessonId,
+                        userId: session.userId,
+                        score: session.score,
+                        duration: session.endTime - session.startTime
+                    });
+                }
+
+                return {
+                    isCorrect,
+                    score,
+                    feedback: isCorrect ? 'عالی! پاسخ درست است.' : 'پاسخ نادرست. دوباره تلاش کنید.',
+                    correctAnswers: exercise.correctAnswers,
+                    nextExerciseId: null
+                };
+            }
+
+            async getProgress(userId, courseId) {
+                const progress = await this._progressTracker.getUserProgress(userId, courseId);
+                const course = await this.loadCourse(courseId, 'en');
+
+                return {
+                    userId,
+                    courseId,
+                    completedLessons: progress.completedLessons,
+                    totalLessons: course.totalLessons,
+                    overallScore: progress.overallScore,
+                    timeSpent: progress.timeSpent,
+                    lastActive: progress.lastActive,
+                    completionPercentage: Math.round((progress.completedLessons / course.totalLessons) * 100)
+                };
+            }
+        }
+
+        // ==================== مدیریت تست‌ها ====================
+        function createTestResultElement(testId) {
+            const div = document.createElement('div');
+            div.id = `test${testId}`;
+            document.getElementById('testResults').appendChild(div);
+            return div;
+        }
+
+        function updateSummary() {
+            const allTests = document.querySelectorAll('.test-case');
+            const passed = Array.from(allTests).filter(t => t.className.includes('pass')).length;
+            const failed = Array.from(allTests).filter(t => t.className.includes('fail')).length;
+            const running = Array.from(allTests).filter(t => t.className.includes('running')).length;
+            const total = 5; // تعداد کل تست‌ها
+            
+            const summary = document.getElementById('summary');
+            if (running > 0) {
+                summary.innerHTML = `<h3>⏳ در حال اجرای تست‌ها...</h3><p>${running} تست در حال اجرا است</p>`;
+            } else if (allTests.length > 0) {
+                const percentage = total > 0 ? Math.round((passed / total) * 100) : 0;
+                summary.innerHTML = `
+                    <h3>📊 خلاصه نتایج</h3>
+                    <p>✅ موفق: ${passed} تست</p>
+                    <p>❌ ناموفق: ${failed} تست</p>
+                    <p>📋 کل: ${total} تست</p>
+                    <p>🎯 درصد موفقیت: ${percentage}%</p>
+                    ${percentage >= 80 ? '<p style="color:#4CAF50; font-weight:bold;">🎉 وضعیت عالی! LessonEngine آماده است.</p>' : 
+                      percentage >= 60 ? '<p style="color:#FF9800; font-weight:bold;">⚠️ وضعیت قابل قبول. برخی تست‌ها نیاز به بررسی دارند.</p>' :
+                      '<p style="color:#f44336; font-weight:bold;">🚫 نیاز به بررسی جدی تست‌های ناموفق.</p>'}
+                `;
+            }
+        }
+
+        // ==================== توابع تست‌های تکی ====================
+        async function runSpecificTest(testId) {
+            // ایجاد Mockهای جدید برای هر تست تکی
+            const mockDB = new MockDatabase();
+            const mockEventBus = new MockEventBus();
+            const mockProgressTracker = new MockProgressTracker();
+            
+            const localEngine = new LessonEngine({
+                database: mockDB,
+                eventBus: mockEventBus,
+                progressTracker: mockProgressTracker
+            });
+            
+            const resultDiv = document.getElementById(`test${testId}`) || createTestResultElement(testId);
+            resultDiv.className = 'test-case running';
+            resultDiv.innerHTML = `<h3>تست ${testId} در حال اجرا...</h3><p>لطفاً صبر کنید</p>`;
+            
+            try {
+                let result;
+                switch(testId) {
+                    case 1: // تست ساخت موتور
+                        result = { 
+                            success: true, 
+                            message: 'موتور با موفقیت ساخته شد',
+                            data: { engine: 'LessonEngine', dependencies: 3 }
+                        };
+                        break;
+                        
+                    case 2: // تست بارگذاری دوره
+                        const course = await localEngine.loadCourse('english_a1', 'en');
+                        result = {
+                            success: course && course.id === 'english_a1',
+                            message: course ? `دوره "${course.title}" بارگذاری شد` : 'دوره یافت نشد',
+                            data: course
+                        };
+                        break;
+                        
+                    case 3: // تست شروع درس
+                        const session = await localEngine.startLesson('lesson_1', 'user_single');
+                        const hasEvent = mockEventBus.events.some(e => e.event === 'lesson.started');
+                        result = {
+                            success: session && session.id && hasEvent,
+                            message: session ? `جلسه "${session.id}" شروع شد` : 'شروع جلسه شکست خورد',
+                            data: { session, events: mockEventBus.events.length }
+                        };
+                        break;
+                        
+                    case 4: // تست ارسال تمرین
+                        const newSession = await localEngine.startLesson('lesson_1', 'user_exercise');
+                        const submission = {
+                            sessionId: newSession.id,
+                            exerciseId: 'ex1',
+                            answers: ['Hello'],
+                            timeSpent: 45
+                        };
+                        const exerciseResult = await localEngine.submitExercise(submission);
+                        result = {
+                            success: exerciseResult && exerciseResult.score === 10,
+                            message: exerciseResult ? `تمرین ارسال شد. امتیاز: ${exerciseResult.score}` : 'ارسال تمرین شکست خورد',
+                            data: exerciseResult
+                        };
+                        break;
+                        
+                    case 5: // تست دریافت پیشرفت
+                        // برای تست پیشرفت، یک درس را کامل می‌کنیم
+                        const progressSession = await localEngine.startLesson('lesson_1', 'user_progress');
+                        await localEngine.submitExercise({
+                            sessionId: progressSession.id,
+                            exerciseId: 'ex1',
+                            answers: ['Hello'],
+                            timeSpent: 30
+                        });
+                        await localEngine.submitExercise({
+                            sessionId: progressSession.id,
+                            exerciseId: 'ex2',
+                            answers: ['Goodbye'],
+                            timeSpent: 40
+                        });
+                        
+                        const progress = await localEngine.getProgress('user_progress', 'english_a1');
+                        result = {
+                            success: progress && progress.completionPercentage === 100,
+                            message: progress ? `پیشرفت کاربر: ${progress.completionPercentage}% کامل` : 'دریافت پیشرفت شکست خورد',
+                            data: progress
+                        };
+                        break;
+                        
+                    default:
+                        result = { success: false, message: 'تست نامشخص' };
+                }
+                
+                resultDiv.className = `test-case ${result.success ? 'pass' : 'fail'}`;
+                resultDiv.innerHTML = `
+                    <h3>تست ${testId}</h3>
+                    <p><strong>نتیجه:</strong> ${result.success ? '✅ موفق' : '❌ ناموفق'}</p>
+                    <p><strong>پیام:</strong> ${result.message}</p>
+                    ${result.data ? `<p><strong>داده‌ها:</strong> <code>${JSON.stringify(result.data).substring(0, 100)}...</code></p>` : ''}
+                    <p><small>زمان: ${new Date().toLocaleTimeString('fa-IR')}</small></p>
+                `;
+                
+            } catch (error) {
+                resultDiv.className = 'test-case fail';
+                resultDiv.innerHTML = `
+                    <h3>تست ${testId} - خطا</h3>
+                    <p><strong>نتیجه:</strong> ❌ خطای اجرا</p>
+                    <p><strong>خطا:</strong> ${error.message}</p>
+                    <details>
+                        <summary>جزئیات خطا</summary>
+                        <pre>${error.stack || error.toString()}</pre>
+                    </details>
+                `;
+                console.error(`خطا در تست ${testId}:`, error);
+            }
+            
+            updateSummary();
+        }
+
+        // ==================== تست گروهی ====================
+        async function runAllTests() {
+            document.getElementById('testResults').innerHTML = '';
+            
+            for (let testId = 1; testId <= 5; testId++) {
+                // ایجاد Mockهای جدید برای هر تست
+                const mockDB = new MockDatabase();
+                const mockEventBus = new MockEventBus();
+                const mockProgressTracker = new MockProgressTracker();
+                
+                const localEngine = new LessonEngine({
+                    database: mockDB,
+                    eventBus: mockEventBus,
+                    progressTracker: mockProgressTracker
+                });
+                
+                const resultDiv = createTestResultElement(testId);
+                resultDiv.className = 'test-case running';
+                resultDiv.innerHTML = `<h3>تست ${testId} در حال اجرا...</h3>`;
+                
+                try {
+                    let result;
+                    switch(testId) {
+                        case 1:
+                            result = { success: true, message: 'موتور ساخته شد' };
+                            break;
+                        case 2:
+                            const course = await localEngine.loadCourse('english_a1', 'en');
+                            result = {
+                                success: course && course.id === 'english_a1',
+                                message: course ? `دوره "${course.title}" بارگذاری شد` : 'دوره یافت نشد'
+                            };
+                            break;
+                        case 3:
+                            const session = await localEngine.startLesson('lesson_1', `user_all_${testId}`);
+                            result = {
+                                success: session && session.id,
+                                message: session ? `جلسه شروع شد (${session.id})` : 'شروع جلسه شکست خورد'
+                            };
+                            break;
+                        case 4:
+                            const newSession = await localEngine.startLesson('lesson_1', `user_all_ex_${testId}`);
+                            const exResult = await localEngine.submitExercise({
+                                sessionId: newSession.id,
+                                exerciseId: 'ex1',
+                                answers: ['Hello'],
+                                timeSpent: 30
+                            });
+                            result = {
+                                success: exResult && exResult.score === 10,
+                                message: exResult ? `تمرین ارسال شد (امتیاز: ${exResult.score})` : 'ارسال تمرین شکست خورد'
+                            };
+                            break;
+                        case 5:
+                            const progressSession = await localEngine.startLesson('lesson_1', `user_all_prog_${testId}`);
+                            await localEngine.submitExercise({
+                                sessionId: progressSession.id,
+                                exerciseId: 'ex1',
+                                answers: ['Hello'],
+                                timeSpent: 30
+                            });
+                            const progress = await localEngine.getProgress(`user_all_prog_${testId}`, 'english_a1');
+                            result = {
+                                success: progress && typeof progress.completionPercentage === 'number',
+                                message: progress ? `پیشرفت: ${progress.completionPercentage}%` : 'دریافت پیشرفت شکست خورد'
+                            };
+                            break;
+                    }
+                    
+                    resultDiv.className = `test-case ${result.success ? 'pass' : 'fail'}`;
+                    resultDiv.innerHTML = `
+                        <h3>تست ${testId}</h3>
+                        <p><strong>نتیجه:</strong> ${result.success ? '✅ موفق' : '❌ ناموفق'}</p>
+                        <p><strong>پیام:</strong> ${result.message}</p>
+                    `;
+                    
+                } catch (error) {
+                    resultDiv.className = 'test-case fail';
+                    resultDiv.innerHTML = `
+                        <h3>تست ${testId} - خطا</h3>
+                        <p><strong>نتیجه:</strong> ❌ خطا</p>
+                        <p><strong>خطا:</strong> ${error.message}</p>
+                    `;
+                }
+                
+                // تاخیر کوتاه برای نمایش بهتر
+                await new Promise(resolve => setTimeout(resolve, 400));
+            }
+            
+            updateSummary();
+        }
+
+        function clearResults() {
+            document.getElementById('testResults').innerHTML = '';
+            document.getElementById('summary').innerHTML = `
+                <h3>📊 آماده برای اجرای تست‌ها</h3>
+                <p>نتایج پاک شدند. بر روی یکی از دکمه‌های بالا کلیک کنید</p>
             `;
         }
-        
-        // کمی تاخیر برای نمایش بهتر
-        await new Promise(resolve => setTimeout(resolve, 300));
-    }
-    
-    updateSummary();
-}
+    </script>
+</body>
+</html>
