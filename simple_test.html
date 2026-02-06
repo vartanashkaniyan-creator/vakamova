@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>تست خیلی ساده</title>
+</head>
+<body>
+    <h1>تست بارگذاری EventBus</h1>
+    <div id="result">در حال تست...</div>
+    
+    <script src="event_bus.js"></script>
+    <script>
+        const result = document.getElementById('result');
+        
+        // تست ۱: آیا فایل بارگذاری شد؟
+        if (typeof HyperEventBus === 'undefined') {
+            result.innerHTML = '❌ فایل event_bus.js بارگذاری نشد';
+            result.style.color = 'red';
+        } else {
+            result.innerHTML = '✅ فایل بارگذاری شد - حالا تست می‌کنیم...';
+            result.style.color = 'green';
+            
+            // تست ۲: ساخت نمونه
+            try {
+                const bus = new HyperEventBus();
+                result.innerHTML += '<br>✅ EventBus ساخته شد';
+                
+                // تست ۳: ثبت listener
+                bus.on('test', () => {
+                    result.innerHTML += '<br>✅ Listener کار کرد!';
+                });
+                
+                // تست ۴: ارسال event
+                bus.emit('test');
+                
+            } catch (error) {
+                result.innerHTML += '<br>❌ خطا: ' + error.message;
+                result.style.color = 'red';
+            }
+        }
+    </script>
+</body>
+</html>
