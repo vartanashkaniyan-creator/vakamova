@@ -611,8 +611,7 @@ class EventBusFactory {
   }
 }
 
-
-
+// ==================== GLOBAL SETUP ====================
 
 // Singleton instance برای استفاده global
 const globalEventBus = EventBusFactory.createDefault();
@@ -640,30 +639,7 @@ console.log('✅ HyperEventBus با موفقیت بارگذاری شد!');
 console.log('📦 موجود در window: HyperEventBus, eventBus, globalEventBus');
 
 
-// برای backward compatibility با کد موجود
-window.eventBus = globalEventBus;.createDefault();
 
-// برای جلوگیری از تغییرات ناخواسته
-Object.freeze(globalEventBus);
 
-export {
-  // Interfaces (برای تست‌پذیری و وارونگی وابستگی)
-  IEventBus,
-  ILogger,
-  IValidator,
-  IEventMetrics,
-  // Implementations
-  HyperEventBus,
-  ConsoleLogger,
-  EventValidator,
-  EventMetrics,
-  
-  // Factory
-  EventBusFactory,
-  
-  // Singleton
-  globalEventBus
-};
 
-// برای backward compatibility با کد موجود
-window.eventBus = globalEventBus;
+
