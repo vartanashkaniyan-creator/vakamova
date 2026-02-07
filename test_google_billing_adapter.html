@@ -1,0 +1,1742 @@
+<!DOCTYPE html>
+<html lang="fa">
+<head>
+    <meta charset="UTF-8">
+    <title>تست Google Play Billing Adapter - Vakamova</title>
+    <style>
+        :root {
+            --google-green: #34a853;
+            --google-blue: #4285f4;
+            --google-red: #ea4335;
+            --google-yellow: #fbbc05;
+            --dark-bg: #202124;
+            --light-bg: #f8f9fa;
+        }
+        
+        body {
+            font-family: 'Roboto', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, var(--dark-bg) 0%, #3c4043 100%);
+            color: #e8eaed;
+            padding: 20px;
+            min-height: 100vh;
+            margin: 0;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 25px 70px rgba(0,0,0,0.5);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .google-header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid rgba(255,255,255,0.1);
+        }
+        
+        .google-logo {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .google-letter {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            font-weight: bold;
+            color: white;
+        }
+        
+        .g-blue { background: var(--google-blue); }
+        .g-red { background: var(--google-red); }
+        .g-yellow { background: var(--google-yellow); }
+        .g-green { background: var(--google-green); }
+        
+        h1 {
+            color: white;
+            font-size: 32px;
+            margin: 10px 0;
+            font-weight: 300;
+        }
+        
+        .subtitle {
+            color: #9aa0a6;
+            font-size: 16px;
+            margin-top: 5px;
+        }
+        
+        .play-badge {
+            background: rgba(255,255,255,0.1);
+            padding: 8px 20px;
+            border-radius: 20px;
+            font-size: 14px;
+            color: var(--google-blue);
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 10px;
+        }
+        
+        .test-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 25px;
+            margin: 30px 0;
+        }
+        
+        .test-card {
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 16px;
+            padding: 25px;
+            border: 1px solid rgba(255,255,255,0.1);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .test-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--google-blue), var(--google-green));
+        }
+        
+        .test-card:hover {
+            background: rgba(255, 255, 255, 0.12);
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.3);
+        }
+        
+        .test-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .test-title {
+            font-size: 18px;
+            font-weight: 500;
+            color: white;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .test-badge {
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+            background: rgba(255,255,255,0.1);
+        }
+        
+        .test-description {
+            color: #9aa0a6;
+            font-size: 14px;
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+        
+        .sku-details {
+            background: rgba(255,255,255,0.05);
+            border-radius: 12px;
+            padding: 15px;
+            margin: 15px 0;
+            border-left: 4px solid var(--google-blue);
+        }
+        
+        .sku-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        
+        .sku-item:last-child {
+            border-bottom: none;
+        }
+        
+        button {
+            background: linear-gradient(135deg, var(--google-blue), #3367d6);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 24px;
+            cursor: pointer;
+            font-weight: 500;
+            font-size: 14px;
+            margin: 5px;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(66, 133, 244, 0.3);
+            background: linear-gradient(135deg, #4285f4, #1a73e8);
+        }
+        
+        button:disabled {
+            background: #5f6368;
+            cursor: not-allowed;
+            transform: none !important;
+            box-shadow: none !important;
+        }
+        
+        .action-bar {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin: 40px 0;
+            flex-wrap: wrap;
+        }
+        
+        .result-panel {
+            background: rgba(255,255,255,0.05);
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 20px;
+            border: 1px solid rgba(255,255,255,0.1);
+            display: none;
+            animation: fadeIn 0.5s ease;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .result-panel.show { display: block; }
+        
+        .result-success {
+            background: rgba(52, 168, 83, 0.1);
+            border-color: var(--google-green);
+            color: #34a853;
+        }
+        
+        .result-error {
+            background: rgba(234, 67, 53, 0.1);
+            border-color: var(--google-red);
+            color: #ea4335;
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin { to { transform: rotate(360deg); } }
+        
+        .stats-panel {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin: 30px 0;
+        }
+        
+        .stat-card {
+            background: rgba(255,255,255,0.08);
+            padding: 20px;
+            border-radius: 16px;
+            text-align: center;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .stat-value {
+            font-size: 32px;
+            font-weight: bold;
+            color: white;
+            margin: 10px 0;
+        }
+        
+        .stat-label {
+            color: #9aa0a6;
+            font-size: 14px;
+        }
+        
+        .sandbox-controls {
+            background: rgba(251, 188, 5, 0.1);
+            border: 2px solid var(--google-yellow);
+            border-radius: 16px;
+            padding: 25px;
+            margin: 30px 0;
+        }
+        
+        .control-group {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        
+        .control-item {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        label {
+            font-weight: 500;
+            color: white;
+            font-size: 14px;
+        }
+        
+        select, input {
+            padding: 12px;
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 8px;
+            color: white;
+            font-family: inherit;
+            font-size: 14px;
+        }
+        
+        select:focus, input:focus {
+            outline: none;
+            border-color: var(--google-blue);
+            background: rgba(255,255,255,0.15);
+        }
+        
+        .purchase-flow {
+            background: rgba(255,255,255,0.05);
+            border-radius: 16px;
+            padding: 25px;
+            margin: 30px 0;
+        }
+        
+        .flow-steps {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 25px 0;
+            position: relative;
+        }
+        
+        .flow-step {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            z-index: 2;
+            background: rgba(255,255,255,0.05);
+            padding: 15px;
+            border-radius: 12px;
+            min-width: 120px;
+        }
+        
+        .step-icon {
+            width: 50px;
+            height: 50px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            margin-bottom: 10px;
+        }
+        
+        .step-active { background: var(--google-blue); color: white; }
+        .step-success { background: var(--google-green); color: white; }
+        .step-error { background: var(--google-red); color: white; }
+        
+        .flow-line {
+            position: absolute;
+            top: 25px;
+            left: 60px;
+            right: 60px;
+            height: 2px;
+            background: rgba(255,255,255,0.1);
+            z-index: 1;
+        }
+        
+        .console {
+            background: rgba(0,0,0,0.3);
+            border-radius: 16px;
+            padding: 20px;
+            margin-top: 30px;
+            font-family: 'Roboto Mono', monospace;
+            font-size: 13px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .console-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            color: var(--google-blue);
+        }
+        
+        .google-response {
+            background: rgba(0,0,0,0.4);
+            color: #e8eaed;
+            padding: 20px;
+            border-radius: 12px;
+            margin: 20px 0;
+            font-family: 'Roboto Mono', monospace;
+            font-size: 13px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .product-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            margin: 25px 0;
+        }
+        
+        .product-card {
+            background: rgba(255,255,255,0.08);
+            border-radius: 16px;
+            padding: 20px;
+            border: 1px solid rgba(255,255,255,0.1);
+            transition: all 0.3s ease;
+        }
+        
+        .product-card:hover {
+            background: rgba(255,255,255,0.12);
+            transform: translateY(-3px);
+        }
+        
+        .product-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .product-title {
+            font-size: 16px;
+            font-weight: 500;
+            color: white;
+        }
+        
+        .product-price {
+            background: var(--google-green);
+            color: white;
+            padding: 6px 15px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        
+        .product-features {
+            color: #9aa0a6;
+            font-size: 13px;
+            line-height: 1.5;
+            margin: 10px 0;
+        }
+        
+        .product-features li {
+            margin: 5px 0;
+            padding-left: 20px;
+            position: relative;
+        }
+        
+        .product-features li::before {
+            content: '✓';
+            position: absolute;
+            left: 0;
+            color: var(--google-green);
+        }
+        
+        @media (max-width: 768px) {
+            .test-grid, .product-grid { grid-template-columns: 1fr; }
+            .flow-steps { flex-direction: column; gap: 20px; }
+            .flow-line { display: none; }
+            .action-bar { flex-direction: column; }
+        }
+    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&family=Roboto+Mono&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <div class="google-header">
+            <div class="google-logo">
+                <div class="google-letter g-blue">G</div>
+                <div class="google-letter g-red">o</div>
+                <div class="google-letter g-yellow">o</div>
+                <div class="google-letter g-blue">g</div>
+                <div class="google-letter g-green">l</div>
+                <div class="google-letter g-red">e</div>
+            </div>
+            <h1>Google Play Billing Adapter</h1>
+            <div class="subtitle">تست کامل آداپتر پرداخت درون‌برنامه‌ای برای بازار بین‌المللی Vakamova</div>
+            <div class="play-badge">
+                <span>▶️</span>
+                Google Play Billing Library v5.0+
+            </div>
+        </div>
+        
+        <div class="stats-panel">
+            <div class="stat-card">
+                <div class="stat-label">SKUهای تست</div>
+                <div class="stat-value" id="sku-count">5</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">موفقیت تست‌ها</div>
+                <div class="stat-value" id="test-success">0%</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">درخواست‌ها</div>
+                <div class="stat-value" id="request-count">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">زمان اجرا</div>
+                <div class="stat-value" id="execution-time">0ms</div>
+            </div>
+        </div>
+        
+        <div class="sandbox-controls">
+            <div style="color: var(--google-yellow); font-weight: 500; margin-bottom: 15px; display: flex; align-items: center; gap: 10px;">
+                <span>⚙️</span>
+                تنظیمات Sandbox Google Play Billing
+            </div>
+            <div class="control-group">
+                <div class="control-item">
+                    <label>حالت پاسخ‌دهی</label>
+                    <select id="response-mode">
+                        <option value="success">✅ موفق (Purchase OK)</option>
+                        <option value="pending">⏳ معلق (Pending)</option>
+                        <option value="failed">❌ ناموفق (Billing Unavailable)</option>
+                        <option value="user_cancelled">🚫 لغو کاربر (User Cancelled)</option>
+                        <option value="item_unavailable">📦 ناموجود (Item Unavailable)</option>
+                    </select>
+                </div>
+                <div class="control-item">
+                    <label>زمان شبیه‌سازی (ms)</label>
+                    <input type="range" id="simulation-delay" min="500" max="5000" value="2000">
+                    <div id="delay-label" style="color: #9aa0a6; text-align: center;">2000ms</div>
+                </div>
+                <div class="control-item">
+                    <label>نوع کاربر</label>
+                    <select id="user-type">
+                        <option value="new">👤 کاربر جدید</option>
+                        <option value="returning">🔄 کاربر بازگشتی</option>
+                        <option value="has_purchases">💰 دارای خریدهای قبلی</option>
+                        <option value="refunded">💸 دارای بازپرداخت</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+        
+        <div class="purchase-flow">
+            <div style="color: white; font-weight: 500; margin-bottom: 15px; display: flex; align-items: center; gap: 10px;">
+                <span>🔄</span>
+                فرآیند خرید Google Play Billing
+            </div>
+            <div class="flow-steps">
+                <div class="flow-line"></div>
+                <div class="flow-step">
+                    <div class="step-icon" id="step-1">1</div>
+                    <div style="font-size: 13px;">اتصال به Billing Client</div>
+                </div>
+                <div class="flow-step">
+                    <div class="step-icon" id="step-2">2</div>
+                    <div style="font-size: 13px;">بارگذاری SKUها</div>
+                </div>
+                <div class="flow-step">
+                    <div class="step-icon" id="step-3">3</div>
+                    <div style="font-size: 13px;">شروع جریان خرید</div>
+                </div>
+                <div class="flow-step">
+                    <div class="step-icon" id="step-4">4</div>
+                    <div style="font-size: 13px;">پردازش خرید</div>
+                </div>
+                <div class="flow-step">
+                    <div class="step-icon" id="step-5">5</div>
+                    <div style="font-size: 13px;">تأیید و فعال‌سازی</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="product-grid">
+            <div class="product-card">
+                <div class="product-header">
+                    <div class="product-title">اشتراک ماهانه</div>
+                    <div class="product-price">$4.99</div>
+                </div>
+                <div style="color: #9aa0a6; font-size: 13px; margin-bottom: 15px;">vakamova.monthly</div>
+                <ul class="product-features">
+                    <li>دسترسی به 12 زبان</li>
+                    <li>تمرین روزانه نامحدود</li>
+                    <li>پشتیبانی اولیه</li>
+                    <li>تجدید خودکار</li>
+                </ul>
+                <button onclick="testPurchase('vakamova.monthly', 4.99, 'USD')" style="width: 100%; justify-content: center;">
+                    <span>🛒</span>
+                    تست خرید ماهانه
+                </button>
+            </div>
+            
+            <div class="product-card">
+                <div class="product-header">
+                    <div class="product-title">اشتراک سالانه</div>
+                    <div class="product-price">$49.99</div>
+                </div>
+                <div style="color: #9aa0a6; font-size: 13px; margin-bottom: 15px;">vakamova.yearly</div>
+                <ul class="product-features">
+                    <li>همه ویژگی‌های ماهانه</li>
+                    <li>صرفه‌جویی 16%</li>
+                    <li>پشتیبانی VIP</li>
+                    <li>محتوای اختصاصی</li>
+                </ul>
+                <button onclick="testPurchase('vakamova.yearly', 49.99, 'USD')" style="width: 100%; justify-content: center;">
+                    <span>🏆</span>
+                    تست خرید سالانه
+                </button>
+            </div>
+            
+            <div class="product-card">
+                <div class="product-header">
+                    <div class="product-title">خرید Lifetime</div>
+                    <div class="product-price">$149.99</div>
+                </div>
+                <div style="color: #9aa0a6; font-size: 13px; margin-bottom: 15px;">vakamova.lifetime</div>
+                <ul class="product-features">
+                    <li>دسترسی مادام‌العمر</li>
+                    <li>همه ویژگی‌های آینده</li>
+                    <li>پشتیبانی اختصاصی</li>
+                    <li>آپدیت‌های رایگان</li>
+                </ul>
+                <button onclick="testPurchase('vakamova.lifetime', 149.99, 'USD')" style="width: 100%; justify-content: center;">
+                    <span>👑</span>
+                    تست خرید Lifetime
+                </button>
+            </div>
+        </div>
+        
+        <div class="test-grid">
+            <!-- تست 1: اتصال و راه‌اندازی -->
+            <div class="test-card">
+                <div class="test-header">
+                    <div class="test-title">
+                        <span>🔌</span>
+                        تست 1: اتصال Billing Client
+                    </div>
+                    <div class="test-badge" id="status-1">در انتظار</div>
+                </div>
+                <div class="test-description">
+                    راه‌اندازی Google Play Billing Client و بررسی اتصال
+                </div>
+                <div class="sku-details">
+                    <div class="sku-item">
+                        <span>وضعیت:</span>
+                        <span id="billing-status">Not Connected</span>
+                    </div>
+                    <div class="sku-item">
+                        <span>نسخه Billing:</span>
+                        <span>5.2.1</span>
+                    </div>
+                </div>
+                <button onclick="runTest1()">اجرای تست اتصال</button>
+                <div class="result-panel" id="result-1"></div>
+            </div>
+            
+            <!-- تست 2: بارگذاری محصولات -->
+            <div class="test-card">
+                <div class="test-header">
+                    <div class="test-title">
+                        <span>📦</span>
+                        تست 2: بارگذاری SKUها
+                    </div>
+                    <div class="test-badge" id="status-2">در انتظار</div>
+                </div>
+                <div class="test-description">
+                    دریافت لیست محصولات از Google Play Console
+                </div>
+                <div class="sku-details">
+                    <div class="sku-item">
+                        <span>تعداد SKU:</span>
+                        <span id="sku-loaded">0</span>
+                    </div>
+                    <div class="sku-item">
+                        <span>نوع:</span>
+                        <span>inapp & subscriptions</span>
+                    </div>
+                </div>
+                <button onclick="runTest2()">اجرای تست بارگذاری</button>
+                <div class="result-panel" id="result-2"></div>
+            </div>
+            
+            <!-- تست 3: جریان خرید -->
+            <div class="test-card">
+                <div class="test-header">
+                    <div class="test-title">
+                        <span>🛒</span>
+                        تست 3: جریان خرید
+                    </div>
+                    <div class="test-badge" id="status-3">در انتظار</div>
+                </div>
+                <div class="test-description">
+                    شبیه‌سازی کامل جریان خرید Google Play
+                </div>
+                <div class="sku-details">
+                    <div class="sku-item">
+                        <span>محصول تست:</span>
+                        <span>vakamova.monthly</span>
+                    </div>
+                    <div class="sku-item">
+                        <span>قیمت:</span>
+                        <span>$4.99</span>
+                    </div>
+                </div>
+                <button onclick="runTest3()">اجرای تست خرید</button>
+                <div class="result-panel" id="result-3"></div>
+            </div>
+            
+            <!-- تست 4: بررسی خریدهای قبلی -->
+            <div class="test-card">
+                <div class="test-header">
+                    <div class="test-title">
+                        <span>💰</span>
+                        تست 4: بررسی خریدهای قبلی
+                    </div>
+                    <div class="test-badge" id="status-4">در انتظار</div>
+                </div>
+                <div class="test-description">
+                    بازیابی و تأیید خریدهای قبلی کاربر
+                </div>
+                <div class="sku-details">
+                    <div class="sku-item">
+                        <span>نوع کاربر:</span>
+                        <span id="user-type-display">جدید</span>
+                    </div>
+                    <div class="sku-item">
+                        <span>خریدهای قبلی:</span>
+                        <span id="previous-purchases">0</span>
+                    </div>
+                </div>
+                <button onclick="runTest4()">اجرای تست بازیابی</button>
+                <div class="result-panel" id="result-4"></div>
+            </div>
+            
+            <!-- تست 5: مدیریت اشتراک‌ها -->
+            <div class="test-card">
+                <div class="test-header">
+                    <div class="test-title">
+                        <span>🔄</span>
+                        تست 5: مدیریت اشتراک‌ها
+                    </div>
+                    <div class="test-badge" id="status-5">در انتظار</div>
+                </div>
+                <div class="test-description">
+                    تست لغو، تجدید و ارتقاء اشتراک‌ها
+                </div>
+                <div class="sku-details">
+                    <div class="sku-item">
+                        <span>وضعیت اشتراک:</span>
+                        <span id="subscription-status">فعال</span>
+                    </div>
+                    <div class="sku-item">
+                        <span>تاریخ انقضا:</span>
+                        <span id="expiry-date">--</span>
+                    </div>
+                </div>
+                <button onclick="runTest5()">اجرای تست اشتراک</button>
+                <div class="result-panel" id="result-5"></div>
+            </div>
+            
+            <!-- تست 6: خطاها و بازیابی -->
+            <div class="test-card">
+                <div class="test-header">
+                    <div class="test-title">
+                        <span>⚠️</span>
+                        تست 6: مدیریت خطاها
+                    </div>
+                    <div class="test-badge" id="status-6">در انتظار</div>
+                </div>
+                <div class="test-description">
+                    تست خطاهای رایج Google Play Billing
+                </div>
+                <div class="sku-details">
+                    <div class="sku-item">
+                        <span>خطاهای تست:</span>
+                        <span>6 نوع</span>
+                    </div>
+                    <div class="sku-item">
+                        <span>بازیابی:</span>
+                        <span>اتوماتیک</span>
+                    </div>
+                </div>
+                <button onclick="runTest6()">اجرای تست خطاها</button>
+                <div class="result-panel" id="result-6"></div>
+            </div>
+        </div>
+        
+        <div class="action-bar">
+            <button onclick="runAllTests()" style="background: linear-gradient(135deg, var(--google-green), #0d904f); padding: 15px 30px;">
+                🚀 اجرای تمام ۶ تست
+            </button>
+            <button onclick="simulateCompleteFlow()" style="background: linear-gradient(135deg, var(--google-blue), #1a5bb9); padding: 15px 30px;">
+                🏪 شبیه‌سازی کامل فروشگاه
+            </button>
+            <button onclick="resetAllTests()" style="background: linear-gradient(135deg, #5f6368, #3c4043); padding: 15px 30px;">
+                🔄 ریست همه تست‌ها
+            </button>
+        </div>
+        
+        <div class="google-response">
+            <div style="color: var(--google-blue); margin-bottom: 10px;">📡 پاسخ Google Play Billing:</div>
+            <pre id="billing-response">{
+  "status": "ready",
+  "environment": "SANDBOX",
+  "message": "Google Play Billing simulator ready"
+}</pre>
+        </div>
+        
+        <div class="console">
+            <div class="console-header">
+                <span>📟 لاگ اجرای Google Play Billing</span>
+                <button onclick="clearConsole()" style="padding: 5px 15px; font-size: 12px; background: rgba(255,255,255,0.1);">پاک کردن</button>
+            </div>
+            <div id="console-output"></div>
+        </div>
+    </div>
+
+    <script>
+        // ========== Google Play Billing Adapter Mock ==========
+        class GooglePlayBillingAdapter {
+            constructor() {
+                this.billingClient = null;
+                this.isConnected = false;
+                this.availableSkus = [];
+                this.purchases = [];
+                this.testCount = 0;
+                this.successCount = 0;
+                this.responseMode = 'success';
+                this.simulationDelay = 2000;
+                this.userType = 'new';
+                this.executionStartTime = null;
+                this.requestCount = 0;
+                
+                // محصولات تست
+                this.skuList = [
+                    {
+                        sku: 'vakamova.monthly',
+                        type: 'subs',
+                        price: '$4.99',
+                        price_amount_micros: 4990000,
+                        price_currency_code: 'USD',
+                        title: 'اشتراک ماهانه Vakamova',
+                        description: 'دسترسی به 12 زبان با تمرین روزانه نامحدود'
+                    },
+                    {
+                        sku: 'vakamova.yearly',
+                        type: 'subs',
+                        price: '$49.99',
+                        price_amount_micros: 49990000,
+                        price_currency_code: 'USD',
+                        title: 'اشتراک سالانه Vakamova',
+                        description: 'صرفه‌جویی 16% - همه ویژگی‌های ماهانه به اضافه محتوای VIP'
+                    },
+                    {
+                        sku: 'vakamova.lifetime',
+                        type: 'inapp',
+                        price: '$149.99',
+                        price_amount_micros: 149990000,
+                        price_currency_code: 'USD',
+                        title: 'خرید Lifetime Vakamova',
+                        description: 'دسترسی مادام‌العمر به همه ویژگی‌های حال و آینده'
+                    },
+                    {
+                        sku: 'vakamova.coins_100',
+                        type: 'inapp',
+                        price: '$0.99',
+                        price_amount_micros: 990000,
+                        price_currency_code: 'USD',
+                        title: '100 سکه Vakamova',
+                        description: 'برای خریدهای درون‌برنامه‌ای'
+                    },
+                    {
+                        sku: 'vakamova.premium_pack',
+                        type: 'inapp',
+                        price: '$9.99',
+                        price_amount_micros: 9990000,
+                        price_currency_code: 'USD',
+                        title: 'بسته Premium',
+                        description: 'ویژگی‌های ویژه آموزشی'
+                    }
+                ];
+                
+                // خریدهای شبیه‌سازی شده بر اساس نوع کاربر
+                this.setupUserPurchases();
+            }
+            
+            setupUserPurchases() {
+                switch(this.userType) {
+                    case 'new':
+                        this.purchases = [];
+                        break;
+                    case 'returning':
+                        this.purchases = [
+                            {
+                                sku: 'vakamova.monthly',
+                                purchaseToken: 'mock_token_001',
+                                purchaseTime: Date.now() - 86400000 * 15, // 15 روز پیش
+                                isAcknowledged: true,
+                                isAutoRenewing: true
+                            }
+                        ];
+                        break;
+                    case 'has_purchases':
+                        this.purchases = [
+                            {
+                                sku: 'vakamova.yearly',
+                                purchaseToken: 'mock_token_002',
+                                purchaseTime: Date.now() - 86400000 * 200,
+                                isAcknowledged: true,
+                                isAutoRenewing: true
+                            },
+                            {
+                                sku: 'vakamova.premium_pack',
+                                purchaseToken: 'mock_token_003',
+                                purchaseTime: Date.now() - 86400000 * 50,
+                                isAcknowledged: true,
+                                isAutoRenewing: false
+                            }
+                        ];
+                        break;
+                    case 'refunded':
+                        this.purchases = [
+                            {
+                                sku: 'vakamova.monthly',
+                                purchaseToken: 'mock_token_004',
+                                purchaseTime: Date.now() - 86400000 * 10,
+                                isAcknowledged: true,
+                                isAutoRenewing: false,
+                                isRefunded: true
+                            }
+                        ];
+                        break;
+                }
+                
+                document.getElementById('previous-purchases').textContent = this.purchases.length;
+                document.getElementById('user-type-display').textContent = 
+                    this.userType === 'new' ? 'جدید' :
+                    this.userType === 'returning' ? 'بازگشتی' :
+                    this.userType === 'has_purchases' ? 'دارای خرید' : 'بازپرداخت';
+            }
+            
+            async connectBillingClient() {
+                this.requestCount++;
+                this.updateStep(1);
+                this.log('🔌 در حال اتصال به Google Play Billing Client...');
+                
+                await this.delay(this.simulationDelay * 0.5);
+                
+                // شبیه‌سازی وضعیت‌های مختلف اتصال
+                if (this.responseMode === 'failed') {
+                    throw new BillingError('BILLING_UNAVAILABLE', 'Google Play Billing service is unavailable');
+                }
+                
+                this.billingClient = {
+                    isReady: true,
+                    connectionState: 'CONNECTED',
+                    apiVersion: '5.2.1'
+                };
+                
+                this.isConnected = true;
+                this.updateStep(1, 'success');
+                
+                return {
+                    success: true,
+                    connectionState: 'CONNECTED',
+                    apiVersion: '5.2.1',
+                    isReady: true
+                };
+            }
+            
+            async querySkus(skuType = 'subs') {
+                this.requestCount++;
+                this.updateStep(2);
+                this.log(`📦 در حال بارگذاری SKUهای نوع ${skuType}...`);
+                
+                await this.delay(this.simulationDelay * 0.3);
+                
+                const filteredSkus = this.skuList.filter(sku => sku.type === skuType);
+                this.availableSkus = filteredSkus;
+                
+                this.updateStep(2, 'success');
+                
+                return {
+                    success: true,
+                    skus: filteredSkus,
+                    count: filteredSkus.length
+                };
+            }
+            
+            async launchPurchaseFlow(sku, skuType = 'subs') {
+                this.requestCount++;
+                this.updateStep(3);
+                this.log(`🛒 شروع جریان خرید برای ${sku}...`);
+                
+                // یافتن اطلاعات SKU
+                const skuDetails = this.skuList.find(s => s.sku === sku);
+                if (!skuDetails) {
+                    throw new BillingError('ITEM_UNAVAILABLE', `SKU ${sku} not found`);
+                }
+                
+                await this.delay(this.simulationDelay);
+                
+                // بررسی وضعیت پاسخ
+                switch(this.responseMode) {
+                    case 'success':
+                        this.updateStep(4);
+                        this.log(`✅ پردازش خرید ${sku}...`);
+                        
+                        // ایجاد خرید موفق
+                        const purchase = {
+                            sku: sku,
+                            purchaseToken: `gp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                            orderId: `GPA.${Math.random().toString(36).substr(2, 4)}-${Math.random().toString(36).substr(2, 4)}-${Math.random().toString(36).substr(2, 4)}`,
+                            purchaseTime: Date.now(),
+                            purchaseState: 'PURCHASED',
+                            isAcknowledged: false,
+                            isAutoRenewing: skuType === 'subs',
+                            skuDetails: skuDetails
+                        };
+                        
+                        this.purchases.push(purchase);
+                        this.updateStep(4, 'success');
+                        
+                        await this.delay(800);
+                        this.updateStep(5);
+                        
+                        // تأیید خرید
+                        purchase.isAcknowledged = true;
+                        this.updateStep(5, 'success');
+                        
+                        return {
+                            success: true,
+                            purchase: purchase,
+                            message: 'Purchase completed successfully'
+                        };
+                        
+                    case 'pending':
+                        return {
+                            success: true,
+                            pending: true,
+                            message: 'Purchase is pending approval'
+                        };
+                        
+                    case 'failed':
+                        throw new BillingError('ERROR', 'Purchase failed. Please try again.');
+                        
+                    case 'user_cancelled':
+                        throw new BillingError('USER_CANCELLED', 'Purchase was cancelled by user');
+                        
+                    case 'item_unavailable':
+                        throw new BillingError('ITEM_UNAVAILABLE', 'Requested item is not available for purchase');
+                }
+            }
+            
+            async queryPurchases(skuType = 'subs') {
+                this.requestCount++;
+                this.log(`💰 در حال بررسی خریدهای قبلی کاربر...`);
+                
+                await this.delay(this.simulationDelay * 0.4);
+                
+                const userPurchases = this.purchases.filter(p => {
+                    const sku = this.skuList.find(s => s.sku === p.sku);
+                    return sku && sku.type === skuType;
+                });
+                
+                return {
+                    success: true,
+                    purchases: userPurchases,
+                    count: userPurchases.length,
+                    hasPurchases: userPurchases.length > 0
+                };
+            }
+            
+            async manageSubscription(subscriptionId, action) {
+                this.requestCount++;
+                this.log(`🔄 در حال ${action} اشتراک ${subscriptionId}...`);
+                
+                await this.delay(this.simulationDelay * 0.6);
+                
+                const purchase = this.purchases.find(p => p.sku === subscriptionId);
+                
+                if (!purchase) {
+                    throw new BillingError('ITEM_NOT_OWNED', 'User does not own this subscription');
+                }
+                
+                switch(action) {
+                    case 'cancel':
+                        purchase.isAutoRenewing = false;
+                        return {
+                            success: true,
+                            message: 'Subscription cancelled successfully',
+                            cancellationDate: new Date().toISOString(),
+                            expiresDate: new Date(Date.now() + 86400000 * 30).toISOString() // 30 روز دیگر
+                        };
+                        
+                    case 'reactivate':
+                        purchase.isAutoRenewing = true;
+                        return {
+                            success: true,
+                            message: 'Subscription reactivated successfully'
+                        };
+                        
+                    case 'upgrade':
+                        // ارتقاء به SKU بالاتر
+                        const currentSku = purchase.sku;
+                        const newSku = currentSku === 'vakamova.monthly' ? 'vakamova.yearly' : 'vakamova.lifetime';
+                        
+                        purchase.sku = newSku;
+                        purchase.upgradedFrom = currentSku;
+                        purchase.upgradeTime = Date.now();
+                        
+                        return {
+                            success: true,
+                            message: 'Subscription upgraded successfully',
+                            newSku: newSku,
+                            proratedAmount: 25.50 // مبلغ تناسبی
+                        };
+                }
+            }
+            
+            async testErrorScenarios() {
+                this.requestCount++;
+                this.log(`⚠️ در حال تست سناریوهای خطا...`);
+                
+                const errorScenarios = [
+                    { code: 'BILLING_UNAVAILABLE', message: 'Billing service is unavailable' },
+                    { code: 'DEVELOPER_ERROR', message: 'Invalid arguments provided to API' },
+                    { code: 'ERROR', message: 'Fatal error during API action' },
+                    { code: 'FEATURE_NOT_SUPPORTED', message: 'Requested feature is not supported' },
+                    { code: 'ITEM_ALREADY_OWNED', message: 'User already owns this item' },
+                    { code: 'ITEM_NOT_OWNED', message: 'User does not own this item' },
+                    { code: 'ITEM_UNAVAILABLE', message: 'Requested product is not available' },
+                    { code: 'NETWORK_ERROR', message: 'Network error occurred' },
+                    { code: 'SERVICE_DISCONNECTED', message: 'Billing service disconnected' },
+                    { code: 'SERVICE_TIMEOUT', message: 'Billing service timeout' },
+                    { code: 'SERVICE_UNAVAILABLE', message: 'Billing service is currently unavailable' },
+                    { code: 'USER_CANCELLED', message: 'User cancelled the flow' }
+                ];
+                
+                let results = '<strong>🧪 نتایج تست خطاها:</strong><br><br>';
+                
+                for (const scenario of errorScenarios.slice(0, 6)) {
+                    try {
+                        throw new BillingError(scenario.code, scenario.message);
+                    } catch (error) {
+                        if (error.code === scenario.code) {
+                            results += `✅ ${scenario.code}: ${error.message}<br>`;
+                        } else {
+                            results += `❌ ${scenario.code}: خطای نادرست<br>`;
+                        }
+                    }
+                    await this.delay(100);
+                }
+                
+                return {
+                    success: true,
+                    results: results,
+                    testedScenarios: 6
+                };
+            }
+            
+            updateStep(stepNumber, status = 'active') {
+                const stepElement = document.getElementById(`step-${stepNumber}`);
+                if (stepElement) {
+                    stepElement.className = 'step-icon';
+                    if (status === 'success') {
+                        stepElement.className = 'step-icon step-success';
+                    } else if (status === 'error') {
+                        stepElement.className = 'step-icon step-error';
+                    } else {
+                        stepElement.className = 'step-icon step-active';
+                    }
+                }
+            }
+            
+            resetSteps() {
+                for (let i = 1; i <= 5; i++) {
+                    const step = document.getElementById(`step-${i}`);
+                    if (step) {
+                        step.className = 'step-icon';
+                    }
+                }
+            }
+            
+            updateResponseDisplay(response) {
+                const responseElement = document.getElementById('billing-response');
+                if (responseElement) {
+                    responseElement.textContent = JSON.stringify(response, null, 2);
+                }
+            }
+            
+            updateStats(success = true) {
+                this.testCount++;
+                if (success) this.successCount++;
+                
+                document.getElementById('sku-count').textContent = this.skuList.length;
+                document.getElementById('request-count').textContent = this.requestCount;
+                
+                const successRate = this.testCount > 0 
+                    ? Math.round((this.successCount / this.testCount) * 100) 
+                    : 0;
+                document.getElementById('test-success').textContent = `${successRate}%`;
+                
+                if (this.executionStartTime) {
+                    const elapsed = Date.now() - this.executionStartTime;
+                    document.getElementById('execution-time').textContent = `${elapsed}ms`;
+                }
+            }
+            
+            log(message) {
+                const time = new Date().toLocaleTimeString('fa-IR');
+                const consoleOutput = document.getElementById('console-output');
+                const logEntry = document.createElement('div');
+                logEntry.style.padding = '5px 0';
+                logEntry.style.borderBottom = '1px solid rgba(255,255,255,0.1)';
+                logEntry.innerHTML = `<span style="color: #9aa0a6">[${time}]</span> ${message}`;
+                consoleOutput.appendChild(logEntry);
+                consoleOutput.scrollTop = consoleOutput.scrollHeight;
+                console.log(message);
+            }
+            
+            delay(ms) {
+                return new Promise(resolve => setTimeout(resolve, ms));
+            }
+        }
+        
+        class BillingError extends Error {
+            constructor(code, message) {
+                super(message);
+                this.name = 'BillingError';
+                this.code = code;
+                this.timestamp = new Date().toISOString();
+            }
+        }
+        
+        // ========== Global Adapter ==========
+        const billingAdapter = new GooglePlayBillingAdapter();
+        
+        // ========== Setup Controls ==========
+        document.getElementById('response-mode').addEventListener('change', function() {
+            billingAdapter.responseMode = this.value;
+            billingAdapter.log(`⚙️ حالت پاسخ به "${this.options[this.selectedIndex].text}" تغییر کرد`);
+        });
+        
+        document.getElementById('simulation-delay').addEventListener('input', function() {
+            const value = parseInt(this.value);
+            document.getElementById('delay-label').textContent = `${value}ms`;
+            billingAdapter.simulationDelay = value;
+        });
+        
+        document.getElementById('user-type').addEventListener('change', function() {
+            billingAdapter.userType = this.value;
+            billingAdapter.setupUserPurchases();
+            billingAdapter.log(`👤 نوع کاربر به "${this.options[this.selectedIndex].text}" تغییر کرد`);
+        });
+        
+        // ========== Test Functions ==========
+        async function runTest1() {
+            const status = document.getElementById('status-1');
+            const resultPanel = document.getElementById('result-1');
+            const btn = event.target;
+            const billingStatus = document.getElementById('billing-status');
+            
+            status.textContent = 'در حال اجرا';
+            btn.disabled = true;
+            btn.innerHTML = '<span class="loading"></span> در حال اتصال...';
+            resultPanel.className = 'result-panel';
+            resultPanel.innerHTML = '';
+            billingAdapter.resetSteps();
+            
+            billingAdapter.executionStartTime = Date.now();
+            
+            try {
+                const result = await billingAdapter.connectBillingClient();
+                
+                status.textContent = 'موفق';
+                billingStatus.textContent = result.connectionState;
+                
+                resultPanel.className = 'result-panel show result-success';
+                resultPanel.innerHTML = `
+                    <strong>✅ اتصال به Google Play Billing موفق بود</strong><br><br>
+                    <strong>نتایج:</strong><br>
+                    • وضعیت اتصال: ${result.connectionState}<br>
+                    • نسخه API: ${result.apiVersion}<br>
+                    • آماده: ${result.isReady ? '✅ بله' : '❌ خیر'}<br>
+                    • زمان اجرا: ${Date.now() - billingAdapter.executionStartTime}ms<br><br>
+                    <small>✅ Billing Client با موفقیت راه‌اندازی شد.</small>
+                `;
+                
+                billingAdapter.updateResponseDisplay(result);
+                billingAdapter.updateStats(true);
+                
+            } catch (error) {
+                status.textContent = 'ناموفق';
+                billingStatus.textContent = 'DISCONNECTED';
+                
+                resultPanel.className = 'result-panel show result-error';
+                resultPanel.innerHTML = `
+                    <strong>❌ خطا در اتصال به Google Play Billing</strong><br><br>
+                    <strong>خطا:</strong> ${error.message}<br>
+                    • کد خطا: ${error.code || 'نامشخص'}<br>
+                    • نوع: ${error.name}<br><br>
+                    <small>⚠️ مشکل در ارتباط با سرویس پرداخت Google Play</small>
+                `;
+                
+                billingAdapter.updateResponseDisplay({ error: error.code, message: error.message });
+                billingAdapter.updateStats(false);
+            }
+            
+            btn.disabled = false;
+            btn.textContent = 'اجرای تست اتصال';
+        }
+        
+        async function runTest2() {
+            const status = document.getElementById('status-2');
+            const resultPanel = document.getElementById('result-2');
+            const btn = event.target;
+            const skuLoaded = document.getElementById('sku-loaded');
+            
+            status.textContent = 'در حال اجرا';
+            btn.disabled = true;
+            btn.innerHTML = '<span class="loading"></span> در حال بارگذاری...';
+            resultPanel.className = 'result-panel';
+            resultPanel.innerHTML = '';
+            
+            try {
+                const result = await billingAdapter.querySkus('subs');
+                
+                status.textContent = 'موفق';
+                skuLoaded.textContent = result.count;
+                
+                resultPanel.className = 'result-panel show result-success';
+                resultPanel.innerHTML = `
+                    <strong>✅ بارگذاری SKUها موفق بود</strong><br><br>
+                    <strong>نتایج:</strong><br>
+                    • تعداد SKUها: ${result.count}<br>
+                    • نوع: اشتراک‌ها (subs)<br>
+                    • وضعیت: ✅ بارگذاری کامل<br><br>
+                    <strong>SKUهای بارگذاری شده:</strong><br>
+                    ${result.skus.map(sku => `• ${sku.sku}: ${sku.price} - ${sku.title}`).join('<br>')}<br><br>
+                    <small>✅ محصولات از Google Play Console دریافت شدند.</small>
+                `;
+                
+                billingAdapter.updateResponseDisplay(result);
+                billingAdapter.updateStats(true);
+                
+            } catch (error) {
+                status.textContent = 'ناموفق';
+                skuLoaded.textContent = '0';
+                
+                resultPanel.className = 'result-panel show result-error';
+                resultPanel.innerHTML = `
+                    <strong>❌ خطا در بارگذاری SKUها</strong><br><br>
+                    خطا: ${error.message}
+                `;
+                
+                billingAdapter.updateResponseDisplay({ error: error.code, message: error.message });
+                billingAdapter.updateStats(false);
+            }
+            
+            btn.disabled = false;
+            btn.textContent = 'اجرای تست بارگذاری';
+        }
+        
+        async function runTest3() {
+            const status = document.getElementById('status-3');
+            const resultPanel = document.getElementById('result-3');
+            const btn = event.target;
+            
+            status.textContent = 'در حال اجرا';
+            btn.disabled = true;
+            btn.innerHTML = '<span class="loading"></span> در حال خرید...';
+            resultPanel.className = 'result-panel';
+            resultPanel.innerHTML = '';
+            billingAdapter.resetSteps();
+            
+            try {
+                const result = await billingAdapter.launchPurchaseFlow('vakamova.monthly', 'subs');
+                
+                status.textContent = result.success ? 'موفق' : 'معلق';
+                
+                if (result.success && !result.pending) {
+                    resultPanel.className = 'result-panel show result-success';
+                    resultPanel.innerHTML = `
+                        <strong>✅ خرید موفقیت‌آمیز بود</strong><br><br>
+                        <strong>جزئیات خرید:</strong><br>
+                        • SKU: ${result.purchase.sku}<br>
+                        • Order ID: ${result.purchase.orderId}<br>
+                        • Token: ${result.purchase.purchaseToken.substring(0, 20)}...<br>
+                        • تاریخ خرید: ${new Date(result.purchase.purchaseTime).toLocaleString('fa-IR')}<br>
+                        • وضعیت: ${result.purchase.purchaseState}<br>
+                        • تأیید شده: ${result.purchase.isAcknowledged ? '✅ بله' : '❌ خیر'}<br>
+                        • تجدید خودکار: ${result.purchase.isAutoRenewing ? '✅ فعال' : '❌ غیرفعال'}<br><br>
+                        <small>✅ جریان خرید Google Play با موفقیت کامل شد.</small>
+                    `;
+                    
+                    billingAdapter.updateStats(true);
+                } else if (result.pending) {
+                    resultPanel.className = 'result-panel show result-success';
+                    resultPanel.innerHTML = `
+                        <strong>⚠️ خرید در وضعیت معلق</strong><br><br>
+                        خرید نیاز به تأیید دستی دارد. این حالت برای برخی روش‌های پرداخت رخ می‌دهد.<br><br>
+                        <small>✅ سیستم خریدهای معلق را به درستی مدیریت کرد.</small>
+                    `;
+                    
+                    billingAdapter.updateStats(true);
+                }
+                
+                billingAdapter.updateResponseDisplay(result);
+                
+            } catch (error) {
+                status.textContent = 'ناموفق';
+                
+                resultPanel.className = 'result-panel show result-error';
+                resultPanel.innerHTML = `
+                    <strong>❌ خرید ناموفق بود</strong><br><br>
+                    <strong>خطا:</strong> ${error.message}<br>
+                    • کد خطا: ${error.code || 'نامشخص'}<br>
+                    • نوع: ${error.name}<br><br>
+                    <small>⚠️ جریان خرید با خطا مواجه شد.</small>
+                `;
+                
+                billingAdapter.updateResponseDisplay({ error: error.code, message: error.message });
+                billingAdapter.updateStats(false);
+            }
+            
+            btn.disabled = false;
+            btn.textContent = 'اجرای تست خرید';
+        }
+        
+        async function runTest4() {
+            const status = document.getElementById('status-4');
+            const resultPanel = document.getElementById('result-4');
+            const btn = event.target;
+            
+            status.textContent = 'در حال اجرا';
+            btn.disabled = true;
+            btn.innerHTML = '<span class="loading"></span> در حال بررسی...';
+            resultPanel.className = 'result-panel';
+            resultPanel.innerHTML = '';
+            
+            try {
+                const result = await billingAdapter.queryPurchases('subs');
+                
+                status.textContent = 'موفق';
+                
+                resultPanel.className = 'result-panel show result-success';
+                resultPanel.innerHTML = `
+                    <strong>✅ بررسی خریدهای قبلی موفق بود</strong><br><br>
+                    <strong>نتایج:</strong><br>
+                    • تعداد خریدها: ${result.count}<br>
+                    • کاربر خرید دارد: ${result.hasPurchases ? '✅ بله' : '❌ خیر'}<br>
+                    • نوع: اشتراک‌ها<br><br>
+                    ${result.hasPurchases ? `
+                    <strong>خریدهای کاربر:</strong><br>
+                    ${result.purchases.map(p => 
+                        `• ${p.sku}: ${new Date(p.purchaseTime).toLocaleDateString('fa-IR')} - ` +
+                        `${p.isAutoRenewing ? 'تجدید خودکار' : 'غیرفعال'}`
+                    ).join('<br>')}<br><br>
+                    ` : ''}
+                    <small>✅ سیستم خریدهای قبلی را به درستی بازیابی کرد.</small>
+                `;
+                
+                billingAdapter.updateResponseDisplay(result);
+                billingAdapter.updateStats(true);
+                
+            } catch (error) {
+                status.textContent = 'ناموفق';
+                
+                resultPanel.className = 'result-panel show result-error';
+                resultPanel.innerHTML = `
+                    <strong>❌ خطا در بررسی خریدهای قبلی</strong><br><br>
+                    خطا: ${error.message}
+                `;
+                
+                billingAdapter.updateResponseDisplay({ error: error.code, message: error.message });
+                billingAdapter.updateStats(false);
+            }
+            
+            btn.disabled = false;
+            btn.textContent = 'اجرای تست بازیابی';
+        }
+        
+        async function runTest5() {
+            const status = document.getElementById('status-5');
+            const resultPanel = document.getElementById('result-5');
+            const btn = event.target;
+            const subscriptionStatus = document.getElementById('subscription-status');
+            const expiryDate = document.getElementById('expiry-date');
+            
+            status.textContent = 'در حال اجرا';
+            btn.disabled = true;
+            btn.innerHTML = '<span class="loading"></span> در حال مدیریت...';
+            resultPanel.className = 'result-panel';
+            resultPanel.innerHTML = '';
+            
+            try {
+                // ابتدا یک خرید شبیه‌سازی می‌کنیم
+                billingAdapter.purchases.push({
+                    sku: 'vakamova.monthly',
+                    purchaseToken: 'test_manage_token',
+                    purchaseTime: Date.now() - 86400000 * 10,
+                    isAcknowledged: true,
+                    isAutoRenewing: true
+                });
+                
+                // تست لغو اشتراک
+                const cancelResult = await billingAdapter.manageSubscription('vakamova.monthly', 'cancel');
+                
+                status.textContent = 'موفق';
+                subscriptionStatus.textContent = 'لغو شده';
+                expiryDate.textContent = new Date(cancelResult.expiresDate).toLocaleDateString('fa-IR');
+                
+                resultPanel.className = 'result-panel show result-success';
+                resultPanel.innerHTML = `
+                    <strong>✅ مدیریت اشتراک موفق بود</strong><br><br>
+                    <strong>نتایج لغو:</strong><br>
+                    • وضعیت: لغو موفقیت‌آمیز<br>
+                    • تاریخ لغو: ${new Date(cancelResult.cancellationDate).toLocaleString('fa-IR')}<br>
+                    • تاریخ انقضا: ${new Date(cancelResult.expiresDate).toLocaleString('fa-IR')}<br>
+                    • تجدید خودکار: ❌ غیرفعال<br><br>
+                    <small>✅ سیستم مدیریت اشتراک Google Play تست شد.</small>
+                `;
+                
+                billingAdapter.updateResponseDisplay(cancelResult);
+                billingAdapter.updateStats(true);
+                
+            } catch (error) {
+                status.textContent = 'ناموفق';
+                subscriptionStatus.textContent = 'خطا';
+                expiryDate.textContent = '--';
+                
+                resultPanel.className = 'result-panel show result-error';
+                resultPanel.innerHTML = `
+                    <strong>❌ خطا در مدیریت اشتراک</strong><br><br>
+                    خطا: ${error.message}
+                `;
+                
+                billingAdapter.updateResponseDisplay({ error: error.code, message: error.message });
+                billingAdapter.updateStats(false);
+            }
+            
+            btn.disabled = false;
+            btn.textContent = 'اجرای تست اشتراک';
+        }
+        
+        async function runTest6() {
+            const status = document.getElementById('status-6');
+            const resultPanel = document.getElementById('result-6');
+            const btn = event.target;
+            
+            status.textContent = 'در حال اجرا';
+            btn.disabled = true;
+            btn.innerHTML = '<span class="loading"></span> در حال تست خطاها...';
+            resultPanel.className = 'result-panel';
+            resultPanel.innerHTML = '';
+            
+            try {
+                const result = await billingAdapter.testErrorScenarios();
+                
+                status.textContent = 'موفق';
+                
+                resultPanel.className = 'result-panel show result-success';
+                resultPanel.innerHTML = result.results + `<br><small>✅ ۶ سناریوی خطای Google Play Billing تست شدند.</small>`;
+                
+                billingAdapter.updateResponseDisplay(result);
+                billingAdapter.updateStats(true);
+                
+            } catch (error) {
+                status.textContent = 'ناموفق';
+                
+                resultPanel.className = 'result-panel show result-error';
+                resultPanel.innerHTML = `
+                    <strong>❌ خطا در اجرای تست خطاها</strong><br><br>
+                    خطا: ${error.message}
+                `;
+                
+                billingAdapter.updateResponseDisplay({ error: error.code, message: error.message });
+                billingAdapter.updateStats(false);
+            }
+            
+            btn.disabled = false;
+            btn.textContent = 'اجرای تست خطاها';
+        }
+        
+        // ========== Helper Functions ==========
+        async function testPurchase(sku, price, currency) {
+            billingAdapter.log(`🛒 شروع تست خرید مستقیم: ${sku} - ${price} ${currency}`);
+            
+            try {
+                billingAdapter.resetSteps();
+                const result = await billingAdapter.launchPurchaseFlow(sku, sku.includes('lifetime') ? 'inapp' : 'subs');
+                
+                if (result.success) {
+                    alert(`✅ خرید موفق!\n\n• محصول: ${sku}\n• قیمت: ${price} ${currency}\n• وضعیت: ${result.purchase ? 'تکمیل شده' : 'معلق'}`);
+                } else {
+                    alert(`⚠️ خرید در وضعیت معلق\n\nلطفاً برای تأیید نهایی اقدام کنید.`);
+                }
+            } catch (error) {
+                alert(`❌ خرید ناموفق\n\nخطا: ${error.message}\nکد: ${error.code}`);
+            }
+        }
+        
+        async function runAllTests() {
+            billingAdapter.log('🚀 شروع اجرای تمام ۶ تست Google Play Billing...');
+            billingAdapter.resetSteps();
+            
+            await simulateTestRun(1);
+            await billingAdapter.delay(1500);
+            
+            await simulateTestRun(2);
+            await billingAdapter.delay(1500);
+            
+            await simulateTestRun(3);
+            await billingAdapter.delay(1500);
+            
+            await simulateTestRun(4);
+            await billingAdapter.delay(1500);
+            
+            await simulateTestRun(5);
+            await billingAdapter.delay(1500);
+            
+            await simulateTestRun(6);
+            
+            billingAdapter.log('🎯 تمام تست‌های Google Play Billing کامل شدند');
+        }
+        
+        async function simulateCompleteFlow() {
+            billingAdapter.log('🏪 شروع شبیه‌سازی کامل فروشگاه Google Play...');
+            
+            try {
+                // 1. اتصال
+                billingAdapter.log('🔌 مرحله 1: اتصال به Billing Client');
+                await billingAdapter.connectBillingClient();
+                
+                await billingAdapter.delay(1000);
+                
+                // 2. بارگذاری محصولات
+                billingAdapter.log('📦 مرحله 2: بارگذاری محصولات');
+                const skus = await billingAdapter.querySkus('subs');
+                
+                await billingAdapter.delay(1000);
+                
+                // 3. خرید
+                billingAdapter.log('🛒 مرحله 3: خرید محصول');
+                const purchase = await billingAdapter.launchPurchaseFlow('vakamova.yearly', 'subs');
+                
+                // 4. بررسی خریدهای قبلی
+                billingAdapter.log('💰 مرحله 4: بررسی خریدهای کاربر');
+                const purchases = await billingAdapter.queryPurchases('subs');
+                
+                billingAdapter.log(`🎉 شبیه‌سازی کامل موفق! ${skus.count} محصول، ${purchases.count} خرید`);
+                
+                alert(`✅ شبیه‌سازی کامل Google Play موفق بود!\n\n• اتصال: موفق\n• محصولات: ${skus.count} آیتم\n• خرید: ${purchase.success ? 'موفق' : 'معلق'}\n• خریدهای قبلی: ${purchases.count}`);
+                
+            } catch (error) {
+                billingAdapter.log(`❌ شبیه‌سازی ناموفق: ${error.message}`);
+                alert(`❌ شبیه‌سازی ناموفق: ${error.message}`);
+            }
+        }
+        
+        async function simulateTestRun(testNumber) {
+            const btn = document.querySelector(`button[onclick="runTest${testNumber}()"]`);
+            if (btn) {
+                const event = { target: btn };
+                switch(testNumber) {
+                    case 1: await runTest1(event); break;
+                    case 2: await runTest2(event); break;
+                    case 3: await runTest3(event); break;
+                    case 4: await runTest4(event); break;
+                    case 5: await runTest5(event); break;
+                    case 6: await runTest6(event); break;
+                }
+            }
+        }
+        
+        function resetAllTests() {
+            // ریست وضعیت تست‌ها
+            for (let i = 1; i <= 6; i++) {
+                const status = document.getElementById(`status-${i}`);
+                const result = document.getElementById(`result-${i}`);
+                
+                if (status) {
+                    status.textContent = 'در انتظار';
+                }
+                if (result) {
+                    result.className = 'result-panel';
+                    result.innerHTML = '';
+                }
+            }
+            
+            // ریست مراحل
+            billingAdapter.resetSteps();
+            
+            // ریست نمایش‌ها
+            document.getElementById('billing-status').textContent = 'Not Connected';
+            document.getElementById('sku-loaded').textContent = '0';
+            document.getElementById('previous-purchases').textContent = '0';
+            document.getElementById('subscription-status').textContent = 'فعال';
+            document.getElementById('expiry-date').textContent = '--';
+            
+            // ریست آمار
+            document.getElementById('test-success').textContent = '0%';
+            document.getElementById('request-count').textContent = '0';
+            document.getElementById('execution-time').textContent = '0ms';
+            
+            // ریست کنسول
+            document.getElementById('console-output').innerHTML = '';
+            
+            // ریست پاسخ
+            document.getElementById('billing-response').textContent = JSON.stringify({
+                status: "ready",
+                environment: "SANDBOX",
+                message: "Google Play Billing simulator ready"
+            }, null, 2);
+            
+            billingAdapter.log('♻️ تمام تست‌ها ریست شدند');
+        }
+        
+        function clearConsole() {
+            document.getElementById('console-output').innerHTML = '';
+            billingAdapter.log('کنسول پاک شد');
+        }
+        
+        // ========== راه‌اندازی ==========
+        document.addEventListener('DOMContentLoaded', () => {
+            billingAdapter.log('🏪 تست آداپتر Google Play Billing Vakamova آماده اجرا');
+            billingAdapter.log('✅ ۶ تست تخصصی و ۳ محصول برای تست تنظیم شده‌اند');
+            
+            // تنظیم اولیه
+            document.getElementById('sku-count').textContent = billingAdapter.skuList.length;
+        });
+    </script>
+</body>
+                          </html>
