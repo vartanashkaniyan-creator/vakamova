@@ -1,0 +1,845 @@
+<!DOCTYPE html>
+<html lang="fa">
+<head>
+    <meta charset="UTF-8">
+    <title>تست API - بخش 3: پیشرفته</title>
+    <style>
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            padding: 20px; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            margin: 0;
+        }
+        
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+        
+        .subtitle {
+            text-align: center;
+            color: #7f8c8d;
+            margin-bottom: 30px;
+            font-size: 16px;
+        }
+        
+        .test {
+            background: white;
+            padding: 25px;
+            margin: 25px 0;
+            border-radius: 12px;
+            border: 2px solid #e2e8f0;
+            transition: all 0.3s ease;
+        }
+        
+        .test:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
+        
+        .test.perf { border-left: 5px solid #9b59b6; }
+        .test.concurrent { border-left: 5px solid #e74c3c; }
+        .test.cache { border-left: 5px solid #2ecc71; }
+        
+        h3 {
+            color: #2c3e50;
+            margin-top: 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .test-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            color: white;
+            margin-left: 10px;
+        }
+        
+        .perf-badge { background: #9b59b6; }
+        .concurrent-badge { background: #e74c3c; }
+        .cache-badge { background: #2ecc71; }
+        
+        .test-description {
+            color: #5d6d7e;
+            margin: 15px 0;
+            line-height: 1.6;
+        }
+        
+        .code-block {
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            margin: 15px 0;
+            font-size: 13px;
+            direction: ltr;
+            overflow-x: auto;
+        }
+        
+        button {
+            background: linear-gradient(135deg, #3498db 0%, #2c3e50 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 14px;
+            margin: 5px;
+            transition: all 0.3s ease;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 7px 20px rgba(52, 152, 219, 0.3);
+        }
+        
+        button:disabled {
+            background: #95a5a6;
+            cursor: not-allowed;
+            transform: none !important;
+            box-shadow: none !important;
+        }
+        
+        .action-bar {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin: 30px 0;
+            flex-wrap: wrap;
+        }
+        
+        .result {
+            margin-top: 20px;
+            padding: 18px;
+            border-radius: 8px;
+            display: none;
+            animation: fadeIn 0.5s ease;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .success {
+            background: linear-gradient(135deg, #d5f4e6 0%, #a3e4d7 100%);
+            color: #27ae60;
+            border: 2px solid #2ecc71;
+            display: block;
+        }
+        
+        .error {
+            background: linear-gradient(135deg, #fadbd8 0%, #f5b7b1 100%);
+            color: #c0392b;
+            border: 2px solid #e74c3c;
+            display: block;
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
+            vertical-align: middle;
+        }
+        
+        @keyframes spin { to { transform: rotate(360deg); } }
+        
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #ecf0f1;
+            border-radius: 4px;
+            margin: 15px 0;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #3498db, #2ecc71);
+            border-radius: 4px;
+            transition: width 0.5s ease;
+            width: 0%;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin: 30px 0;
+        }
+        
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+            border: 1px solid #e2e8f0;
+        }
+        
+        .stat-value {
+            font-size: 32px;
+            font-weight: bold;
+            color: #2c3e50;
+            margin: 10px 0;
+        }
+        
+        .stat-label {
+            color: #7f8c8d;
+            font-size: 14px;
+        }
+        
+        .console {
+            background: #1a252f;
+            color: #ecf0f1;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 30px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        
+        .console-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            color: #3498db;
+        }
+        
+        @media (max-width: 768px) {
+            .container { padding: 15px; }
+            .action-bar { flex-direction: column; }
+            button { width: 100%; margin: 5px 0; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>⚡ تست API - بخش 3: پیشرفته</h1>
+        <div class="subtitle">Performance، Concurrent Requests، Caching و Retry Logic</div>
+        
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-label">زمان کل تست‌ها</div>
+                <div class="stat-value" id="total-time">0ms</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">میانگین زمان پاسخ</div>
+                <div class="stat-value" id="avg-response">0ms</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">تعداد درخواست‌ها</div>
+                <div class="stat-value" id="total-requests">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">موفقیت</div>
+                <div class="stat-value" id="success-rate">0%</div>
+            </div>
+        </div>
+        
+        <div class="test perf">
+            <h3>📊 تست 1: Performance & Benchmark 
+                <span class="test-badge perf-badge">PERFORMANCE</span>
+            </h3>
+            <div class="test-description">
+                اندازه‌گیری زمان پاسخ ۱۰ درخواست متوالی و محاسبه میانگین
+            </div>
+            <div class="code-block">
+// شبیه‌سازی ۱۰ درخواست متوالی<br>
+for (let i = 0; i < 10; i++) {<br>
+&nbsp;&nbsp;await api.get(`/data/${i}`);<br>
+}<br>
+// محاسبه میانگین زمان پاسخ
+            </div>
+            <button onclick="runPerformanceTest()">اجرای تست Performance</button>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progress1"></div>
+            </div>
+            <div id="result1" class="result"></div>
+        </div>
+        
+        <div class="test concurrent">
+            <h3>🌀 تست 2: Concurrent Requests 
+                <span class="test-badge concurrent-badge">CONCURRENT</span>
+            </h3>
+            <div class="test-description">
+                ۵ درخواست همزمان و بررسی مدیریت Race Conditions
+            </div>
+            <div class="code-block">
+// اجرای همزمان ۵ درخواست<br>
+const promises = [];<br>
+for (let i = 0; i < 5; i++) {<br>
+&nbsp;&nbsp;promises.push(api.get(`/concurrent/${i}`));<br>
+}<br>
+// انتظار برای تمام Promiseها<br>
+await Promise.all(promises);
+            </div>
+            <button onclick="runConcurrentTest()">اجرای تست Concurrent</button>
+            <div id="result2" class="result"></div>
+        </div>
+        
+        <div class="test cache">
+            <h3>💾 تست 3: Caching Strategy 
+                <span class="test-badge cache-badge">CACHING</span>
+            </h3>
+            <div class="test-description">
+                تست کش درخواست‌های تکراری و کاهش زمان پاسخ
+            </div>
+            <div class="code-block">
+// اولین درخواست (ذخیره در کش)<br>
+const result1 = await api.get('/cached-data');<br>
+// درخواست مجدد (باید از کش خوانده شود)<br>
+const result2 = await api.get('/cached-data');<br>
+// مقایسه زمان پاسخ
+            </div>
+            <button onclick="runCacheTest()">اجرای تست Caching</button>
+            <div id="result3" class="result"></div>
+        </div>
+        
+        <div class="test">
+            <h3>🔄 تست 4: Retry Logic & Exponential Backoff</h3>
+            <div class="test-description">
+                تست تلاش مجدد خودکار برای درخواست‌های ناموفق با افزایش تدریجی فاصله
+            </div>
+            <div class="code-block">
+// شبیه‌سازی خطای موقت<br>
+api.simulateTemporaryFailure = true;<br>
+// درخواست با ۳ بار تلاش مجدد<br>
+const result = await api.getWithRetry('/unstable-endpoint', 3);<br>
+// بررسی تعداد تلاش‌ها
+            </div>
+            <button onclick="runRetryTest()">اجرای تست Retry</button>
+            <div id="result4" class="result"></div>
+        </div>
+        
+        <div class="action-bar">
+            <button onclick="runAllAdvancedTests()" style="background: linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%);">
+                🚀 اجرای همه تست‌های پیشرفته
+            </button>
+            <button onclick="resetAdvancedTests()" style="background: linear-gradient(135deg, #7f8c8d 0%, #95a5a6 100%);">
+                🔄 ریست همه تست‌ها
+            </button>
+        </div>
+        
+        <div class="console">
+            <div class="console-header">
+                <span>📟 کنسول اجرا</span>
+                <button onclick="clearConsole()" style="padding: 5px 15px; font-size: 12px; background: #34495e;">پاک کردن</button>
+            </div>
+            <div id="console-output"></div>
+        </div>
+    </div>
+
+    <script>
+        // ========== Advanced Api Client ==========
+        class AdvancedApiClient {
+            constructor() {
+                this.cache = new Map();
+                this.requestHistory = [];
+                this.totalRequests = 0;
+                this.successfulRequests = 0;
+                this.simulateTemporaryFailure = false;
+                this.failureCount = 0;
+            }
+            
+            async get(endpoint, useCache = true) {
+                const startTime = Date.now();
+                const requestId = ++this.totalRequests;
+                
+                this.log(`درخواست #${requestId}: GET ${endpoint}`);
+                
+                // بررسی کش
+                if (useCache && this.cache.has(endpoint)) {
+                    const cached = this.cache.get(endpoint);
+                    const time = Date.now() - startTime;
+                    this.log(`درخواست #${requestId}: از کش خوانده شد (${time}ms)`);
+                    return { ...cached, fromCache: true, responseTime: time };
+                }
+                
+                // شبیه‌سازی خطای موقت
+                if (this.simulateTemporaryFailure && this.failureCount < 3) {
+                    this.failureCount++;
+                    const time = Date.now() - startTime;
+                    this.requestHistory.push({ id: requestId, success: false, time });
+                    throw new Error(`خطای موقت سرور (تلاش ${this.failureCount})`);
+                }
+                
+                // شبیه‌سازی تاخیر شبکه
+                const delayTime = Math.random() * 300 + 200; // 200-500ms
+                await this.delay(delayTime);
+                
+                const responseTime = Date.now() - startTime;
+                
+                // ساخت پاسخ
+                const response = {
+                    success: true,
+                    data: { 
+                        endpoint, 
+                        requestId,
+                        timestamp: Date.now(),
+                        message: 'داده دریافت شد'
+                    },
+                    responseTime
+                };
+                
+                // ذخیره در کش
+                if (useCache) {
+                    this.cache.set(endpoint, response);
+                    this.log(`درخواست #${requestId}: در کش ذخیره شد`);
+                }
+                
+                // ثبت در تاریخچه
+                this.requestHistory.push({ 
+                    id: requestId, 
+                    success: true, 
+                    time: responseTime,
+                    endpoint 
+                });
+                this.successfulRequests++;
+                
+                this.log(`درخواست #${requestId}: موفق (${responseTime}ms)`);
+                
+                return response;
+            }
+            
+            async getWithRetry(endpoint, maxRetries = 3) {
+                for (let attempt = 1; attempt <= maxRetries; attempt++) {
+                    try {
+                        this.log(`تلاش ${attempt} از ${maxRetries} برای ${endpoint}`);
+                        const result = await this.get(endpoint);
+                        return { ...result, attempts: attempt };
+                    } catch (error) {
+                        if (attempt === maxRetries) {
+                            throw error;
+                        }
+                        
+                        // Exponential backoff: 300ms, 600ms, 1200ms, ...
+                        const backoffTime = 300 * Math.pow(2, attempt - 1);
+                        this.log(`انتظار ${backoffTime}ms قبل از تلاش مجدد...`);
+                        await this.delay(backoffTime);
+                    }
+                }
+            }
+            
+            async getConcurrent(endpoints) {
+                const startTime = Date.now();
+                const promises = endpoints.map(endpoint => this.get(endpoint));
+                
+                try {
+                    const results = await Promise.all(promises);
+                    const totalTime = Date.now() - startTime;
+                    
+                    return {
+                        success: true,
+                        results,
+                        totalTime,
+                        requestCount: endpoints.length
+                    };
+                } catch (error) {
+                    return {
+                        success: false,
+                        error: error.message,
+                        totalTime: Date.now() - startTime
+                    };
+                }
+            }
+            
+            getStats() {
+                const totalTime = this.requestHistory.reduce((sum, req) => sum + req.time, 0);
+                const avgTime = this.requestHistory.length > 0 
+                    ? Math.round(totalTime / this.requestHistory.length) 
+                    : 0;
+                
+                const successRate = this.totalRequests > 0
+                    ? Math.round((this.successfulRequests / this.totalRequests) * 100)
+                    : 0;
+                
+                return {
+                    totalRequests: this.totalRequests,
+                    successfulRequests: this.successfulRequests,
+                    avgResponseTime: avgTime,
+                    successRate,
+                    cacheSize: this.cache.size
+                };
+            }
+            
+            resetStats() {
+                this.requestHistory = [];
+                this.totalRequests = 0;
+                this.successfulRequests = 0;
+                this.cache.clear();
+                this.failureCount = 0;
+                this.simulateTemporaryFailure = false;
+            }
+            
+            delay(ms) {
+                return new Promise(resolve => setTimeout(resolve, ms));
+            }
+            
+            log(message) {
+                const time = new Date().toLocaleTimeString('fa-IR');
+                const consoleOutput = document.getElementById('console-output');
+                const logEntry = document.createElement('div');
+                logEntry.style.padding = '5px 0';
+                logEntry.style.borderBottom = '1px solid #2c3e50';
+                logEntry.innerHTML = `<span style="color: #3498db">[${time}]</span> ${message}`;
+                consoleOutput.appendChild(logEntry);
+                consoleOutput.scrollTop = consoleOutput.scrollHeight;
+                console.log(message);
+            }
+        }
+
+        // ========== متغیرهای گلوبال ==========
+        const api = new AdvancedApiClient();
+        let testResults = {};
+
+        // ========== تست 1: Performance ==========
+        async function runPerformanceTest() {
+            const btn = event.target;
+            const resultDiv = document.getElementById('result1');
+            const progressBar = document.getElementById('progress1');
+            
+            btn.disabled = true;
+            btn.innerHTML = '<span class="loading"></span> در حال اجرای تست Performance...';
+            resultDiv.className = 'result';
+            resultDiv.innerHTML = '';
+            progressBar.style.width = '0%';
+            
+            api.resetStats();
+            
+            try {
+                const iterations = 10;
+                const times = [];
+                
+                for (let i = 0; i < iterations; i++) {
+                    const startTime = Date.now();
+                    await api.get(`/performance-data/${i}`, false); // بدون کش
+                    const time = Date.now() - startTime;
+                    times.push(time);
+                    
+                    // آپدیت progress bar
+                    progressBar.style.width = `${((i + 1) / iterations) * 100}%`;
+                    await api.delay(100);
+                }
+                
+                const avgTime = Math.round(times.reduce((a, b) => a + b) / times.length);
+                const maxTime = Math.max(...times);
+                const minTime = Math.min(...times);
+                
+                const stats = api.getStats();
+                
+                resultDiv.className = 'result success';
+                resultDiv.innerHTML = `
+                    <strong>✅ تست Performance کامل شد!</strong><br><br>
+                    <strong>نتایج:</strong><br>
+                    • تعداد درخواست‌ها: ${iterations}<br>
+                    • میانگین زمان: <strong>${avgTime}ms</strong><br>
+                    • سریع‌ترین: ${minTime}ms<br>
+                    • کندترین: ${maxTime}ms<br>
+                    • نرخ موفقیت: ${stats.successRate}%<br><br>
+                    <small>تست Performance معیار خوبی برای سنجش کارایی API است.</small>
+                `;
+                
+                testResults.performance = { avgTime, maxTime, minTime, success: true };
+                updateGlobalStats();
+                
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `
+                    <strong>❌ تست Performance ناموفق بود</strong><br><br>
+                    خطا: ${error.message}<br>
+                    <small>مشکل در اندازه‌گیری زمان پاسخ درخواست‌ها</small>
+                `;
+                
+                testResults.performance = { success: false, error: error.message };
+            }
+            
+            btn.disabled = false;
+            btn.textContent = 'اجرای تست Performance';
+        }
+
+        // ========== تست 2: Concurrent ==========
+        async function runConcurrentTest() {
+            const btn = event.target;
+            const resultDiv = document.getElementById('result2');
+            
+            btn.disabled = true;
+            btn.innerHTML = '<span class="loading"></span> در حال اجرای تست Concurrent...';
+            resultDiv.className = 'result';
+            resultDiv.innerHTML = '';
+            
+            try {
+                const endpoints = [
+                    '/concurrent/1',
+                    '/concurrent/2',
+                    '/concurrent/3',
+                    '/concurrent/4',
+                    '/concurrent/5'
+                ];
+                
+                const startTime = Date.now();
+                const result = await api.getConcurrent(endpoints);
+                const totalTime = Date.now() - startTime;
+                
+                if (!result.success) {
+                    throw new Error(result.error);
+                }
+                
+                const responseTimes = result.results.map(r => r.responseTime);
+                const avgConcurrentTime = Math.round(responseTimes.reduce((a, b) => a + b) / responseTimes.length);
+                
+                resultDiv.className = 'result success';
+                resultDiv.innerHTML = `
+                    <strong>✅ تست Concurrent کامل شد!</strong><br><br>
+                    <strong>نتایج:</strong><br>
+                    • تعداد درخواست‌های همزمان: ${endpoints.length}<br>
+                    • زمان کل اجرا: <strong>${totalTime}ms</strong><br>
+                    • میانگین زمان هر درخواست: ${avgConcurrentTime}ms<br>
+                    • سریع‌ترین درخواست: ${Math.min(...responseTimes)}ms<br>
+                    • کندترین درخواست: ${Math.max(...responseTimes)}ms<br><br>
+                    <small>مدیریت درخواست‌های همزمان برای Scalability حیاتی است.</small>
+                `;
+                
+                testResults.concurrent = { totalTime, avgConcurrentTime, success: true };
+                updateGlobalStats();
+                
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `
+                    <strong>❌ تست Concurrent ناموفق بود</strong><br><br>
+                    خطا: ${error.message}<br>
+                    <small>مشکل در اجرای درخواست‌های همزمان</small>
+                `;
+                
+                testResults.concurrent = { success: false, error: error.message };
+            }
+            
+            btn.disabled = false;
+            btn.textContent = 'اجرای تست Concurrent';
+        }
+
+        // ========== تست 3: Caching ==========
+        async function runCacheTest() {
+            const btn = event.target;
+            const resultDiv = document.getElementById('result3');
+            
+            btn.disabled = true;
+            btn.innerHTML = '<span class="loading"></span> در حال اجرای تست Caching...';
+            resultDiv.className = 'result';
+            resultDiv.innerHTML = '';
+            
+            try {
+                // پاک کردن کش
+                api.cache.clear();
+                
+                // اولین درخواست (بدون کش)
+                const startTime1 = Date.now();
+                const result1 = await api.get('/cached-endpoint', true);
+                const time1 = Date.now() - startTime1;
+                
+                // دومین درخواست (با کش)
+                const startTime2 = Date.now();
+                const result2 = await api.get('/cached-endpoint', true);
+                const time2 = Date.now() - startTime2;
+                
+                // سومین درخواست (با کش)
+                const startTime3 = Date.now();
+                const result3 = await api.get('/cached-endpoint', true);
+                const time3 = Date.now() - startTime3;
+                
+                const improvement = Math.round(((time1 - time2) / time1) * 100);
+                
+                resultDiv.className = 'result success';
+                resultDiv.innerHTML = `
+                    <strong>✅ تست Caching کامل شد!</strong><br><br>
+                    <strong>نتایج:</strong><br>
+                    • اولین درخواست (بدون کش): <strong>${time1}ms</strong><br>
+                    • دومین درخواست (با کش): <strong>${time2}ms</strong><br>
+                    • سومین درخواست (با کش): ${time3}ms<br>
+                    • بهبود سرعت: <strong>${improvement}%</strong><br>
+                    • اندازه کش: ${api.cache.size} آیتم<br><br>
+                    <small>Caching می‌تواند تا 90% زمان پاسخ را کاهش دهد.</small>
+                `;
+                
+                testResults.caching = { 
+                    firstRequest: time1, 
+                    secondRequest: time2, 
+                    improvement, 
+                    success: true 
+                };
+                updateGlobalStats();
+                
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `
+                    <strong>❌ تست Caching ناموفق بود</strong><br><br>
+                    خطا: ${error.message}<br>
+                    <small>مشکل در سیستم کش</small>
+                `;
+                
+                testResults.caching = { success: false, error: error.message };
+            }
+            
+            btn.disabled = false;
+            btn.textContent = 'اجرای تست Caching';
+        }
+
+        // ========== تست 4: Retry Logic ==========
+        async function runRetryTest() {
+            const btn = event.target;
+            const resultDiv = document.getElementById('result4');
+            
+            btn.disabled = true;
+            btn.innerHTML = '<span class="loading"></span> در حال اجرای تست Retry...';
+            resultDiv.className = 'result';
+            resultDiv.innerHTML = '';
+            
+            try {
+                // فعال کردن خطای موقت
+                api.simulateTemporaryFailure = true;
+                api.failureCount = 0;
+                
+                const startTime = Date.now();
+                const result = await api.getWithRetry('/unstable-endpoint', 3);
+                const totalTime = Date.now() - startTime;
+                
+                // غیرفعال کردن خطای موقت
+                api.simulateTemporaryFailure = false;
+                
+                resultDiv.className = 'result success';
+                resultDiv.innerHTML = `
+                    <strong>✅ تست Retry Logic کامل شد!</strong><br><br>
+                    <strong>نتایج:</strong><br>
+                    • تعداد تلاش‌ها: <strong>${result.attempts} بار</strong><br>
+                    • زمان کل: ${totalTime}ms<br>
+                    • وضعیت: ${result.success ? 'موفق' : 'ناموفق'}<br>
+                    • خطاهای شبیه‌سازی شده: ${api.failureCount} بار<br><br>
+                    <small>Exponential Backoff از overload شدن سرور جلوگیری می‌کند.</small>
+                `;
+                
+                testResults.retry = { attempts: result.attempts, totalTime, success: true };
+                updateGlobalStats();
+                
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `
+                    <strong>❌ تست Retry Logic ناموفق بود</strong><br><br>
+                    خطا: ${error.message}<br>
+                    <small>سیستم Retry نتوانست خطا را مدیریت کند</small>
+                `;
+                
+                testResults.retry = { success: false, error: error.message };
+            }
+            
+            btn.disabled = false;
+            btn.textContent = 'اجرای تست Retry';
+        }
+
+        // ========== توابع کمکی ==========
+        async function runAllAdvancedTests() {
+            api.log('🚀 شروع اجرای همه تست‌های پیشرفته...');
+            
+            // ریست همه
+            testResults = {};
+            resetAdvancedTests();
+            
+            // اجرای تست‌ها با وقفه
+            await simulateClick('runPerformanceTest()');
+            await api.delay(1500);
+            
+            await simulateClick('runConcurrentTest()');
+            await api.delay(1500);
+            
+            await simulateClick('runCacheTest()');
+            await api.delay(1500);
+            
+            await simulateClick('runRetryTest()');
+            
+            api.log('🎯 تمام تست‌های پیشرفته کامل شدند');
+        }
+        
+        async function simulateClick(functionCall) {
+            // پیدا کردن دکمه مربوطه و شبیه‌سازی کلیک
+            const buttons = document.querySelectorAll('button');
+            for (const btn of buttons) {
+                if (btn.getAttribute('onclick') === functionCall) {
+                    const event = { target: btn };
+                    if (functionCall.includes('Performance')) runPerformanceTest(event);
+                    if (functionCall.includes('Concurrent')) runConcurrentTest(event);
+                    if (functionCall.includes('Cache')) runCacheTest(event);
+                    if (functionCall.includes('Retry')) runRetryTest(event);
+                    break;
+                }
+            }
+        }
+        
+        function resetAdvancedTests() {
+            api.resetStats();
+            
+            // ریست progress bar
+            document.getElementById('progress1').style.width = '0%';
+            
+            // پاک کردن نتایج
+            for (let i = 1; i <= 4; i++) {
+                const resultDiv = document.getElementById('result' + i);
+                resultDiv.className = 'result';
+                resultDiv.innerHTML = '';
+            }
+            
+            // ریست آمار
+            updateGlobalStats();
+            
+            api.log('♻️ تمام تست‌ها ریست شدند');
+        }
+        
+        function updateGlobalStats() {
+            const stats = api.getStats();
+            
+            document.getElementById('total-requests').textContent = stats.totalRequests;
+            document.getElementById('avg-response').textContent = `${stats.avgResponseTime}ms`;
+            document.getElementById('success-rate').textContent = `${stats.successRate}%`;
+            
+            // محاسبه زمان کل
+            const totalTime = api.requestHistory.reduce((sum, req) => sum + req.time, 0);
+            document.getElementById('total-time').textContent = `${totalTime}ms`;
+        }
+        
+        function clearConsole() {
+            document.getElementById('console-output').innerHTML = '';
+            api.log('کنسول پاک شد');
+        }
+
+        // ========== راه‌اندازی ==========
+        document.addEventListener('DOMContentLoaded', () => {
+            api.log('⚡ تست‌های پیشرفته API آماده اجرا');
+            updateGlobalStats();
+        });
+    </script>
+</body>
+</html>
