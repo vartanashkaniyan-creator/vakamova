@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="fa">
+<head>
+    <meta charset="UTF-8">
+    <title>تست یکپارچه Profile + API</title>
+    <style>
+        body { font-family: Tahoma; padding: 20px; max-width: 900px; margin: auto; }
+        .section { background: #f5f7fa; padding: 15px; margin: 15px 0; border-radius: 8px; }
+        .success { color: #2ecc71; background: #eafaf1; padding: 10px; margin: 5px 0; border-right: 4px solid #2ecc71; }
+        .error { color: #e74c3c; background: #fdedec; padding: 10px; margin: 5px 0; border-right: 4px solid #e74c3c; }
+        .warning { color: #f39c12; background: #fef5e6; padding: 10px; margin: 5px 0; border-right: 4px solid #f39c12; }
+        button { background: linear-gradient(90deg, #3498db, #2ecc71); color: white; border: none; padding: 12px 25px; border-radius: 6px; cursor: pointer; font-size: 16px; margin: 5px; }
+        .mock-status { background: white; padding: 10px; border-radius: 5px; border: 2px dashed #3498db; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <h1>🧪 تست یکپارچه User Profile + API Client</h1>
+    
+    <div class="section">
+        <h3>🔧 پیکربندی تست</h3>
+        <div class="mock-status">
+            <p><strong>وضعیت Mock Server:</strong> فعال</p>
+            <p><strong>Base URL:</strong> https://api.vakamova.test/v1</p>
+            <p><strong>توکن اولیه:</strong> token_initial_123</p>
+            <label><input type="checkbox" id="simulateOffline"> حالت آفلاین را شبیه‌سازی کن</label>
+        </div>
+    </div>
+    
+    <button onclick="runIntegrationTest()">شروع تست یکپارچه</button>
+    <button onclick="runSingleTest('sync')">تست همگام‌سازی</button>
+    <button onclick="runSingleTest('token')">تست بازآوری توکن</button>
+    
+    <div id="results"></div>
+
+    <script>
+        // ==================== Mock Server Configuration ====================
+        const mockServer = {
+            baseURL: 'https://api.vakamova.test/v1',
+            userProfiles: new Map(),
+            token: 'token_initial_123',
+            isOnline: true,
+            responseDelay: 300,
+            
+            // ذخیره پروفایل‌ها
+            saveProfile(userId, profile) {
+                this.userProfiles.set(userId, {
+                    ...profile,
+                    lastModified: new Date().toISOString(),
+                    version: (this.userProfiles.get(userId)?.version || 0) + 1
+                });
+                console.log(`💾 پروفایل ذخیره شد: ${userId}`, profile);
+            },
+            
+            // شبیه‌سازی پاسخ‌های سرور
+            async handleRequest(url, options) {
+                if (!this.isOnline) {
+                    throw new Error('Network Error: Server is offline');
+                }
+                
+                // تاخیر شبیه‌سازی
+                await this.delay(this.responseDelay);
+                
+                const endpoint = url.replace(this.baseURL, '');
+                const method = options.method || 'GET';
+                console.log(`🌐 ${method} ${endpoint}`);
+                
+                // پردازش endpoint‌های مختلف
+                if (endpoint.startsWith('/profile/')) {
+                    const userId = endpoint.split('/')[2];
+                    
+                    // درخواست GET پروفایل
+                    if (method === 'GET') {
+                        const profile = this.userProfiles.get(userId);
+                        if (!profile) {
+                            return this.createResponse(404, { error: 'Profile not found' });
+                        }
+                        return this.createResponse(200, profile);
+                    }
+                    
+                    // درخواست PUT آپدیت پروفایل
+                    if (method === 'PUT') {
+                        const data = JSON.parse(options.body);
+                        this.saveProfile(userId, data);
+                        return this.createResponse(200, { success: true, updated: true });
+                    }
+                }
+                
+                // درخواست refresh token
+                if (endpoint === '/auth/refresh' && method === 'POST') {
+                    this.token = 'token_refreshed_' + Date.now();
+                    return this.createResponse(200, { 
+                        token: this.token,
+                        expiresIn: 3600 
+                    });
+                }
+                
+                // درخواست‌های دیگر
+                return this.createResponse(200, { message: 'Mock response' });
+            },
+            
+            createResponse(status, data) {
+                return {
+                    ok: status >= 200 && status < 300,
+                    status,
+                    statusText: status === 200 ? 'OK' : 'Error',
+                    headers: { get: () => 'application/json' },
+                    json: async () => data,
+                    text: async () => JSON.stringify(data)
+                };
+            },
+            
+            delay(ms) {
+                return new Promise(resolve => setTimeout(resolve, ms));
+            }
+        };
+        
+        // ==================== Mock Fetch Implementation ====================
+        const originalFetch = window.fetch;
+        let fetchCallCount = 0;
+        
+        window.fetch = async function(url, options = {}) {
+            fetchCallCount++;
+            
+            // شبیه‌سازی حالت آفلاین
+            if (document.getElementById('simulateOffline').checked) {
+                console.log('📴 در حالت آفلاین - درخواست در صف می‌ماند');
+                throw new TypeError('Failed to fetch');
+            }
+            
+            // فقط درخواست‌های مربوط به mock server را پردازش کن
+            if (url.startsWith(mockServer.baseURL)) {
+                console.log(`🔗 Fetch #${fetchCallCount}: ${options.method || 'GET'} ${url}`);
+                return mockServer.handleRequest(url, options);
+            }
+            
+            // برای سایر URLها از fetch اصلی استفاده کن
+            return originalFetch(url, options);
+        };
+        
+        // ==================== Simplified UserProfileManager ====================
+        class UserProfileManager {
+            constructor(apiClient) {
+                this.apiClient = apiClient;
+                this.userId = 'user_test_001';
+                this.localProfile = null;
+                this.isInitialized = false;
+            }
+            
+            async initialize() {
+                console.log('🚀 راه‌اندازی UserProfileManager...');
+                
+                // بارگذاری پروفایل محلی (شبیه‌سازی)
+                this.localProfile = {
+                    userId: this.userId,
+                    fullName: 'کاربر تست',
+                    email: 'test@vakamova.com',
+                    languages: ['en', 'fa'],
+                    settings: { theme: 'auto' },
+                    lastSynced: null
+                };
+                
+                // همگام‌سازی اولیه
+                await this.syncWithServer();
+                
+                this.isInitialized = true;
+                console.log('✅ UserProfileManager راه‌اندازی شد');
+                return true;
+            }
+            
+            async syncWithServer() {
+                console.log('🔄 در حال همگام‌سازی با سرور...');
+                
+                try {
+                    // دریافت پروفایل از سرور
+                    const serverProfile = await this.apiClient.get(`/profile/${this.userId}`);
+                    
+                    // ادغام با پروفایل محلی (الگوریتم ساده)
+                    const mergedProfile = {
+                        ...this.localProfile,
+                        ...serverProfile,
+                        lastSynced: new Date().toISOString()
+                    };
+                    
+                    // ذخیره محلی
+                    this.localProfile = mergedProfile;
+                    
+                    // آپدیت سرور
+                    await this.apiClient.put(`/profile/${this.userId}`, mergedProfile);
+                    
+                    console.log('✅ همگام‌سازی موفقیت‌آمیز');
+                    return { success: true, profile: mergedProfile };
+                    
+                } catch (error) {
+                    console.error('❌ خطا در همگام‌سازی:', error);
+                    return { success: false, error: error.message };
+                }
+            }
+            
+            async updateProfile(updates) {
+                console.log('✏️ به‌روزرسانی پروفایل...');
+                
+                // آپدیت محلی
+                this.localProfile = { ...this.localProfile, ...updates };
+                
+                // همگام‌سازی با سرور
+                return this.syncWithServer();
+            }
+            
+            getProfile() {
+                return this.localProfile;
+            }
+        }
+        
+        // ==================== Simplified APIClient ====================
+        class APIClient {
+            constructor() {
+                this.baseURL = mockServer.baseURL;
+                this.token = mockServer.token;
+                this.retryCount = 0;
+                this.maxRetries = 2;
+            }
+            
+            async request(method, endpoint, data = null) {
+                const url = `${this.baseURL}${endpoint}`;
+                
+                const options = {
+                    method,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${this.token}`
+                    }
+                };
+                
+                if (data && (method === 'POST' || method === 'PUT')) {
+                    options.body = JSON.stringify(data);
+                }
+                
+                try {
+                    const response = await fetch(url, options);
+                    
+                    // اگر توکن منقضی شد
+                    if (response.status === 401 && this.retryCount < this.maxRetries) {
+                        console.log('🔄 توکن منقضی شده، در حال بازآوری...');
+                        await this.refreshToken();
+                        this.retryCount++;
+                        
+                        // ارسال مجدد درخواست با توکن جدید
+                        options.headers.Authorization = `Bearer ${this.token}`;
+                        return fetch(url, options);
+                    }
+                    
+                    this.retryCount = 0; // بازنشانی شمارنده
+                    
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+                    
+                    return response.json();
+                    
+                } catch (error) {
+                    console.error(`❌ خطای API: ${error.message}`);
+                    
+                    // retry برای خطاهای شبکه
+                    if (this.retryCount < this.maxRetries && error.message.includes('Network')) {
+                        console.log(`🔄 Retry ${this.retryCount + 1}/${this.maxRetries}...`);
+                        this.retryCount++;
+                        await this.delay(1000 * this.retryCount);
+                        return this.request(method, endpoint, data);
+                    }
+                    
+                    throw error;
+                }
+            }
+            
+            async refreshToken() {
+                console.log('🔄 درخواست بازآوری توکن...');
+                
+                // درخواست refresh به سرور
+                const response = await fetch(`${this.baseURL}/auth/refresh`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Token refresh failed');
+                }
+                
+                const data = await response.json();
+                this.token = data.token;
+                console.log(`✅ توکن جدید دریافت شد: ${this.token.substring(0, 20)}...`);
+            }
+            
+            async get(endpoint) {
+                return this.request('GET', endpoint);
+            }
+            
+            async post(endpoint, data) {
+                return this.request('POST', endpoint, data);
+            }
+            
+            async put(endpoint, data) {
+                return this.request('PUT', endpoint, data);
+            }
+            
+            async delete(endpoint) {
+                return this.request('DELETE', endpoint);
+            }
+            
+            delay(ms) {
+                return new Promise(resolve => setTimeout(resolve, ms));
+            }
+        }
+        
+        // ==================== Test Functions ====================
+        
+        async function runIntegrationTest() {
+            clearResults();
+            addResult('🚀 شروع تست یکپارچه Profile + API', 'info');
+            
+            try {
+                // 1. ایجاد API Client
+                addResult('1. ایجاد API Client...', 'info');
+                const apiClient = new APIClient();
+                addResult('   ✅ APIClient ایجاد شد', 'success');
+                
+                // 2. ایجاد UserProfileManager
+                addResult('2. ایجاد UserProfileManager...', 'info');
+                const profileManager = new UserProfileManager(apiClient);
+                addResult('   ✅ UserProfileManager ایجاد شد', 'success');
+                
+                // 3. راه‌اندازی اولیه
+                addResult('3. راه‌اندازی UserProfileManager...', 'info');
+                const initResult = await profileManager.initialize();
+                if (initResult) {
+                    addResult('   ✅ راه‌اندازی موفقیت‌آمیز', 'success');
+                } else {
+                    addResult('   ❌ راه‌اندازی ناموفق', 'error');
+                    return;
+                }
+                
+                // 4. نمایش پروفایل اولیه
+                const initialProfile = profileManager.getProfile();
+                addResult(`   👤 پروفایل اولیه: ${initialProfile.fullName}`, 'success');
+                
+                // 5. تست آپدیت پروفایل
+                addResult('4. تست به‌روزرسانی پروفایل...', 'info');
+                const updateResult = await profileManager.updateProfile({
+                    fullName: 'کاربر ویرایش شده',
+                    email: 'updated@vakamova.com',
+                    languages: ['en', 'fa', 'es']
+                });
+                
+                if (updateResult.success) {
+                    addResult('   ✅ پروفایل با موفقیت به‌روزرسانی شد', 'success');
+                    addResult(`   📧 ایمیل جدید: ${updateResult.profile.email}`, 'info');
+                    addResult(`   🌐 زبان‌ها: ${updateResult.profile.languages.join(', ')}`, 'info');
+                } else {
+                    addResult(`   ❌ خطا در به‌روزرسانی: ${updateResult.error}`, 'error');
+                }
+                
+                // 6. تست حالت آفلاین
+                addResult('5. تست حالت آفلاین...', 'info');
+                document.getElementById('simulateOffline').checked = true;
+                
+                try {
+                    await profileManager.syncWithServer();
+                    addResult('   ❌ انتظار خطای آفلاین بود اما موفق شد!', 'error');
+                } catch (error) {
+                    addResult('   ✅ خطای آفلاین به درستی شناسایی شد', 'success');
+                } finally {
+                    document.getElementById('simulateOffline').checked = false;
+                }
+                
+                // 7. تست توکن منقضی شده
+                addResult('6. تست توکن منقضی شده...', 'info');
+                
+                // ذخیره توکن فعلی
+                const oldToken = apiClient.token;
+                
+                // شبیه‌سازی توکن منقضی شده
+                mockServer.token = 'expired_token';
+                
+                // درخواست جدید (باید خطای 401 بدهد)
+                try {
+                    await apiClient.get('/profile/test');
+                } catch (error) {
+                    if (error.message.includes('401')) {
+                        addResult('   ✅ خطای 401 به درستی شناسایی شد', 'success');
+                    }
+                }
+                
+                // 8. گزارش نهایی
+                addResult('📊 گزارش نهایی:', 'info');
+                addResult(`   • تعداد درخواست‌های API: ${fetchCallCount}`, 'info');
+                addResult(`   • توکن نهایی: ${apiClient.token.substring(0, 20)}...`, 'info');
+                addResult(`   • وضعیت همگام‌سازی: ${updateResult.success ? 'موفق' : 'ناموفق'}`, 'info');
+                
+                addResult('\n🎉 تست یکپارچه با موفقیت به پایان رسید!', 'success');
+                
+            } catch (error) {
+                addResult(`❌ خطای کلی در تست: ${error.message}`, 'error');
+                console.error(error);
+            }
+        }
+        
+        async function runSingleTest(testType) {
+            clearResults();
+            
+            const apiClient = new APIClient();
+            const profileManager = new UserProfileManager(apiClient);
+            
+            switch(testType) {
+                case 'sync':
+                    addResult('🧪 تست همگام‌سازی', 'info');
+                    
+                    // ذخیره یک پروفایل در mock server
+                    mockServer.saveProfile('test_sync', {
+                        userId: 'test_sync',
+                        fullName: 'تست همگام‌سازی',
+                        version: 1
+                    });
+                    
+                    const syncResult = await profileManager.syncWithServer();
+                    if (syncResult.success) {
+                        addResult('✅ همگام‌سازی موفقیت‌آمیز', 'success');
+                        addResult(`🕒 آخرین همگام‌سازی: ${syncResult.profile.lastSynced}`, 'info');
+                    } else {
+                        addResult(`❌ خطا: ${syncResult.error}`, 'error');
+                    }
+                    break;
+                    
+                case 'token':
+                    addResult('🧪 تست بازآوری توکن', 'info');
+                    
+                    // توکن را منقضی کن
+                    const originalToken = apiClient.token;
+                    apiClient.token = 'expired_token_123';
+                    
+                    try {
+                        // این درخواست باید خطای 401 بدهد
+                        await apiClient.get('/protected');
+                        addResult('❌ انتظار خطای 401 بود اما موفق شد!', 'error');
+                    } catch (error) {
+                        addResult('✅ خطای 401 شناسایی شد', 'success');
+                        
+                        // بررسی اینکه توکن refresh شده
+                        if (apiClient.token !== 'expired_token_123') {
+                            addResult(`✅ توکن بازآوری شد: ${apiClient.token.substring(0, 20)}...`, 'success');
+                        }
+                    }
+                    
+                    // بازگردانی توکن اصلی
+                    apiClient.token = originalToken;
+                    break;
+            }
+        }
+        
+        function clearResults() {
+            document.getElementById('results').innerHTML = '';
+            fetchCallCount = 0;
+        }
+        
+        function addResult(message, type = 'info') {
+            const div = document.createElement('div');
+            
+            switch(type) {
+                case 'success':
+                    div.className = 'success';
+                    break;
+                case 'error':
+                    div.className = 'error';
+                    break;
+                case 'warning':
+                    div.className = 'warning';
+                    break;
+                default:
+                    div.style.cssText = 'color: #7f8c8d; padding: 8px 12px; margin: 5px 0; background: #f8f9fa; border-right: 3px solid #bdc3c7;';
+            }
+            
+            div.innerHTML = message;
+            document.getElementById('results').appendChild(div);
+        }
+    </script>
+</body>
+</html>
