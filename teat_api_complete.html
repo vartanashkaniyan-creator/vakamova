@@ -1,0 +1,2198 @@
+<!DOCTYPE html>
+<html lang="fa">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تست کامل سیستم API و همگام‌سازی - Vakamova</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
+            color: #333;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+        header {
+            background: linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%);
+            color: white;
+            padding: 25px;
+            text-align: center;
+        }
+        h1 {
+            font-size: 1.8rem;
+            margin-bottom: 10px;
+        }
+        .api-badge {
+            background: #10b981;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: bold;
+            display: inline-block;
+            margin-top: 10px;
+        }
+        .test-container {
+            padding: 25px;
+        }
+        .test-section {
+            background: #f8fafc;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 25px;
+            border: 2px solid #e2e8f0;
+        }
+        .test-section h2 {
+            color: #7c3aed;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .test-item {
+            background: white;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-left: 4px solid #e2e8f0;
+            transition: all 0.3s;
+        }
+        .test-item.passed {
+            border-left-color: #10b981;
+            background: #f0fdf4;
+        }
+        .test-item.failed {
+            border-left-color: #ef4444;
+            background: #fef2f2;
+        }
+        .test-item.network {
+            border-left-color: #f59e0b;
+            background: #fefce8;
+        }
+        .test-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .test-title {
+            font-weight: 600;
+            color: #1f2937;
+            flex: 1;
+        }
+        .test-network {
+            font-size: 0.8rem;
+            background: #f59e0b;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 10px;
+            margin-right: 10px;
+        }
+        .test-status {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: bold;
+        }
+        .status-pending {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        .status-passed {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        .status-failed {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        .test-output {
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 12px;
+            border-radius: 6px;
+            margin-top: 10px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .test-output.success {
+            background: #0f766e;
+        }
+        .test-output.error {
+            background: #7f1d1d;
+        }
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            padding: 25px;
+            background: #f8fafc;
+            border-top: 2px solid #e2e8f0;
+        }
+        button {
+            padding: 12px 25px;
+            border: none;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s;
+        }
+        #run-tests {
+            background: linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%);
+            color: white;
+        }
+        #run-tests:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(124, 58, 237, 0.4);
+        }
+        #run-tests:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        #clear-results, #export-results, #run-network {
+            background: #6b7280;
+            color: white;
+        }
+        .loading {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 15px;
+            padding: 20px;
+            background: #f1f5f9;
+            border-radius: 10px;
+            margin-bottom: 25px;
+        }
+        @media (max-width: 992px) {
+            .stats {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+        @media (max-width: 576px) {
+            .stats {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+        .stat-box {
+            text-align: center;
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        .stat-value {
+            font-size: 1.8rem;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .stat-label {
+            font-size: 0.9rem;
+            color: #64748b;
+        }
+        .success { color: #10b981; }
+        .failure { color: #ef4444; }
+        .pending { color: #f59e0b; }
+        .network-color { color: #f59e0b; }
+        
+        .api-simulator {
+            background: white;
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 25px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        @media (max-width: 768px) {
+            .api-simulator {
+                grid-template-columns: 1fr;
+            }
+        }
+        .api-simulator h3 {
+            color: #4f46e5;
+            margin-bottom: 15px;
+            grid-column: 1 / -1;
+        }
+        .sim-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .sim-controls button {
+            padding: 10px;
+            font-size: 0.9rem;
+            justify-content: flex-start;
+        }
+        .api-visualizer {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            overflow: auto;
+            max-height: 300px;
+        }
+        .request { color: #60a5fa; }
+        .response { color: #34d399; }
+        .error { color: #f87171; }
+        
+        .network-controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+            flex-wrap: wrap;
+        }
+        .network-controls button {
+            flex: 1;
+            padding: 8px;
+            font-size: 0.8rem;
+            min-width: 120px;
+        }
+        
+        @media (max-width: 768px) {
+            .test-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+            .controls {
+                flex-direction: column;
+            }
+            button {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+        
+        .performance-chart {
+            background: white;
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 15px;
+        }
+        
+        .chart-bar {
+            height: 20px;
+            background: linear-gradient(90deg, #7c3aed, #8b5cf6);
+            border-radius: 10px;
+            margin-bottom: 8px;
+            transition: width 0.5s ease;
+        }
+        
+        .chart-label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+            font-size: 0.9rem;
+        }
+        
+        .network-status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px;
+            background: #f8fafc;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+        
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+        
+        .status-online {
+            background: #10b981;
+            box-shadow: 0 0 10px #10b981;
+        }
+        
+        .status-offline {
+            background: #ef4444;
+            box-shadow: 0 0 10px #ef4444;
+        }
+        
+        .status-slow {
+            background: #f59e0b;
+            box-shadow: 0 0 10px #f59e0b;
+        }
+        
+        .method-badge {
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-weight: bold;
+            margin-right: 8px;
+        }
+        
+        .method-get { background: #10b981; color: white; }
+        .method-post { background: #3b82f6; color: white; }
+        .method-put { background: #f59e0b; color: white; }
+        .method-delete { background: #ef4444; color: white; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🌐 تست کامل سیستم API و همگام‌سازی - Vakamova</h1>
+            <p>بررسی جامع API Client، Network Management، Sync Engine و Error Handling</p>
+            <div class="api-badge">شبکه و همگام‌سازی</div>
+        </header>
+        
+        <div class="stats">
+            <div class="stat-box">
+                <div class="stat-value success" id="passed-count">0</div>
+                <div class="stat-label">موفق</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-value failure" id="failed-count">0</div>
+                <div class="stat-label">ناموفق</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-value network-color" id="network-count">0</div>
+                <div class="stat-label">تست شبکه</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-value" id="request-count">0</div>
+                <div class="stat-label">درخواست‌ها</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-value pending" id="pending-count">0</div>
+                <div class="stat-label">در انتظار</div>
+            </div>
+        </div>
+        
+        <div class="api-simulator">
+            <h3>🎮 شبیه‌ساز API و شبکه</h3>
+            
+            <div class="sim-controls">
+                <div class="network-status">
+                    <span class="status-indicator status-online" id="network-indicator"></span>
+                    <span id="network-status-text">آنلاین - سرعت عادی</span>
+                </div>
+                
+                <button onclick="simulateGetRequest()" style="background: #10b981;">
+                    <span>📡</span> درخواست GET
+                </button>
+                <button onclick="simulatePostRequest()" style="background: #3b82f6;">
+                    <span>📤</span> درخواست POST
+                </button>
+                <button onclick="simulateErrorRequest()" style="background: #ef4444;">
+                    <span>⚠️</span> درخواست با خطا
+                </button>
+                <button onclick="simulateAuthRequest()" style="background: #8b5cf6;">
+                    <span>🔐</span> درخواست احراز هویت
+                </button>
+                
+                <div class="network-controls">
+                    <button onclick="setNetworkOnline()" style="background: #10b981;">
+                        <span>✅</span> شبکه آنلاین
+                    </button>
+                    <button onclick="setNetworkOffline()" style="background: #ef4444;">
+                        <span>❌</span> شبکه آفلاین
+                    </button>
+                    <button onclick="setNetworkSlow()" style="background: #f59e0b;">
+                        <span>🐌</span> شبکه کند
+                    </button>
+                </div>
+                
+                <div style="margin-top: 15px; padding: 10px; background: #f8fafc; border-radius: 8px;">
+                    <div style="font-size: 0.9rem; color: #64748b; margin-bottom: 5px;">آخرین پاسخ:</div>
+                    <div id="current-response" style="font-family: monospace; color: #4f46e5;">هیچ درخواستی ارسال نشده</div>
+                </div>
+            </div>
+            
+            <div class="api-visualizer" id="api-visualizer">
+                // لاگ درخواست‌ها و پاسخ‌ها اینجا نمایش داده می‌شود
+                {
+                  "system": "api-simulator",
+                  "status": "ready",
+                  "requests": []
+                }
+            </div>
+        </div>
+        
+        <div class="test-container" id="test-container">
+            <!-- تست‌ها اینجا ساخته می‌شوند -->
+        </div>
+        
+        <div class="controls">
+            <button id="run-tests">
+                <span>🚀</span>
+                اجرای تمام تست‌ها
+            </button>
+            <button id="run-network">
+                <span>🌐</span>
+                تست‌های شبکه
+            </button>
+            <button id="export-results">
+                <span>💾</span>
+                ذخیره نتایج
+            </button>
+            <button id="clear-results">
+                <span>🔄</span>
+                پاک کردن نتایج
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // ============ سیستم ثبت لاگ شبکه ============
+        class NetworkLogger {
+            constructor() {
+                this.logs = [];
+                this.requests = [];
+                this.maxRequests = 50;
+                this.networkStatus = 'online';
+                this.networkSpeed = 'normal';
+            }
+            
+            logRequest(method, url, data = null) {
+                const request = {
+                    id: `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                    method,
+                    url,
+                    data,
+                    timestamp: new Date().toISOString(),
+                    status: 'pending',
+                    startTime: performance.now()
+                };
+                
+                this.requests.unshift(request); // جدیدترین در ابتدا
+                if (this.requests.length > this.maxRequests) {
+                    this.requests.pop();
+                }
+                
+                this.logs.push({
+                    type: 'request',
+                    ...request
+                });
+                
+                console.log(`[API Request] ${method} ${url}`, data || '');
+                return request;
+            }
+            
+            logResponse(requestId, response, statusCode = 200) {
+                const request = this.requests.find(r => r.id === requestId);
+                if (!request) return null;
+                
+                const endTime = performance.now();
+                const duration = endTime - request.startTime;
+                
+                request.response = response;
+                request.statusCode = statusCode;
+                request.status = 'completed';
+                request.duration = duration;
+                request.endTime = endTime;
+                
+                this.logs.push({
+                    type: 'response',
+                    requestId,
+                    response,
+                    statusCode,
+                    duration,
+                    timestamp: new Date().toISOString()
+                });
+                
+                console.log(`[API Response] ${statusCode} in ${duration.toFixed(2)}ms`, response);
+                return request;
+            }
+            
+            logError(requestId, error, statusCode = null) {
+                const request = this.requests.find(r => r.id === requestId);
+                if (!request) return null;
+                
+                const endTime = performance.now();
+                const duration = endTime - request.startTime;
+                
+                request.error = error;
+                request.statusCode = statusCode || 500;
+                request.status = 'error';
+                request.duration = duration;
+                request.endTime = endTime;
+                
+                this.logs.push({
+                    type: 'error',
+                    requestId,
+                    error,
+                    statusCode: request.statusCode,
+                    duration,
+                    timestamp: new Date().toISOString()
+                });
+                
+                console.error(`[API Error] ${error.message} (${duration.toFixed(2)}ms)`);
+                return request;
+            }
+            
+            setNetworkStatus(status, speed = 'normal') {
+                this.networkStatus = status;
+                this.networkSpeed = speed;
+                
+                this.logs.push({
+                    type: 'network_change',
+                    status,
+                    speed,
+                    timestamp: new Date().toISOString()
+                });
+                
+                console.log(`[Network] Status: ${status}, Speed: ${speed}`);
+            }
+            
+            getStats() {
+                const completedRequests = this.requests.filter(r => r.status === 'completed');
+                const errorRequests = this.requests.filter(r => r.status === 'error');
+                const pendingRequests = this.requests.filter(r => r.status === 'pending');
+                
+                const avgDuration = completedRequests.length > 0
+                    ? completedRequests.reduce((sum, r) => sum + r.duration, 0) / completedRequests.length
+                    : 0;
+                
+                return {
+                    totalRequests: this.requests.length,
+                    completed: completedRequests.length,
+                    errors: errorRequests.length,
+                    pending: pendingRequests.length,
+                    avgDuration,
+                    networkStatus: this.networkStatus,
+                    networkSpeed: this.networkSpeed
+                };
+            }
+            
+            getRecentRequests(limit = 10) {
+                return this.requests.slice(0, limit);
+            }
+            
+            clear() {
+                this.requests = [];
+                this.logs = [];
+            }
+        }
+
+        // ============ Mock سیستم API Client ============
+        class MockAPIClient {
+            constructor() {
+                this.baseURL = 'https://api.vakamova.com/v1';
+                this.headers = {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-App-Version': '1.0.0'
+                };
+                this.authToken = null;
+                this.networkLogger = new NetworkLogger();
+                this.requestQueue = [];
+                this.isProcessingQueue = false;
+                this.retryAttempts = 3;
+                this.timeout = 30000; // 30 ثانیه
+                this.cache = new Map();
+                this.cacheTTL = 5 * 60 * 1000; // 5 دقیقه
+                
+                // middlewareها
+                this.middlewares = {
+                    request: [],
+                    response: [],
+                    error: []
+                };
+                
+                // شبیه‌سازی شبکه
+                this.simulateNetworkConditions = true;
+                this.networkDelay = 100; // ms
+                this.errorRate = 0; // 0-1
+                this.offline = false;
+            }
+            
+            // ============ متدهای اصلی ============
+            
+            async request(method, endpoint, data = null, options = {}) {
+                const url = `${this.baseURL}${endpoint}`;
+                const requestId = this.networkLogger.logRequest(method, url, data);
+                
+                // اعمال middlewareهای request
+                let processedRequest = { method, url, data, headers: { ...this.headers }, ...options };
+                processedRequest = await this.runMiddlewares('request', processedRequest);
+                
+                try {
+                    // بررسی وضعیت شبکه
+                    if (this.offline || this.networkLogger.networkStatus === 'offline') {
+                        // اضافه به صف آفلاین
+                        this.addToQueue(requestId, processedRequest);
+                        throw new Error('شبکه در دسترس نیست');
+                    }
+                    
+                    // شبیه‌سازی تأخیر شبکه
+                    if (this.simulateNetworkConditions) {
+                        await this.simulateNetworkDelay();
+                    }
+                    
+                    // شبیه‌سازی خطا
+                    if (this.shouldSimulateError()) {
+                        throw this.simulateNetworkError();
+                    }
+                    
+                    // اجرای درخواست
+                    const response = await this.executeRequest(requestId, processedRequest);
+                    
+                    // اعمال middlewareهای response
+                    const processedResponse = await this.runMiddlewares('response', response);
+                    
+                    this.networkLogger.logResponse(requestId, processedResponse.data, processedResponse.status);
+                    
+                    // کش کردن در صورت نیاز
+                    if (method === 'GET' && processedResponse.data) {
+                        this.cacheResponse(url, processedResponse.data);
+                    }
+                    
+                    return processedResponse;
+                    
+                } catch (error) {
+                    // مدیریت خطا با retry
+                    if (options.retry !== false) {
+                        const retryResult = await this.handleRetry(requestId, processedRequest, error);
+                        if (retryResult) return retryResult;
+                    }
+                    
+                    // اعمال middlewareهای error
+                    const processedError = await this.runMiddlewares('error', error);
+                    
+                    this.networkLogger.logError(requestId, processedError, this.getStatusCodeFromError(processedError));
+                    
+                    throw processedError;
+                }
+            }
+            
+            async get(endpoint, params = {}, options = {}) {
+                // بررسی کش
+                const url = `${this.baseURL}${endpoint}`;
+                const cacheKey = this.generateCacheKey('GET', url, params);
+                const cached = this.getFromCache(cacheKey);
+                
+                if (cached && !options.forceRefresh) {
+                    this.networkLogger.logRequest('GET', url, params).status = 'cached';
+                    return {
+                        data: cached,
+                        status: 200,
+                        cached: true,
+                        timestamp: Date.now()
+                    };
+                }
+                
+                const queryString = Object.keys(params).length > 0
+                    ? '?' + new URLSearchParams(params).toString()
+                    : '';
+                
+                return this.request('GET', endpoint + queryString, null, options);
+            }
+            
+            async post(endpoint, data, options = {}) {
+                return this.request('POST', endpoint, data, options);
+            }
+            
+            async put(endpoint, data, options = {}) {
+                return this.request('PUT', endpoint, data, options);
+            }
+            
+            async delete(endpoint, options = {}) {
+                return this.request('DELETE', endpoint, null, options);
+            }
+            
+            async patch(endpoint, data, options = {}) {
+                return this.request('PATCH', endpoint, data, options);
+            }
+            
+            // ============ احراز هویت ============
+            
+            setAuthToken(token) {
+                this.authToken = token;
+                this.headers['Authorization'] = `Bearer ${token}`;
+                return this;
+            }
+            
+            clearAuth() {
+                this.authToken = null;
+                delete this.headers['Authorization'];
+                return this;
+            }
+            
+            async refreshToken() {
+                try {
+                    const response = await this.post('/auth/refresh', {}, { retry: false });
+                    if (response.data && response.data.token) {
+                        this.setAuthToken(response.data.token);
+                        return response.data.token;
+                    }
+                } catch (error) {
+                    console.error('Failed to refresh token:', error);
+                    throw error;
+                }
+            }
+            
+            // ============ همگام‌سازی ============
+            
+            addToQueue(requestId, request) {
+                this.requestQueue.push({
+                    id: requestId,
+                    request,
+                    attempts: 0,
+                    maxAttempts: 3,
+                    addedAt: Date.now()
+                });
+                
+                console.log(`Added to offline queue: ${request.method} ${request.url}`);
+                
+                // شروع پردازش صف اگر آنلاین شویم
+                if (!this.isProcessingQueue && !this.offline) {
+                    this.processQueue();
+                }
+            }
+            
+            async processQueue() {
+                if (this.isProcessingQueue || this.requestQueue.length === 0) return;
+                
+                this.isProcessingQueue = true;
+                console.log(`Processing queue with ${this.requestQueue.length} items`);
+                
+                while (this.requestQueue.length > 0 && !this.offline) {
+                    const queueItem = this.requestQueue[0];
+                    
+                    try {
+                        const result = await this.executeRequest(queueItem.id, queueItem.request);
+                        this.networkLogger.logResponse(queueItem.id, result.data, result.status);
+                        
+                        // حذف از صف پس از موفقیت
+                        this.requestQueue.shift();
+                        
+                    } catch (error) {
+                        queueItem.attempts++;
+                        
+                        if (queueItem.attempts >= queueItem.maxAttempts) {
+                            // حذف از صف پس از تلاش‌های ناموفق
+                            this.networkLogger.logError(queueItem.id, error);
+                            this.requestQueue.shift();
+                            console.error(`Failed after ${queueItem.attempts} attempts:`, error.message);
+                        } else {
+                            // منتظر ماندن برای تلاش مجدد
+                            console.log(`Retry ${queueItem.attempts}/${queueItem.maxAttempts} for ${queueItem.request.method} ${queueItem.request.url}`);
+                            await this.delay(1000 * queueItem.attempts); // تاخیر تصاعدی
+                        }
+                    }
+                }
+                
+                this.isProcessingQueue = false;
+                console.log('Queue processing completed');
+            }
+            
+            getQueueStatus() {
+                return {
+                    length: this.requestQueue.length,
+                    items: this.requestQueue.map(item => ({
+                        method: item.request.method,
+                        url: item.request.url,
+                        attempts: item.attempts,
+                        addedAt: item.addedAt
+                    }))
+                };
+            }
+            
+            clearQueue() {
+                this.requestQueue = [];
+                return this;
+            }
+            
+            // ============ کش ============
+            
+            generateCacheKey(method, url, params) {
+                return `${method}:${url}:${JSON.stringify(params)}`;
+            }
+            
+            cacheResponse(key, data) {
+                this.cache.set(key, {
+                    data,
+                    timestamp: Date.now()
+                });
+            }
+            
+            getFromCache(key) {
+                const cached = this.cache.get(key);
+                if (!cached) return null;
+                
+                // بررسی انقضا
+                if (Date.now() - cached.timestamp > this.cacheTTL) {
+                    this.cache.delete(key);
+                    return null;
+                }
+                
+                return cached.data;
+            }
+            
+            clearCache() {
+                this.cache.clear();
+                return this;
+            }
+            
+            // ============ Middleware ============
+            
+            use(type, middleware) {
+                if (!this.middlewares[type]) {
+                    this.middlewares[type] = [];
+                }
+                this.middlewares[type].push(middleware);
+                
+                // تابع برای حذف middleware
+                return () => {
+                    const index = this.middlewares[type].indexOf(middleware);
+                    if (index > -1) {
+                        this.middlewares[type].splice(index, 1);
+                    }
+                };
+            }
+            
+            async runMiddlewares(type, data) {
+                let result = data;
+                
+                for (const middleware of this.middlewares[type]) {
+                    try {
+                        result = await middleware(result);
+                        if (result === null || result === undefined) {
+                            throw new Error(`Middleware ${type} returned null/undefined`);
+                        }
+                    } catch (error) {
+                        console.error(`Middleware ${type} error:`, error);
+                        throw error;
+                    }
+                }
+                
+                return result;
+            }
+            
+            // ============ شبیه‌سازی شبکه ============
+            
+            async simulateNetworkDelay() {
+                let delay = this.networkDelay;
+                
+                // افزایش تأخیر بر اساس وضعیت شبکه
+                if (this.networkLogger.networkSpeed === 'slow') {
+                    delay *= 3;
+                } else if (this.networkLogger.networkSpeed === 'very-slow') {
+                    delay *= 10;
+                }
+                
+                // تغییرات تصادفی
+                delay += Math.random() * delay * 0.3; // ±30%
+                
+                await this.delay(delay);
+            }
+            
+            shouldSimulateError() {
+                if (this.networkLogger.networkStatus === 'error') return true;
+                
+                // نرخ خطای تصادفی
+                return Math.random() < this.errorRate;
+            }
+            
+            simulateNetworkError() {
+                const errors = [
+                    new Error('اتصال به سرور برقرار نشد'),
+                    new Error('Timeout - پاسخ از سرور دریافت نشد'),
+                    new Error('سرور خطای داخلی داد (500)'),
+                    new Error('دسترسی غیرمجاز (401)'),
+                    new Error('منبع یافت نشد (404)')
+                ];
+                
+                return errors[Math.floor(Math.random() * errors.length)];
+            }
+            
+            // ============ ابزارهای کمکی ============
+            
+            async executeRequest(requestId, request) {
+                // شبیه‌سازی درخواست واقعی
+                await this.delay(50 + Math.random() * 100);
+                
+                // شبیه‌سازی پاسخ‌های مختلف بر اساس endpoint
+                let response;
+                
+                switch (request.url) {
+                    case `${this.baseURL}/auth/login`:
+                        response = this.mockAuthResponse(request);
+                        break;
+                    case `${this.baseURL}/users/profile`:
+                        response = this.mockProfileResponse(request);
+                        break;
+                    case `${this.baseURL}/lessons`:
+                        response = this.mockLessonsResponse(request);
+                        break;
+                    case `${this.baseURL}/payment/verify`:
+                        response = this.mockPaymentResponse(request);
+                        break;
+                    default:
+                        response = this.mockGenericResponse(request);
+                }
+                
+                return response;
+            }
+            
+            mockAuthResponse(request) {
+                if (request.data && request.data.email && request.data.password) {
+                    return {
+                        data: {
+                            token: `mock_jwt_token_${Date.now()}`,
+                            user: {
+                                id: 'user_123',
+                                email: request.data.email,
+                                name: 'کاربر تست',
+                                role: 'user'
+                            },
+                            expiresIn: 3600
+                        },
+                        status: 200,
+                        headers: {}
+                    };
+                } else {
+                    throw new Error('ایمیل یا رمز عبور ارائه نشده است');
+                }
+            }
+            
+            mockProfileResponse(request) {
+                return {
+                    data: {
+                        id: 'user_123',
+                        email: 'test@vakamova.com',
+                        name: 'کاربر تست',
+                        profile: {
+                            level: 'intermediate',
+                            completedLessons: 15,
+                            streak: 7,
+                            points: 1250
+                        },
+                        preferences: {
+                            language: 'fa',
+                            notifications: true,
+                            theme: 'light'
+                        }
+                    },
+                    status: 200,
+                    headers: {}
+                };
+            }
+            
+            mockLessonsResponse(request) {
+                const lessons = [];
+                for (let i = 1; i <= 10; i++) {
+                    lessons.push({
+                        id: `lesson_${i}`,
+                        title: `درس تست ${i}`,
+                        description: `توضیحات درس تست ${i}`,
+                        level: i <= 3 ? 'beginner' : i <= 7 ? 'intermediate' : 'advanced',
+                        duration: 10 + i * 5,
+                        completed: i <= 5
+                    });
+                }
+                
+                return {
+                    data: {
+                        lessons,
+                        pagination: {
+                            page: 1,
+                            limit: 10,
+                            total: 50,
+                            pages: 5
+                        }
+                    },
+                    status: 200,
+                    headers: {}
+                };
+            }
+            
+            mockPaymentResponse(request) {
+                return {
+                    data: {
+                        transactionId: `txn_${Date.now()}`,
+                        status: 'completed',
+                        amount: 99000,
+                        currency: 'IRR',
+                        timestamp: new Date().toISOString()
+                    },
+                    status: 200,
+                    headers: {}
+                };
+            }
+            
+            mockGenericResponse(request) {
+                return {
+                    data: {
+                        message: 'درخواست موفقیت‌آمیز بود',
+                        timestamp: new Date().toISOString(),
+                        method: request.method,
+                        endpoint: request.url.replace(this.baseURL, ''),
+                        mock: true
+                    },
+                    status: 200,
+                    headers: {}
+                };
+            }
+            
+            async handleRetry(requestId, request, error) {
+                for (let attempt = 1; attempt <= this.retryAttempts; attempt++) {
+                    console.log(`Retry attempt ${attempt}/${this.retryAttempts} for ${request.method} ${request.url}`);
+                    
+                    await this.delay(1000 * attempt); // تاخیر تصاعدی
+                    
+                    try {
+                        // تلاش مجدد
+                        const response = await this.executeRequest(requestId, request);
+                        this.networkLogger.logResponse(requestId, response.data, response.status);
+                        return response;
+                    } catch (retryError) {
+                        if (attempt === this.retryAttempts) {
+                            throw retryError;
+                        }
+                    }
+                }
+                
+                return null;
+            }
+            
+            getStatusCodeFromError(error) {
+                if (error.message.includes('اتصال')) return 0;
+                if (error.message.includes('Timeout')) return 408;
+                if (error.message.includes('500')) return 500;
+                if (error.message.includes('401')) return 401;
+                if (error.message.includes('404')) return 404;
+                return 500;
+            }
+            
+            delay(ms) {
+                return new Promise(resolve => setTimeout(resolve, ms));
+            }
+            
+            // ============ کنترل شبکه ============
+            
+            setOnline() {
+                this.offline = false;
+                this.networkLogger.setNetworkStatus('online', 'normal');
+                this.processQueue();
+                return this;
+            }
+            
+            setOffline() {
+                this.offline = true;
+                this.networkLogger.setNetworkStatus('offline');
+                return this;
+            }
+            
+            setNetworkSlow(speed = 'slow') {
+                this.offline = false;
+                this.networkLogger.setNetworkStatus('online', speed);
+                return this;
+            }
+            
+            setErrorRate(rate) {
+                this.errorRate = rate;
+                return this;
+            }
+            
+            // ============ وضعیت سیستم ============
+            
+            getStatus() {
+                return {
+                    baseURL: this.baseURL,
+                    networkStatus: this.networkLogger.networkStatus,
+                    networkSpeed: this.networkLogger.networkSpeed,
+                    isAuthenticated: !!this.authToken,
+                    queueLength: this.requestQueue.length,
+                    cacheSize: this.cache.size,
+                    stats: this.networkLogger.getStats()
+                };
+            }
+        }
+
+        // ============ تست‌های سیستم API ============
+        const API_TEST_SUITES = [
+            {
+                id: 'api-core',
+                name: 'هسته API Client',
+                icon: '🔧',
+                tests: [
+                    {
+                        id: 'api-basic-request',
+                        name: 'درخواست پایه GET',
+                        description: 'بررسی ارسال درخواست GET و دریافت پاسخ',
+                        network: false,
+                        run: async () => {
+                            const apiClient = new MockAPIClient();
+                            
+                            const response = await apiClient.get('/test');
+                            
+                            if (!response.data) throw new Error('داده‌ای دریافت نشد');
+                            if (response.status !== 200) throw new Error(`Status code نادرست: ${response.status}`);
+                            if (!response.data.message) throw new Error('پاسخ استاندارد نیست');
+                            
+                            return `✅ درخواست GET موفق. پاسخ: ${response.data.message}`;
+                        }
+                    },
+                    {
+                        id: 'api-post-request',
+                        name: 'درخوا POST با داده',
+                        description: 'بررسی ارسال داده در درخواست POST',
+                        network: false,
+                        run: async () => {
+                            const apiClient = new MockAPIClient();
+                            
+                            const testData = {
+                                name: 'آزمایش',
+                                value: 123,
+                                items: ['آیتم ۱', 'آیتم ۲']
+                            };
+                            
+                            const response = await apiClient.post('/test', testData);
+                            
+                            if (!response.data) throw new Error('داده‌ای دریافت نشد');
+                            if (response.data.method !== 'POST') throw new Error('متد نادرست');
+                            if (!response.data.endpoint) throw new Error('Endpoint ثبت نشد');
+                            
+                            return `✅ درخواست POST موفق. داده ارسال شد: ${JSON.stringify(testData).substring(0, 50)}...`;
+                        }
+                    },
+                    {
+                        id: 'api-query-params',
+                        name: 'پارامترهای Query',
+                        description: 'بررسی ارسال پارامترهای Query در GET',
+                        network: false,
+                        run: async () => {
+                            const apiClient = new MockAPIClient();
+                            
+                            const params = {
+                                page: 1,
+                                limit: 20,
+                                sort: 'date',
+                                order: 'desc',
+                                search: 'آموزش'
+                            };
+                            
+                            const response = await apiClient.get('/items', params);
+                            
+                            if (!response.data) throw new Error('داده‌ای دریافت نشد');
+                            if (!response.data.endpoint) throw new Error('Endpoint ثبت نشد');
+                            
+                            // بررسی اینکه پارامترها در URL باشند
+                            const expectedUrl = '/items?page=1&limit=20&sort=date&order=desc&search=آموزش';
+                            if (!response.data.endpoint.includes('?')) {
+                                throw new Error('پارامترهای Query اضافه نشدند');
+                            }
+                            
+                            return `✅ پارامترهای Query ارسال شدند: ${Object.keys(params).join(', ')}`;
+                        }
+                    }
+                ]
+            },
+            {
+                id: 'api-auth',
+                name: 'احراز هویت API',
+                icon: '🔐',
+                tests: [
+                    {
+                        id: 'api-login',
+                        name: 'ورود و دریافت توکن',
+                        description: 'بررسی فرآیند login و دریافت JWT token',
+                        network: false,
+                        run: async () => {
+                            const apiClient = new MockAPIClient();
+                            
+                            const credentials = {
+                                email: 'test@vakamova.com',
+                                password: 'Test@1234'
+                            };
+                            
+                            const response = await apiClient.post('/auth/login', credentials);
+                            
+                            if (!response.data.token) throw new Error('توکن دریافت نشد');
+                            if (!response.data.user) throw new Error('اطلاعات کاربر دریافت نشد');
+                            if (!response.data.user.id) throw new Error('شناسه کاربر دریافت نشد');
+                            
+                            // تنظیم توکن در کلاینت
+                            apiClient.setAuthToken(response.data.token);
+                            
+                            const status = apiClient.getStatus();
+                            if (!status.isAuthenticated) throw new Error('توکن تنظیم نشد');
+                            
+                            return `✅ ورود موفق. توکن دریافت شد (${response.data.token.substring(0, 20)}...)`;
+                        }
+                    },
+                    {
+                        id: 'api-authenticated-request',
+                        name: 'درخواست با احراز هویت',
+                        description: 'بررسی ارسال درخواست با توکن احراز',
+                        network: false,
+                        run: async () => {
+                            const apiClient = new MockAPIClient();
+                            
+                            // اول login کنیم
+                            const loginResponse = await apiClient.post('/auth/login', {
+                                email: 'test@vakamova.com',
+                                password: 'Test@1234'
+                            });
+                            
+                            apiClient.setAuthToken(loginResponse.data.token);
+                            
+                            // سپس درخواست با احراز
+                            const profileResponse = await apiClient.get('/users/profile');
+                            
+                            if (!profileResponse.data) throw new Error('پروفایل دریافت نشد');
+                            if (!profileResponse.data.email) throw new Error('ایمیل کاربر دریافت نشد');
+                            if (!profileResponse.data.profile) throw new Error('پروفایل کامل دریافت نشد');
+                            
+                            return `✅ درخواست با احراز موفق. کاربر: ${profileResponse.data.email}`;
+                        }
+                    },
+                    {
+                        id: 'api-token-clear',
+                        name: 'خروج و پاک کردن توکن',
+                        description: 'بررسی پاک شدن توکن پس از logout',
+                        network: false,
+                        run: async () => {
+                            const apiClient = new MockAPIClient();
+                            
+                            // login و تنظیم توکن
+                            const loginResponse = await apiClient.post('/auth/login', {
+                                email: 'test@vakamova.com',
+                                password: 'Test@1234'
+                            });
+                            
+                            apiClient.setAuthToken(loginResponse.data.token);
+                            
+                            // بررسی وجود توکن
+                            let status = apiClient.getStatus();
+                            if (!status.isAuthenticated) throw new Error('توکن تنظیم نشد');
+                            
+                            // پاک کردن توکن
+                            apiClient.clearAuth();
+                            
+                            // بررسی عدم وجود توکن
+                            status = apiClient.getStatus();
+                            if (status.isAuthenticated) throw new Error('توکن پاک نشد');
+                            
+                            return '✅ توکن با موفقیت پاک شد';
+                        }
+                    }
+                ]
+            },
+            {
+                id: 'api-network',
+                name: 'مدیریت شبکه',
+                icon: '🌐',
+                tests: [
+                    {
+                        id: 'api-offline-queue',
+                        name: 'صف آفلاین',
+                        description: 'بررسی ذخیره درخواست‌ها هنگام آفلاین',
+                        network: true,
+                        run: async () => {
+                            const apiClient = new MockAPIClient();
+                            
+                            // تنظیم آفلاین
+                            apiClient.setOffline();
+                            
+                            // ارسال چند درخواست (باید در صف ذخیره شوند)
+                            const promises = [
+                                apiClient.get('/offline-test-1'),
+                                apiClient.post('/offline-test-2', { data: 'test' }),
+                                apiClient.put('/offline-test-3', { update: true })
+                            ];
+                            
+                            // همه باید خطا بدهند
+                            const results = await Promise.allSettled(promises);
+                            const rejected = results.filter(r => r.status === 'rejected');
+                            
+                            if (rejected.length !== 3) throw new Error('همه درخواست‌ها باید خطا می‌دادند');
+                            
+                            // بررسی صف
+                            const queueStatus = apiClient.getQueueStatus();
+                            if (queueStatus.length !== 3) throw new Error(`صف باید ۳ آیتم داشته باشد، دارد: ${queueStatus.length}`);
+                            
+                            // برگرداندن به آنلاین
+                            apiClient.setOnline();
+                            
+                            // منتظر پردازش صف
+                            await apiClient.delay(1000);
+                            
+                            const finalQueueStatus = apiClient.getQueueStatus();
+                            if (finalQueueStatus.length > 0) throw new Error('صف باید خالی می‌شد');
+                            
+                            return `✅ صف آفلاین کار می‌کند. ${queueStatus.length} درخواست ذخیره و پردازش شد`;
+                        }
+                    },
+                    {
+                        id: 'api-retry-mechanism',
+                        name: 'مکانیزم Retry',
+                        description: 'بررسی تلاش مجدد درخواست‌های ناموفق',
+                        network: true,
+                        run: async () => {
+                            const apiClient = new MockAPIClient();
+                            
+                            // افزایش نرخ خطا
+                            apiClient.setErrorRate(0.8); // 80% خطا
+                            
+                            let retryCount = 0;
+                            
+                            // اضافه کردن middleware برای شمارش retryها
+                            apiClient.use('request', (request) => {
+                                if (request.url.includes('/retry-test')) {
+                                    retryCount++;
+                                }
+                                return request;
+                            });
+                            
+                            try {
+                                await apiClient.get('/retry-test', {}, { retry: true });
+                                throw new Error('باید خطا می‌داد');
+                            } catch (error) {
+                                // بررسی اینکه چند بار تلاش شده
+                                const expectedMinRetries = 2; // ابتدایی + حداقل ۲ retry
+                                if (retryCount < expectedMinRetries) {
+                                    throw new Error(`تعداد تلاش‌ها کم است: ${retryCount}`);
+                                }
+                            }
+                            
+                            // بازگرداندن تنظیمات
+                            apiClient.setErrorRate(0);
+                            
+                            return `✅ مکانیزم Retry کار می‌کند. تعداد تلاش‌ها: ${retryCount}`;
+                        }
+                    },
+                    {
+                        id: 'api-timeout',
+                        name: 'مدیریت Timeout',
+                        description: 'بررسی قطع درخواست‌های طولانی',
+                        network: true,
+                        run: async () => {
+                            const apiClient = new MockAPIClient();
+                            
+                            // تنظیم timeout کوتاه
+                            const originalTimeout = apiClient.timeout;
+                            apiClient.timeout = 100; // 100ms
+                            
+                            // شبیه‌سازی تأخیر طولانی
+                            apiClient.use('request', async (request) => {
+                                if (request.url.includes('/slow-endpoint')) {
+                                    await apiClient.delay(500); // بیشتر از timeout
+                                }
+                                return request;
+                            });
+                            
+                            try {
+                                await apiClient.get('/slow-endpoint');
+                                throw new Error('باید timeout می‌خورد');
+                            } catch (error) {
+                                if (!error.message.includes('Timeout')) {
+                                    throw new Error(`خطای نادرست: ${error.message}`);
+                                }
+                            } finally {
+                                // بازگردانی timeout
+                                apiClient.timeout = originalTimeout;
+                            }
+                            
+                            return '✅ مدیریت Timeout کار می‌کند';
+                        }
+                    }
+                ]
+            },
+            {
+                id: 'api-error',
+                name: 'مدیریت خطاها',
+                icon: '⚠️',
+                tests: [
+                    {
+                        id: 'api-http-errors',
+                        name: 'خطاهای HTTP',
+                        description: 'بررسی مدیریت خطاهای 4xx و 5xx',
+                        network: false,
+                        run: async () => {
+                            const apiClient = new MockAPIClient();
+                            
+                            // تست خطاهای مختلف
+                            const errorTests = [
+                                { endpoint: '/not-found', expectedError: 'یافت نشد' },
+                                { endpoint: '/unauthorized', expectedError: 'غیرمجاز' },
+                                { endpoint: '/server-error', expectedError: 'داخلی' }
+                            ];
+                            
+                            for (const test of errorTests) {
+                                try {
+                                    await apiClient.get(test.endpoint);
+                                    throw new Error(`باید خطا می‌داد برای ${test.endpoint}`);
+                                } catch (error) {
+                                    if (!error.message.includes(test.expectedError)) {
+                                        throw new Error(`خطای نادرست برای ${test.endpoint}: ${error.message}`);
+                                    }
+                                }
+                            }
+                            
+                            return '✅ مدیریت خطاهای HTTP کار می‌کند';
+                        }
+                    },
+                    {
+                        id: 'api-network-errors',
+                        name: 'خطاهای شبکه',
+                        description: 'بررسی قطعی شبکه و اتصال',
+                        network: true,
+                        run: async () => {
+                            const apiClient = new MockAPIClient();
+                            
+                            // حالت آفلاین
+                            apiClient.setOffline();
+                            
+                            try {
+                                await apiClient.get('/network-test');
+                                throw new Error('باید خطای شبکه می‌داد');
+                            } catch (error) {
+                                if (!error.message.includes('شبکه')) {
+                                    throw new Error(`خطای نادرست: ${error.message}`);
+                                }
+                            }
+                            
+                            // برگشت به آنلاین
+                            apiClient.setOnline();
+                            
+                            // حالا باید کار کند
+                            const response = await apiClient.get('/network-test');
+                            if (!response.data) throw new Error('پس از آنلاین شدن باید پاسخ می‌گرفت');
+                            
+                            return '✅ مدیریت خطاهای شبکه کار می‌کند';
+                        }
+                    },
+                    {
+                        id: 'api-error-middleware',
+                        name: 'Middleware خطا',
+                        description: 'بررسی middleware برای مدیریت خطاها',
+                        network: false,
+                        run: async () => {
+                            const apiClient = new MockAPIClient();
+                            let errorHandled = false;
+                            let errorTransformed = false;
+                            
+                            // اضافه کردن middleware خطا
+                            apiClient.use('error', (error) => {
+                                errorHandled = true;
+                                
+                                // تبدیل خطا به فرمت استاندارد
+                                const transformedError = new Error(`[API Error] ${error.message}`);
+                                transformedError.code = error.message.includes('404') ? 'NOT_FOUND' : 'UNKNOWN';
+                                transformedError.originalError = error;
+                                
+                                errorTransformed = true;
+                                return transformedError;
+                            });
+                            
+                            try {
+                                await apiClient.get('/some-error-endpoint');
+                                throw new Error('باید خطا می‌داد');
+                            } catch (error) {
+                                if (!errorHandled) throw new Error('Middleware خطا اجرا نشد');
+                                if (!errorTransformed) throw new Error('خطا transform نشد');
+                                if (!error.message.startsWith('[API Error]')) throw new Error('خطا format نشد');
+                                if (!error.code) throw new Error('کد خطا اضافه نشد');
+                            }
+                            
+                            return '✅ middleware مدیریت خطا کار می‌کند';
+                        }
+                    }
+                ]
+            },
+            {
+                id: 'api-performance',
+                name: 'تست‌های عملکرد',
+                icon: '⚡',
+                tests: [
+                    {
+                        id: 'api-caching',
+                        name: 'سیستم کش',
+                        description: 'بررسی کش کردن پاسخ‌ها برای عملکرد بهتر',
+                        network: false,
+                        run: async () => {
+                            const apiClient = new MockAPIClient();
+                            
+                            // اولین درخواست (باید از سرور بیاید)
+                            const startTime1 = performance.now();
+                            const response1 = await apiClient.get('/cached-endpoint', { param: 'test' });
+                            const duration1 = performance.now() - startTime1;
+                            
+                            if (response1.cached) throw new Error('پاسخ اول نباید cached باشد');
+                            
+                            // دومین درخواست (باید از کش بیاید)
+                            const startTime2 = performance.now();
+                            const response2 = await apiClient.get('/cached-endpoint', { param: 'test' });
+                            const duration2 = performance.now() - startTime2;
+                            
+                            if (!response2.cached) throw new Error('پاسخ دوم باید cached باشد');
+                            
+                            // باید سریع‌تر باشد
+                            const speedup = duration1 / duration2;
+                            if (speedup < 1.5) {
+                                console.warn(`کش تأثیر کمی داشت: ${speedup.toFixed(2)}x سریع‌تر`);
+                            }
+                            
+                            // پاک کردن کش
+                            apiClient.clearCache();
+                            
+                            // سومین درخواست (باید دوباره از سرور بیاید)
+                            const response3 = await apiClient.get('/cached-endpoint', { param: 'test' });
+                            if (response3.cached) throw new Error('پس از پاک کردن کش نباید cached باشد');
+                            
+                            return `✅ سیستم کش کار می‌کند. سرعت: ${speedup.toFixed(2)}x بهبود`;
+                        }
+                    },
+                    {
+                        id: 'api-parallel-requests',
+                        name: 'درخواست‌های موازی',
+                        description: 'بررسی عملکرد با درخواست‌های همزمان',
+                        network: true,
+                        run: async () => {
+                            const apiClient = new MockAPIClient();
+                            const numRequests = 10;
+                            
+                            const startTime = performance.now();
+                            
+                            // ایجاد درخواست‌های موازی
+                            const promises = [];
+                            for (let i = 0; i < numRequests; i++) {
+                                promises.push(
+                                    apiClient.get(`/parallel-test-${i}`, { index: i })
+                                );
+                            }
+                            
+                            const results = await Promise.all(promises);
+                            const totalTime = performance.now() - startTime;
+                            
+                            // بررسی نتایج
+                            const successful = results.filter(r => r.status === 200).length;
+                            if (successful !== numRequests) throw new Error(`تنها ${successful} از ${numRequests} درخواست موفق بودند`);
+                            
+                            // زمان باید منطقی باشد (نه خیلی سریع، نه خیلی کند)
+                            const avgTimePerRequest = totalTime / numRequests;
+                            
+                            if (avgTimePerRequest < 10) {
+                                console.warn('زمان‌ها ممکن است غیرواقعی باشند');
+                            } else if (avgTimePerRequest > 500) {
+                                throw new Error(`عملکرد ضعیف: ${avgTimePerRequest.toFixed(2)}ms به ازای هر درخواست`);
+                            }
+                            
+                            return `✅ ${numRequests} درخواست موازی در ${totalTime.toFixed(2)}ms (${avgTimePerRequest.toFixed(2)}ms/request)`;
+                        }
+                    },
+                    {
+                        id: 'api-batch-operations',
+                        name: 'عملیات دسته‌ای',
+                        description: 'بررسی عملکرد با داده‌های حجیم',
+                        network: true,
+                        run: async () => {
+                            const apiClient = new MockAPIClient();
+                            
+                            // داده حجیم
+                            const largeData = {
+                                items: []
+                            };
+                            
+                            for (let i = 0; i < 1000; i++) {
+                                largeData.items.push({
+                                    id: i,
+                                    name: `آیتم ${i}`,
+                                    data: 'x'.repeat(100), // 100 کاراکتر برای هر آیتم
+                                    timestamp: new Date().toISOString()
+                                });
+                            }
+                            
+                            const startTime = performance.now();
+                            const response = await apiClient.post('/batch', largeData);
+                            const duration = performance.now() - startTime;
+                            
+                            if (!response.data) throw new Error('پاسخ دریافت نشد');
+                            if (response.data.method !== 'POST') throw new Error('متد نادرست');
+                            
+                            // بررسی اندازه داده
+                            const dataSize = JSON.stringify(largeData).length;
+                            const dataSizeKB = (dataSize / 1024).toFixed(2);
+                            
+                            // معیارهای عملکرد
+                            if (duration > 5000) {
+                                throw new Error(`عملکرد ضعیف برای ${dataSizeKB}KB داده: ${duration.toFixed(2)}ms`);
+                            } else if (duration > 2000) {
+                                console.warn(`عملکرد قابل بهبود برای ${dataSizeKB}KB داده: ${duration.toFixed(2)}ms`);
+                            }
+                            
+                            return `✅ عملیات دسته‌ای با ${largeData.items.length} آیتم (${dataSizeKB}KB) در ${duration.toFixed(2)}ms`;
+                        }
+                    }
+                ]
+            }
+        ];
+
+        // ============ سیستم مدیریت تست‌ها ============
+        class APITestManager {
+            constructor() {
+                this.logger = new NetworkLogger();
+                this.apiClient = new MockAPIClient();
+                this.results = new Map();
+                this.totalTests = 0;
+                this.completedTests = 0;
+                this.networkTests = 0;
+                this.requestCount = 0;
+                
+                this.calculateStats();
+                this.renderTests();
+                this.setupEventListeners();
+                this.updateDisplay();
+                this.initializeSimulator();
+                this.updateNetworkIndicator();
+            }
+            
+            calculateStats() {
+                this.totalTests = API_TEST_SUITES.reduce(
+                    (sum, suite) => sum + suite.tests.length, 0
+                );
+                this.networkTests = API_TEST_SUITES.reduce(
+                    (sum, suite) => sum + suite.tests.filter(t => t.network).length, 0
+                );
+            }
+            
+            renderTests() {
+                const container = document.getElementById('test-container');
+                container.innerHTML = '';
+                
+                API_TEST_SUITES.forEach(suite => {
+                    const section = document.createElement('div');
+                    section.className = 'test-section';
+                    section.innerHTML = `
+                        <h2><span>${suite.icon}</span> ${suite.name}</h2>
+                        <div id="suite-${suite.id}">
+                            ${suite.tests.map(test => `
+                                <div class="test-item ${test.network ? 'network' : ''}" id="test-${test.id}">
+                                    <div class="test-header">
+                                        <div class="test-title">
+                                            ${test.name}
+                                            ${test.network ? '<span class="test-network">شبکه</span>' : ''}
+                                        </div>
+                                        <div class="test-status status-pending">در انتظار</div>
+                                    </div>
+                                    <div style="font-size: 0.9rem; color: #6b7280; margin-bottom: 8px;">
+                                        ${test.description}
+                                    </div>
+                                    <div class="test-output" id="output-${test.id}" style="display: none;"></div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    `;
+                    container.appendChild(section);
+                });
+            }
+            
+            setupEventListeners() {
+                document.getElementById('run-tests').addEventListener('click', () => {
+                    this.runAllTests();
+                });
+                
+                document.getElementById('run-network').addEventListener('click', () => {
+                    this.runNetworkTests();
+                });
+                
+                document.getElementById('clear-results').addEventListener('click', () => {
+                    if (confirm('آیا از پاک کردن نتایج تمام تست‌ها مطمئن هستید؟')) {
+                        this.clearResults();
+                    }
+                });
+                
+                document.getElementById('export-results').addEventListener('click', () => {
+                    this.exportResults();
+                });
+            }
+            
+            async runAllTests() {
+                const runButton = document.getElementById('run-tests');
+                runButton.disabled = true;
+                runButton.innerHTML = '<span class="loading"></span> در حال اجرا...';
+                
+                this.logger.setNetworkStatus('online', 'normal');
+                this.updateNetworkIndicator();
+                
+                this.logger.logs.push({
+                    type: 'test_start',
+                    timestamp: new Date().toISOString(),
+                    message: 'شروع اجرای تمام تست‌های سیستم API'
+                });
+                
+                console.log('🚀 شروع اجرای تمام تست‌های سیستم API');
+                
+                for (const suite of API_TEST_SUITES) {
+                    console.log(`📂 شروع تست‌های ${suite.name}`);
+                    for (const test of suite.tests) {
+                        await this.runSingleTest(test);
+                    }
+                }
+                
+                runButton.disabled = false;
+                runButton.innerHTML = '<span>🚀</span> اجرای مجدد تست‌ها';
+                
+                this.showSummary();
+            }
+            
+            async runNetworkTests() {
+                const networkButton = document.getElementById('run-network');
+                networkButton.disabled = true;
+                networkButton.innerHTML = '<span class="loading"></span> تست شبکه...';
+                
+                this.logger.setNetworkStatus('online', 'normal');
+                this.updateNetworkIndicator();
+                
+                this.logger.logs.push({
+                    type: 'network_test_start',
+                    timestamp: new Date().toISOString(),
+                    message: 'شروع تست‌های شبکه ویژه'
+                });
+                
+                console.log('🌐 شروع تست‌های شبکه ویژه');
+                
+                for (const suite of API_TEST_SUITES) {
+                    for (const test of suite.tests.filter(t => t.network)) {
+                        await this.runSingleTest(test);
+                    }
+                }
+                
+                networkButton.disabled = false;
+                networkButton.innerHTML = '<span>🌐</span> تست‌های شبکه';
+                
+                this.showPerformanceChart();
+            }
+            
+            async runSingleTest(test) {
+                const testElement = document.getElementById(`test-${test.id}`);
+                const statusElement = testElement.querySelector('.test-status');
+                const outputElement = document.getElementById(`output-${test.id}`);
+                
+                // ریست وضعیت
+                testElement.className = `test-item ${test.network ? 'network' : ''}`;
+                statusElement.className = 'test-status status-pending';
+                statusElement.textContent = 'در حال اجرا...';
+                outputElement.style.display = 'none';
+                
+                try {
+                    const startTime = performance.now();
+                    const result = await test.run();
+                    const duration = performance.now() - startTime;
+                    
+                    // موفق
+                    testElement.classList.add('passed');
+                    statusElement.className = 'test-status status-passed';
+                    statusElement.textContent = `موفق (${duration.toFixed(0)}ms)`;
+                    outputElement.textContent = result;
+                    outputElement.className = 'test-output success';
+                    outputElement.style.display = 'block';
+                    
+                    this.results.set(test.id, { 
+                        success: true, 
+                        result,
+                        duration,
+                        network: test.network 
+                    });
+                    
+                    this.logger.logs.push({
+                        type: 'test_pass',
+                        timestamp: new Date().toISOString(),
+                        test: test.name,
+                        duration,
+                        result
+                    });
+                    
+                    console.log(`✅ تست "${test.name}" موفق در ${duration.toFixed(2)}ms`);
+                    
+                } catch (error) {
+                    // شکست
+                    testElement.classList.add('failed');
+                    statusElement.className = 'test-status status-failed';
+                    statusElement.textContent = 'ناموفق';
+                    outputElement.textContent = `خطا: ${error.message}\n${error.stack || ''}`;
+                    outputElement.className = 'test-output error';
+                    outputElement.style.display = 'block';
+                    
+                    this.results.set(test.id, { 
+                        success: false, 
+                        error: error.message,
+                        network: test.network 
+                    });
+                    
+                    this.logger.logs.push({
+                        type: 'test_fail',
+                        timestamp: new Date().toISOString(),
+                        test: test.name,
+                        error: error.message
+                    });
+                    
+                    console.error(`❌ تست "${test.name}" ناموفق:`, error);
+                }
+                
+                this.completedTests++;
+                this.updateDisplay();
+            }
+            
+            updateDisplay() {
+                const passed = Array.from(this.results.values()).filter(r => r.success).length;
+                const failed = Array.from(this.results.values()).filter(r => !r.success).length;
+                const networkPassed = Array.from(this.results.values())
+                    .filter(r => r.network && r.success).length;
+                const pending = this.totalTests - this.completedTests;
+                const stats = this.logger.getStats();
+                
+                document.getElementById('passed-count').textContent = passed;
+                document.getElementById('failed-count').textContent = failed;
+                document.getElementById('network-count').textContent = networkPassed;
+                document.getElementById('request-count').textContent = stats.totalRequests;
+                document.getElementById('pending-count').textContent = pending;
+            }
+            
+            clearResults() {
+                this.results.clear();
+                this.completedTests = 0;
+                this.logger.clear();
+                this.apiClient = new MockAPIClient();
+                this.renderTests();
+                this.updateDisplay();
+                this.updateAPIVisualizer();
+                this.updateNetworkIndicator();
+                
+                console.log('🧹 نتایج تمام تست‌ها پاک شدند');
+                
+                document.getElementById('current-response').textContent = 'هیچ درخواستی ارسال نشده';
+            }
+            
+            exportResults() {
+                const results = {
+                    timestamp: new Date().toISOString(),
+                    system: 'API Client & Sync System',
+                    totalTests: this.totalTests,
+                    completedTests: this.completedTests,
+                    networkTests: this.networkTests,
+                    results: Object.fromEntries(this.results),
+                    logs: this.logger.logs,
+                    stats: this.logger.getStats(),
+                    apiStatus: this.apiClient.getStatus()
+                };
+                
+                const dataStr = JSON.stringify(results, null, 2);
+                const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+                
+                const exportFileDefaultName = `vakamova-api-test-${new Date().toISOString().split('T')[0]}.json`;
+                
+                const linkElement = document.createElement('a');
+                linkElement.setAttribute('href', dataUri);
+                linkElement.setAttribute('download', exportFileDefaultName);
+                linkElement.click();
+                
+                console.log('💾 نتایج تست‌ها با موفقیت ذخیره شد');
+            }
+            
+            showSummary() {
+                const passed = Array.from(this.results.values()).filter(r => r.success).length;
+                const failed = this.completedTests - passed;
+                const networkPassed = Array.from(this.results.values())
+                    .filter(r => r.network && r.success).length;
+                const successRate = ((passed / this.totalTests) * 100).toFixed(1);
+                
+                const stats = this.logger.getStats();
+                const avgResponseTime = stats.avgDuration.toFixed(2);
+                
+                const summary = `
+🎯 خلاصه نتایج تست API و همگام‌سازی:
+✅ موفق: ${passed} از ${this.totalTests}
+❌ ناموفق: ${failed}
+🌐 تست‌های شبکه: ${networkPassed} از ${this.networkTests}
+📊 نرخ موفقیت: ${successRate}%
+⏱️ میانگین زمان پاسخ: ${avgResponseTime}ms
+📡 کل درخواست‌ها: ${stats.totalRequests}
+                `.trim();
+                
+                console.log(summary);
+                
+                // نمایش اعلان
+                if (failed === 0 && networkPassed === this.networkTests) {
+                    alert(`🎉 تمام تست‌ها با موفقیت کامل!\n${summary}`);
+                } else if (failed > 0) {
+                    alert(`⚠️ ${failed} تست ناموفق داشتیم.\n${summary}`);
+                }
+            }
+            
+            showPerformanceChart() {
+                const performanceResults = Array.from(this.results.values())
+                    .filter(r => r.network && r.duration)
+                    .slice(-5);
+                
+                if (performanceResults.length === 0) return;
+                
+                const maxDuration = Math.max(...performanceResults.map(r => r.duration));
+                
+                let chartHTML = '<div class="performance-chart"><h4>📊 نمودار عملکرد شبکه</h4>';
+                
+                performanceResults.forEach((result, index) => {
+                    const width = (result.duration / maxDuration) * 100;
+                    chartHTML += `
+                        <div class="chart-label">
+                            <span>تست شبکه ${index + 1}</span>
+                            <span>${result.duration.toFixed(2)}ms</span>
+                        </div>
+                        <div class="chart-bar" style="width: ${width}%"></div>
+                    `;
+                });
+                
+                chartHTML += '</div>';
+                
+                // اضافه کردن به اولین تست شبکه
+                const firstNetworkTest = document.querySelector('.test-item.network');
+                if (firstNetworkTest) {
+                    const existingChart = firstNetworkTest.querySelector('.performance-chart');
+                    if (existingChart) existingChart.remove();
+                    firstNetworkTest.insertAdjacentHTML('beforeend', chartHTML);
+                }
+            }
+            
+            // ============ شبیه‌ساز ============
+            
+            initializeSimulator() {
+                this.simulatorAPI = new MockAPIClient();
+                this.updateAPIVisualizer();
+            }
+            
+            updateAPIVisualizer() {
+                const visualizer = document.getElementById('api-visualizer');
+                const recentRequests = this.logger.getRecentRequests(5);
+                
+                if (recentRequests.length === 0) {
+                    visualizer.innerHTML = `{
+  "system": "api-simulator",
+  "status": "ready",
+  "requests": []
+}`;
+                    return;
+                }
+                
+                let html = '<div style="color: #94a3b8;">// آخرین درخواست‌ها:</div><br>';
+                
+                recentRequests.forEach((request, index) => {
+                    const methodColor = request.method === 'GET' ? '#10b981' :
+                                      request.method === 'POST' ? '#3b82f6' :
+                                      request.method === 'PUT' ? '#f59e0b' :
+                                      request.method === 'DELETE' ? '#ef4444' : '#8b5cf6';
+                    
+                    html += `<div style="margin-bottom: 10px;">`;
+                    html += `<span style="color: ${methodColor}; font-weight: bold;">${request.method}</span> `;
+                    html += `<span class="request">${request.url}</span><br>`;
+                    
+                    if (request.status === 'completed') {
+                        html += `<span style="color: #34d399;">✅ ${request.statusCode} - ${request.duration.toFixed(2)}ms</span>`;
+                    } else if (request.status === 'error') {
+                        html += `<span class="error">❌ ${request.statusCode || 'Error'} - ${request.error.message}</span>`;
+                    } else {
+                        html += `<span style="color: #f59e0b;">⏳ در حال انتظار...</span>`;
+                    }
+                    
+                    html += `</div>`;
+                });
+                
+                visualizer.innerHTML = html;
+            }
+            
+            updateNetworkIndicator() {
+                const indicator = document.getElementById('network-indicator');
+                const statusText = document.getElementById('network-status-text');
+                const stats = this.logger.getStats();
+                
+                indicator.className = 'status-indicator';
+                
+                switch (stats.networkStatus) {
+                    case 'online':
+                        indicator.classList.add(stats.networkSpeed === 'normal' ? 'status-online' : 'status-slow');
+                        statusText.textContent = stats.networkSpeed === 'normal' 
+                            ? 'آنلاین - سرعت عادی' 
+                            : `آنلاین - سرعت ${stats.networkSpeed}`;
+                        break;
+                    case 'offline':
+                        indicator.classList.add('status-offline');
+                        statusText.textContent = 'آفلاین';
+                        break;
+                    case 'error':
+                        indicator.classList.add('status-offline');
+                        statusText.textContent = 'خطای شبکه';
+                        break;
+                }
+            }
+            
+            async simulateGetRequest() {
+                try {
+                    document.getElementById('current-response').innerHTML = 
+                        '<span style="color: #f59e0b;">⏳ در حال ارسال درخواست GET...</span>';
+                    
+                    const response = await this.simulatorAPI.get('/test/simulate');
+                    
+                    document.getElementById('current-response').innerHTML = 
+                        `<span style="color: #10b981;">✅ موفق - کد: ${response.status}</span><br>
+                         <small>${JSON.stringify(response.data).substring(0, 100)}...</small>`;
+                    
+                } catch (error) {
+                    document.getElementById('current-response').innerHTML = 
+                        `<span style="color: #ef4444;">❌ خطا: ${error.message}</span>`;
+                }
+                
+                this.updateAPIVisualizer();
+                this.updateDisplay();
+            }
+            
+            async simulatePostRequest() {
+                try {
+                    document.getElementById('current-response').innerHTML = 
+                        '<span style="color: #f59e0b;">⏳ در حال ارسال درخواست POST...</span>';
+                    
+                    const data = {
+                        action: 'simulate',
+                        timestamp: new Date().toISOString(),
+                        data: { test: 'مقدار تستی' }
+                    };
+                    
+                    const response = await this.simulatorAPI.post('/test/simulate', data);
+                    
+                    document.getElementById('current-response').innerHTML = 
+                        `<span style="color: #10b981;">✅ موفق - کد: ${response.status}</span><br>
+                         <small>داده ارسال شد و پاسخ دریافت شد</small>`;
+                    
+                } catch (error) {
+                    document.getElementById('current-response').innerHTML = 
+                        `<span style="color: #ef4444;">❌ خطا: ${error.message}</span>`;
+                }
+                
+                this.updateAPIVisualizer();
+                this.updateDisplay();
+            }
+            
+            async simulateErrorRequest() {
+                try {
+                    document.getElementById('current-response').innerHTML = 
+                        '<span style="color: #f59e0b;">⏳ در حال ارسال درخواست با خطا...</span>';
+                    
+                    // تنظیم خطا
+                    this.simulatorAPI.setErrorRate(1); // 100% خطا
+                    
+                    await this.simulatorAPI.get('/error-endpoint');
+                    
+                    document.getElementById('current-response').innerHTML = 
+                        '<span style="color: #ef4444;">❌ باید خطا می‌داد اما نداد!</span>';
+                    
+                } catch (error) {
+                    document.getElementById('current-response').innerHTML = 
+                        `<span style="color: #ef4444;">✅ خطا مدیریت شد: ${error.message}</span>`;
+                } finally {
+                    // بازگرداندن تنظیمات
+                    this.simulatorAPI.setErrorRate(0);
+                }
+                
+                this.updateAPIVisualizer();
+                this.updateDisplay();
+            }
+            
+            async simulateAuthRequest() {
+                try {
+                    document.getElementById('current-response').innerHTML = 
+                        '<span style="color: #f59e0b;">⏳ در حال احراز هویت...</span>';
+                    
+                    const response = await this.simulatorAPI.post('/auth/login', {
+                        email: 'simulator@vakamova.com',
+                        password: 'Simulator@123'
+                    });
+                    
+                    if (response.data.token) {
+                        this.simulatorAPI.setAuthToken(response.data.token);
+                        
+                        document.getElementById('current-response').innerHTML = 
+                            `<span style="color: #10b981;">✅ احراز هویت موفق</span><br>
+                             <small>توکن دریافت شد: ${response.data.token.substring(0, 30)}...</small>`;
+                    } else {
+                        throw new Error('توکن دریافت نشد');
+                    }
+                    
+                } catch (error) {
+                    document.getElementById('current-response').innerHTML = 
+                        `<span style="color: #ef4444;">❌ خطای احراز: ${error.message}</span>`;
+                }
+                
+                this.updateAPIVisualizer();
+                this.updateDisplay();
+            }
+            
+            setNetworkOnline() {
+                this.simulatorAPI.setOnline();
+                this.logger.setNetworkStatus('online', 'normal');
+                this.updateNetworkIndicator();
+                document.getElementById('current-response').textContent = 'شبکه به حالت آنلاین تغییر کرد';
+            }
+            
+            setNetworkOffline() {
+                this.simulatorAPI.setOffline();
+                this.logger.setNetworkStatus('offline');
+                this.updateNetworkIndicator();
+                document.getElementById('current-response').textContent = 'شبکه به حالت آفلاین تغییر کرد';
+            }
+            
+            setNetworkSlow() {
+                this.simulatorAPI.setNetworkSlow('slow');
+                this.logger.setNetworkStatus('online', 'slow');
+                this.updateNetworkIndicator();
+                document.getElementById('current-response').textContent = 'شبکه به حالت کند تغییر کرد';
+            }
+        }
+
+        // ============ راه‌اندازی و توابع عمومی ============
+        let apiTestManager;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            apiTestManager = new APITestManager();
+            console.log('✅ سیستم تست API و همگام‌سازی Vakamova آماده است');
+        });
+
+        // توابع شبیه‌ساز برای دکمه‌های HTML
+        window.simulateGetRequest = () => apiTestManager.simulateGetRequest();
+        window.simulatePostRequest = () => apiTestManager.simulatePostRequest();
+        window.simulateErrorRequest = () => apiTestManager.simulateErrorRequest();
+        window.simulateAuthRequest = () => apiTestManager.simulateAuthRequest();
+        window.setNetworkOnline = () => apiTestManager.setNetworkOnline();
+        window.setNetworkOffline = () => apiTestManager.setNetworkOffline();
+        window.setNetworkSlow = () => apiTestManager.setNetworkSlow();
+    </script>
+</body>
+  </html>
