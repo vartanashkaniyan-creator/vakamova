@@ -1,0 +1,748 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="fa">
+<head>
+    <meta charset="UTF-8">
+    <title>تست Performance - Vakamova</title>
+    <style>
+        body { font-family: Tahoma; max-width: 1200px; margin: 20px auto; padding: 20px; background: #f8f9fa; }
+        .performance-card { background: white; padding: 20px; margin: 15px 0; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.08); }
+        .metric { display: inline-block; margin: 10px 15px; padding: 12px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 8px; min-width: 150px; text-align: center; }
+        .good { background: linear-gradient(135deg, #4CAF50 0%, #2E7D32 100%) !important; }
+        .warning { background: linear-gradient(135deg, #FF9800 0%, #F57C00 100%) !important; }
+        .critical { background: linear-gradient(135deg, #F44336 0%, #C62828 100%) !important; }
+        button { background: linear-gradient(135deg, #3498db 0%, #2980b9 100%); color: white; border: none; padding: 14px 28px; border-radius: 8px; cursor: pointer; font-size: 16px; margin: 10px 5px; font-weight: bold; }
+        .chart-container { height: 200px; margin: 20px 0; background: #f5f5f5; border-radius: 8px; padding: 15px; }
+        .progress-bar { height: 20px; background: #e0e0e0; border-radius: 10px; overflow: hidden; margin: 10px 0; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, #4CAF50, #8BC34A); }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <h1>⚡ تست Performance ماژول‌های Vakamova</h1>
+    <p>بررسی سرعت، مصرف حافظه و کارایی ماژول‌های اصلی</p>
+    
+    <div class="performance-card">
+        <h3>🎯 ماژول‌های تحت تست</h3>
+        <div class="metric">ExerciseManager</div>
+        <div class="metric">UserProfileManager</div>
+        <div class="metric">APIClient</div>
+        <div class="metric">State Manager</div>
+    </div>
+    
+    <button onclick="runAllPerformanceTests()">شروع تست کامل Performance</button>
+    <button onclick="runQuickPerformanceTest()">تست سریع Performance</button>
+    <button onclick="runMemoryTest()">تست مصرف حافظه</button>
+    
+    <div id="results"></div>
+    <div id="charts"></div>
+
+    <script>
+        // ==================== Performance Test Framework ====================
+        class PerformanceTester {
+            constructor() {
+                this.results = [];
+                this.charts = [];
+                this.memorySamples = [];
+                this.startTime = null;
+            }
+            
+            startMeasurement(name) {
+                return {
+                    name,
+                    startTime: performance.now(),
+                    startMemory: this.getMemoryUsage()
+                };
+            }
+            
+            endMeasurement(measurement) {
+                const endTime = performance.now();
+                const endMemory = this.getMemoryUsage();
+                
+                const duration = endTime - measurement.startTime;
+                const memoryDiff = endMemory.usedJSHeapSize - measurement.startMemory.usedJSHeapSize;
+                
+                return {
+                    name: measurement.name,
+                    duration: Math.round(duration * 100) / 100, // ms
+                    memoryChange: Math.round(memoryDiff / 1024), // KB
+                    timestamp: new Date().toISOString()
+                };
+            }
+            
+            getMemoryUsage() {
+                if (performance.memory) {
+                    return {
+                        usedJSHeapSize: performance.memory.usedJSHeapSize,
+                        totalJSHeapSize: performance.memory.totalJSHeapSize,
+                        jsHeapSizeLimit: performance.memory.jsHeapSizeLimit
+                    };
+                }
+                return { usedJSHeapSize: 0, totalJSHeapSize: 0, jsHeapSizeLimit: 0 };
+            }
+            
+            addResult(result) {
+                this.results.push(result);
+                
+                // تعیین وضعیت بر اساس زمان اجرا
+                let status = 'good';
+                if (result.duration > 100) status = 'warning';
+                if (result.duration > 500) status = 'critical';
+                
+                result.status = status;
+                return result;
+            }
+            
+            benchmark(iterations, operationName, operation) {
+                const times = [];
+                const memory = [];
+                
+                // گرم کردن (Warm-up)
+                for (let i = 0; i < Math.min(10, iterations); i++) {
+                    operation(i);
+                }
+                
+                // اجرای اصلی
+                for (let i = 0; i < iterations; i++) {
+                    const start = performance.now();
+                    const startMem = this.getMemoryUsage();
+                    
+                    operation(i);
+                    
+                    const end = performance.now();
+                    const endMem = this.getMemoryUsage();
+                    
+                    times.push(end - start);
+                    memory.push(endMem.usedJSHeapSize - startMem.usedJSHeapSize);
+                }
+                
+                // محاسبه آمار
+                const avgTime = times.reduce((a, b) => a + b, 0) / times.length;
+                const maxTime = Math.max(...times);
+                const minTime = Math.min(...times);
+                const avgMemory = memory.reduce((a, b) => a + b, 0) / memory.length;
+                
+                return {
+                    name: operationName,
+                    iterations,
+                    avgTime: Math.round(avgTime * 100) / 100,
+                    maxTime: Math.round(maxTime * 100) / 100,
+                    minTime: Math.round(minTime * 100) / 100,
+                    opsPerSecond: Math.round(1000 / avgTime),
+                    avgMemory: Math.round(avgMemory / 1024),
+                    times,
+                    memorySamples: memory
+                };
+            }
+            
+            generateReport() {
+                const report = {
+                    totalTests: this.results.length,
+                    totalTime: this.results.reduce((sum, r) => sum + r.duration, 0),
+                    averageTime: this.results.reduce((sum, r) => sum + r.duration, 0) / this.results.length,
+                    byStatus: this.results.reduce((acc, r) => {
+                        acc[r.status] = (acc[r.status] || 0) + 1;
+                        return acc;
+                    }, {}),
+                    details: this.results
+                };
+                
+                return report;
+            }
+        }
+        
+        // ==================== Mock Data Generators ====================
+        class MockDataGenerator {
+            static generateExercises(count) {
+                const exercises = [];
+                const types = ['multipleChoice', 'fillBlank', 'matching', 'pronunciation'];
+                
+                for (let i = 0; i < count; i++) {
+                    exercises.push({
+                        id: `ex_${i}`,
+                        type: types[i % types.length],
+                        question: `سوال تست ${i + 1} در مورد یادگیری زبان`,
+                        options: ['گزینه ۱', 'گزینه ۲', 'گزینه ۳', 'گزینه ۴'],
+                        correctAnswer: 'گزینه ' + ((i % 4) + 1),
+                        difficulty: i % 3 === 0 ? 'easy' : i % 3 === 1 ? 'medium' : 'hard',
+                        lessonId: `lesson_${Math.floor(i / 10)}`,
+                        createdAt: new Date().toISOString()
+                    });
+                }
+                
+                return exercises;
+            }
+            
+            static generateUserProfiles(count) {
+                const profiles = [];
+                const languages = ['en', 'fa', 'es', 'fr', 'de', 'zh', 'ar', 'ru'];
+                
+                for (let i = 0; i < count; i++) {
+                    profiles.push({
+                        id: `user_${i}`,
+                        fullName: `کاربر تست ${i + 1}`,
+                        email: `user${i}@test.com`,
+                        profileImage: `https://api.dicebear.com/7.x/avataaars/svg?seed=${i}`,
+                        country: i % 2 === 0 ? 'IR' : 'US',
+                        timezone: 'Asia/Tehran',
+                        joinDate: new Date(Date.now() - i * 86400000).toISOString(),
+                        lastSeen: new Date().toISOString(),
+                        languages: languages.slice(0, (i % 3) + 2).map(code => ({
+                            code,
+                            level: ['beginner', 'intermediate', 'advanced'][i % 3],
+                            progress: Math.floor(Math.random() * 100),
+                            totalMinutes: Math.floor(Math.random() * 1000)
+                        })),
+                        subscription: {
+                            type: i % 4 === 0 ? 'free' : 'premium',
+                            expiryDate: i % 4 === 0 ? null : new Date(Date.now() + 86400000 * 30).toISOString()
+                        }
+                    });
+                }
+                
+                return profiles;
+            }
+            
+            static generateAPIRequests(count) {
+                const requests = [];
+                const endpoints = [
+                    '/lessons',
+                    '/exercises',
+                    '/profile',
+                    '/progress',
+                    '/languages'
+                ];
+                
+                for (let i = 0; i < count; i++) {
+                    requests.push({
+                        method: i % 4 === 0 ? 'GET' : i % 4 === 1 ? 'POST' : i % 4 === 2 ? 'PUT' : 'DELETE',
+                        endpoint: endpoints[i % endpoints.length],
+                        data: i % 3 !== 0 ? { test: 'data', index: i } : null,
+                        headers: {
+                            'Authorization': `Bearer token_${i}`,
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                }
+                
+                return requests;
+            }
+        }
+        
+        // ==================== Performance Tests ====================
+        class ExerciseManagerPerformanceTest {
+            constructor() {
+                this.exercises = MockDataGenerator.generateExercises(1000);
+                this.results = [];
+            }
+            
+            testExerciseCreation(count = 100) {
+                const testExercises = this.exercises.slice(0, count);
+                let created = 0;
+                
+                const result = perfTester.benchmark(count, 'ایجاد تمرین', (i) => {
+                    // شبیه‌سازی ایجاد تمرین
+                    const exercise = testExercises[i % testExercises.length];
+                    const mockExercise = {
+                        ...exercise,
+                        id: `new_ex_${created++}`,
+                        createdAt: new Date().toISOString()
+                    };
+                    return mockExercise;
+                });
+                
+                this.results.push(result);
+                return result;
+            }
+            
+            testExerciseEvaluation(count = 100) {
+                const testExercises = this.exercises.slice(0, count);
+                
+                const result = perfTester.benchmark(count, 'ارزیابی تمرین', (i) => {
+                    // شبیه‌سازی ارزیابی
+                    const exercise = testExercises[i % testExercises.length];
+                    const userAnswer = exercise.options[i % exercise.options.length];
+                    const isCorrect = userAnswer === exercise.correctAnswer;
+                    
+                    return {
+                        exerciseId: exercise.id,
+                        userAnswer,
+                        isCorrect,
+                        score: isCorrect ? 100 : 0,
+                        timestamp: new Date().toISOString()
+                    };
+                });
+                
+                this.results.push(result);
+                return result;
+            }
+            
+            testBulkOperations(count = 50) {
+                const result = perfTester.benchmark(count, 'عملیات دسته‌ای تمرین', (i) => {
+                    // شبیه‌سازی عملیات دسته‌ای
+                    const batchSize = 20;
+                    const batch = [];
+                    
+                    for (let j = 0; j < batchSize; j++) {
+                        const exIndex = (i * batchSize + j) % this.exercises.length;
+                        batch.push({
+                            ...this.exercises[exIndex],
+                            status: 'processed',
+                            order: j
+                        });
+                    }
+                    
+                    return batch;
+                });
+                
+                this.results.push(result);
+                return result;
+            }
+        }
+        
+        class UserProfilePerformanceTest {
+            constructor() {
+                this.profiles = MockDataGenerator.generateUserProfiles(500);
+                this.results = [];
+            }
+            
+            testProfileLoading(count = 100) {
+                const result = perfTester.benchmark(count, 'بارگذاری پروفایل', (i) => {
+                    const profile = this.profiles[i % this.profiles.length];
+                    
+                    // شبیه‌سازی پردازش پروفایل
+                    const processed = {
+                        ...profile,
+                        displayName: profile.fullName.toUpperCase(),
+                        languageCount: profile.languages.length,
+                        isPremium: profile.subscription.type === 'premium',
+                        lastSeenFormatted: new Date(profile.lastSeen).toLocaleDateString('fa-IR')
+                    };
+                    
+                    return processed;
+                });
+                
+                this.results.push(result);
+                return result;
+            }
+            
+            testProfileSync(count = 50) {
+                const result = perfTester.benchmark(count, 'همگام‌سازی پروفایل', (i) => {
+                    // شبیه‌سازی همگام‌سازی
+                    const profile = this.profiles[i % this.profiles.length];
+                    const serverVersion = { ...profile, version: Math.floor(Math.random() * 10) };
+                    const localVersion = { ...profile, version: Math.floor(Math.random() * 10) };
+                    
+                    // شبیه‌سازی الگوریتم ادغام
+                    const merged = {
+                        ...localVersion,
+                        ...serverVersion,
+                        lastSynced: new Date().toISOString(),
+                        syncMethod: serverVersion.version > localVersion.version ? 'server' : 'local'
+                    };
+                    
+                    return merged;
+                });
+                
+                this.results.push(result);
+                return result;
+            }
+            
+            testSearchProfiles(count = 20) {
+                const result = perfTester.benchmark(count, 'جستجوی پروفایل', (i) => {
+                    const searchTerm = `کاربر ${i % 10}`;
+                    
+                    // شبیه‌سازی جستجوی خطی (برای تست فشار)
+                    const results = [];
+                    for (const profile of this.profiles) {
+                        if (profile.fullName.includes(searchTerm) || 
+                            profile.email.includes(searchTerm)) {
+                            results.push(profile);
+                        }
+                        if (results.length >= 10) break;
+                    }
+                    
+                    return results;
+                });
+                
+                this.results.push(result);
+                return result;
+            }
+        }
+        
+        class APIClientPerformanceTest {
+            constructor() {
+                this.requests = MockDataGenerator.generateAPIRequests(200);
+                this.cache = new Map();
+                this.results = [];
+            }
+            
+            testRequestProcessing(count = 100) {
+                const result = perfTester.benchmark(count, 'پردازش درخواست API', (i) => {
+                    const request = this.requests[i % this.requests.length];
+                    
+                    // شبیه‌سازی پردازش درخواست
+                    const processed = {
+                        ...request,
+                        timestamp: new Date().toISOString(),
+                        requestId: `req_${Date.now()}_${i}`,
+                        headersProcessed: Object.keys(request.headers || {}).length
+                    };
+                    
+                    return processed;
+                });
+                
+                this.results.push(result);
+                return result;
+            }
+            
+            testCachePerformance(count = 100) {
+                // پر کردن کش
+                for (let i = 0; i < 100; i++) {
+                    this.cache.set(`key_${i}`, {
+                        data: { id: i, value: `value_${i}` },
+                        expiry: Date.now() + 60000
+                    });
+                }
+                
+                const result = perfTester.benchmark(count, 'دسترسی به کش', (i) => {
+                    const key = `key_${i % 100}`;
+                    const cached = this.cache.get(key);
+                    
+                    if (cached && cached.expiry > Date.now()) {
+                        return cached.data;
+                    }
+                    
+                    // شبیه‌سازی fetch جدید
+                    const newData = { id: i, value: `new_value_${i}`, fetchedAt: new Date().toISOString() };
+                    this.cache.set(key, {
+                        data: newData,
+                        expiry: Date.now() + 60000
+                    });
+                    
+                    return newData;
+                });
+                
+                this.results.push(result);
+                return result;
+            }
+            
+            testBatchRequests(count = 20) {
+                const result = perfTester.benchmark(count, 'درخواست‌های دسته‌ای', (i) => {
+                    // شبیه‌سازی ۵ درخواست همزمان
+                    const batchSize = 5;
+                    const batchResults = [];
+                    
+                    for (let j = 0; j < batchSize; j++) {
+                        const reqIndex = (i * batchSize + j) % this.requests.length;
+                        const request = this.requests[reqIndex];
+                        
+                        batchResults.push({
+                            ...request,
+                            responseTime: Math.random() * 100 + 50, // ms
+                            success: Math.random() > 0.1,
+                            processedAt: new Date().toISOString()
+                        });
+                    }
+                    
+                    return batchResults;
+                });
+                
+                this.results.push(result);
+                return result;
+            }
+        }
+        
+        // ==================== Memory Test ====================
+        class MemoryUsageTest {
+            constructor() {
+                this.dataStructures = [];
+                this.results = [];
+            }
+            
+            testMemoryAllocation(count = 100) {
+                const result = perfTester.benchmark(count, 'تخصیص حافظه', (i) => {
+                    // ایجاد ساختار داده‌های مختلف
+                    const largeArray = new Array(1000).fill(null).map((_, idx) => ({
+                        id: idx,
+                        name: `Item ${idx}`,
+                        data: new Array(10).fill('x').join(''),
+                        timestamp: new Date().toISOString()
+                    }));
+                    
+                    const largeObject = {};
+                    for (let j = 0; j < 100; j++) {
+                        largeObject[`key_${j}`] = {
+                            value: `value_${j}_${i}`,
+                            nested: { level: 2, data: 'test'.repeat(10) }
+                        };
+                    }
+                    
+                    const buffer = new ArrayBuffer(1024 * 10); // 10KB
+                    
+                    // ذخیره برای جلوگیری از garbage collection
+                    this.dataStructures.push({ largeArray, largeObject, buffer });
+                    
+                    // حفظ فقط ۱۰ نمونه برای جلوگیری از overflow حافظه
+                    if (this.dataStructures.length > 10) {
+                        this.dataStructures.shift();
+                    }
+                    
+                    return { size: largeArray.length + Object.keys(largeObject).length };
+                });
+                
+                this.results.push(result);
+                return result;
+            }
+            
+            testGarbageCollection(count = 50) {
+                const result = perfTester.benchmark(count, 'تست Garbage Collection', (i) => {
+                    // ایجاد و حذف اشیاء بزرگ
+                    const tempObjects = [];
+                    
+                    // ایجاد ۱۰۰ شیء
+                    for (let j = 0; j < 100; j++) {
+                        tempObjects.push({
+                            id: `temp_${i}_${j}`,
+                            data: new Array(100).fill('data').join(''),
+                            metadata: { created: Date.now(), index: j }
+                        });
+                    }
+                    
+                    // شبیه‌سازی پردازش
+                    const processed = tempObjects.map(obj => ({
+                        ...obj,
+                        processed: true,
+                        hash: obj.id.split('_').reduce((sum, part) => sum + part.length, 0)
+                    }));
+                    
+                    // رها کردن reference - اجازه garbage collection
+                    return processed.length; // فقط طول بازگردانده می‌شود
+                });
+                
+                this.results.push(result);
+                return result;
+            }
+        }
+        
+        // ==================== Global State ====================
+        const perfTester = new PerformanceTester();
+        let allTestResults = [];
+        
+        // ==================== UI Functions ====================
+        
+        async function runAllPerformanceTests() {
+            const resultsDiv = document.getElementById('results');
+            const chartsDiv = document.getElementById('charts');
+            
+            resultsDiv.innerHTML = '<h2>⚡ در حال اجرای تست‌های Performance...</h2>';
+            chartsDiv.innerHTML = '';
+            
+            allTestResults = [];
+            const startTime = performance.now();
+            
+            try {
+                // تست ExerciseManager
+                resultsDiv.innerHTML += '<h3>🧪 ExerciseManager Performance Tests</h3>';
+                const exerciseTest = new ExerciseManagerPerformanceTest();
+                
+                const exCreateResult = exerciseTest.testExerciseCreation(200);
+                displayResult(exCreateResult);
+                
+                const exEvalResult = exerciseTest.testExerciseEvaluation(200);
+                displayResult(exEvalResult);
+                
+                const exBulkResult = exerciseTest.testBulkOperations(50);
+                displayResult(exBulkResult);
+                
+                // تست UserProfileManager
+                resultsDiv.innerHTML += '<h3>👤 UserProfileManager Performance Tests</h3>';
+                const profileTest = new UserProfilePerformanceTest();
+                
+                const profileLoadResult = profileTest.testProfileLoading(200);
+                displayResult(profileLoadResult);
+                
+                const profileSyncResult = profileTest.testProfileSync(100);
+                displayResult(profileSyncResult);
+                
+                const profileSearchResult = profileTest.testSearchProfiles(50);
+                displayResult(profileSearchResult);
+                
+                // تست APIClient
+                resultsDiv.innerHTML += '<h3>🌐 APIClient Performance Tests</h3>';
+                const apiTest = new APIClientPerformanceTest();
+                
+                const apiRequestResult = apiTest.testRequestProcessing(200);
+                displayResult(apiRequestResult);
+                
+                const apiCacheResult = apiTest.testCachePerformance(200);
+                displayResult(apiCacheResult);
+                
+                const apiBatchResult = apiTest.testBatchRequests(50);
+                displayResult(apiBatchResult);
+                
+                // جمع‌بندی
+                const totalTime = performance.now() - startTime;
+                
+                resultsDiv.innerHTML += `
+                    <div class="performance-card">
+                        <h3>📊 گزارش نهایی Performance</h3>
+                        <div class="metric good">زمان کل: ${Math.round(totalTime)}ms</div>
+                        <div class="metric good">تعداد تست‌ها: ${allTestResults.length}</div>
+                        <div class="metric good">میانگین زمان: ${Math.round(allTestResults.reduce((sum, r) => sum + r.avgTime, 0) / allTestResults.length)}ms</div>
+                        <div class="metric good">میانگین OPS: ${Math.round(allTestResults.reduce((sum, r) => sum + r.opsPerSecond, 0) / allTestResults.length)}/ثانیه</div>
+                    </div>
+                `;
+                
+                // ایجاد نمودار
+                createPerformanceChart();
+                
+            } catch (error) {
+                resultsDiv.innerHTML += `<div class="error">❌ خطا در اجرای تست: ${error.message}</div>`;
+                console.error(error);
+            }
+        }
+        
+        async function runQuickPerformanceTest() {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '<h2>⚡ تست سریع Performance</h2>';
+            
+            allTestResults = [];
+            
+            // فقط تست‌های سریع
+            const exerciseTest = new ExerciseManagerPerformanceTest();
+            const exResult = exerciseTest.testExerciseCreation(50);
+            displayResult(exResult);
+            
+            const profileTest = new UserProfilePerformanceTest();
+            const profileResult = profileTest.testProfileLoading(50);
+            displayResult(profileResult);
+            
+            const apiTest = new APIClientPerformanceTest();
+            const apiResult = apiTest.testCachePerformance(50);
+            displayResult(apiResult);
+        }
+        
+        async function runMemoryTest() {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '<h2>💾 تست مصرف حافظه</h2>';
+            
+            const memoryTest = new MemoryUsageTest();
+            
+            const allocResult = memoryTest.testMemoryAllocation(20);
+            displayResult(allocResult);
+            
+            const gcResult = memoryTest.testGarbageCollection(20);
+            displayResult(gcResult);
+            
+            // نمایش اطلاعات حافظه
+            if (performance.memory) {
+                const memInfo = performance.memory;
+                resultsDiv.innerHTML += `
+                    <div class="performance-card">
+                        <h3>📈 وضعیت حافظه مرورگر</h3>
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: ${(memInfo.usedJSHeapSize / memInfo.jsHeapSizeLimit) * 100}%"></div>
+                        </div>
+                        <p>مصرف شده: ${Math.round(memInfo.usedJSHeapSize / 1024 / 1024)}MB / 
+                           کل: ${Math.round(memInfo.totalJSHeapSize / 1024 / 1024)}MB /
+                           محدودیت: ${Math.round(memInfo.jsHeapSizeLimit / 1024 / 1024)}MB</p>
+                    </div>
+                `;
+            }
+        }
+        
+        function displayResult(result) {
+            allTestResults.push(result);
+            
+            const resultsDiv = document.getElementById('results');
+            const statusClass = result.avgTime < 10 ? 'good' : result.avgTime < 50 ? 'warning' : 'critical';
+            
+            resultsDiv.innerHTML += `
+                <div class="performance-card">
+                    <h4>${result.name}</h4>
+                    <div class="metric ${statusClass}">میانگین: ${result.avgTime}ms</div>
+                    <div class="metric">ماکزیمم: ${result.maxTime}ms</div>
+                    <div class="metric">مینیمم: ${result.minTime}ms</div>
+                    <div class="metric ${result.opsPerSecond > 100 ? 'good' : 'warning'}">${result.opsPerSecond}/ثانیه</div>
+                    <div class="metric">حافظه: ${result.avgMemory || 0}KB</div>
+                    <p>تعداد تکرار: ${result.iterations}</p>
+                </div>
+            `;
+        }
+        
+        function createPerformanceChart() {
+            const chartsDiv = document.getElementById('charts');
+            chartsDiv.innerHTML = '<h3>📊 نمودار Performance</h3>';
+            
+            const canvas = document.createElement('canvas');
+            canvas.id = 'performanceChart';
+            canvas.width = 800;
+            canvas.height = 400;
+            chartsDiv.appendChild(canvas);
+            
+            const ctx = canvas.getContext('2d');
+            
+            const labels = allTestResults.map(r => r.name.substring(0, 20) + '...');
+            const avgTimes = allTestResults.map(r => r.avgTime);
+            const opsPerSecond = allTestResults.map(r => r.opsPerSecond);
+            
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'میانگین زمان (ms)',
+                            data: avgTimes,
+                            backgroundColor: 'rgba(54, 162, 235, 0.6)',
+                            borderColor: 'rgba(54, 162, 235, 1)',
+                            borderWidth: 1
+                        },
+                        {
+                            label: 'عملیات بر ثانیه',
+                            data: opsPerSecond,
+                            backgroundColor: 'rgba(75, 192, 192, 0.6)',
+                            borderColor: 'rgba(75, 192, 192, 1)',
+                            borderWidth: 1,
+                            type: 'line',
+                            yAxisID: 'y1'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'زمان (میلی‌ثانیه)'
+                            }
+                        },
+                        y1: {
+                            position: 'right',
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'عملیات بر ثانیه'
+                            },
+                            grid: {
+                                drawOnChartArea: false
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        },
+                        title: {
+                            display: true,
+                            text: 'مقایسه Performance ماژول‌ها'
+                        }
+                    }
+                }
+            });
+        }
+    </script>
+</body>
+</html>
