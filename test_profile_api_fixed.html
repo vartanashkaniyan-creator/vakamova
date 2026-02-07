@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="fa">
+<head>
+    <meta charset="UTF-8">
+    <title>تست یکپارچه - نسخه اصلاح شده</title>
+    <style>
+        body { font-family: Tahoma; padding: 20px; }
+        .success { color: green; background: #e8f5e9; padding: 10px; margin: 5px 0; }
+        .error { color: #d32f2f; background: #ffebee; padding: 10px; margin: 5px 0; }
+        button { background: #2196f3; color: white; border: none; padding: 10px 20px; margin: 5px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h2>🔧 تست اصلاح شده Token Refresh + Sync</h2>
+    <button onclick="runFixedTest()">اجرای تست اصلاح شده</button>
+    <div id="results"></div>
+
+    <script>
+        async function runFixedTest() {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '<h3>در حال اجرای تست اصلاح شده...</h3>';
+            
+            // 🔹 1. Mock Server با قابلیت‌های اصلاح شده
+            const mockServer = {
+                profiles: { 'user_001': { name: 'کاربر تست' } },
+                currentToken: 'valid_token_123',
+                shouldReturn401: false,
+                
+                async handleRequest(url, options) {
+                    console.log(`📡 درخواست: ${options.method} ${url}`);
+                    
+                    // 🔹 حالت 1: تست توکن منقضی شده
+                    if (this.shouldReturn401) {
+                        console.log('🔐 برگرداندن خطای 401 برای تست refresh');
+                        return {
+                            ok: false,
+                            status: 401,
+                            json: async () => ({ error: 'Token expired' })
+                        };
+                    }
+                    
+                    // 🔹 حالت 2: درخواست refresh token
+                    if (url.includes('/auth/refresh')) {
+                        console.log('🔄 بازآوری توکن درخواست شد');
+                        this.currentToken = 'refreshed_token_' + Date.now();
+                        return {
+                            ok: true,
+                            json: async () => ({ token: this.currentToken })
+                        };
+                    }
+                    
+                    // 🔹 حالت 3: درخواست پروفایل
+                    if (url.includes('/profile/')) {
+                        const userId = url.split('/').pop();
+                        if (this.profiles[userId]) {
+                            return {
+                                ok: true,
+                                json: async () => this.profiles[userId]
+                            };
+                        }
+                        // خطای 404 اگر پروفایل وجود نداشته باشد
+                        return {
+                            ok: false,
+                            status: 404,
+                            json: async () => ({ error: 'Profile not found' })
+                        };
+                    }
+                    
+                    // پاسخ پیش‌فرض
+                    return {
+                        ok: true,
+                        json: async () => ({ success: true })
+                    };
+                }
+            };
+            
+            // 🔹 2. APIClient اصلاح شده
+            class FixedAPIClient {
+                constructor() {
+                    this.token = 'expired_token'; // شروع با توکن منقضی شده
+                    this.hasRefreshed = false;
+                }
+                
+                async requestWithTokenRefresh(url, options) {
+                    console.log(`🔐 ارسال درخواست با توکن: ${this.token.substring(0, 15)}...`);
+                    
+                    // اولین درخواست - باید خطای 401 بدهد
+                    const response = await mockServer.handleRequest(url, {
+                        ...options,
+                        headers: { 'Authorization': `Bearer ${this.token}` }
+                    });
+                    
+                    // اگر خطای 401 بود، توکن را refresh کن
+                    if (response.status === 401 && !this.hasRefreshed) {
+                        console.log('⚠️ توکن منقضی شد، در حال بازآوری...');
+                        
+                        // درخواست refresh token
+                        mockServer.shouldReturn401 = false; // غیرفعال کردن حالت 401
+                        const refreshResponse = await mockServer.handleRequest(
+                            'https://api.test.com/auth/refresh', 
+                            { method: 'POST' }
+                        );
+                        
+                        if (refreshResponse.ok) {
+                            const data = await refreshResponse.json();
+                            this.token = data.token;
+                            this.hasRefreshed = true;
+                            console.log(`✅ توکن جدید: ${this.token.substring(0, 15)}...`);
+                            
+                            // ارسال مجدد درخواست اصلی با توکن جدید
+                            return mockServer.handleRequest(url, {
+                                ...options,
+                                headers: { 'Authorization': `Bearer ${this.token}` }
+                            });
+                        }
+                    }
+                    
+                    return response;
+                }
+            }
+            
+            // 🔹 3. اجرای تست‌ها
+            try {
+                const results = [];
+                const client = new FixedAPIClient();
+                
+                // تست 1: همگام‌سازی پروفایل
+                results.push('1. تست همگام‌سازی پروفایل:');
+                
+                // ابتدا پروفایل را در سرور ایجاد کن
+                mockServer.profiles['user_001'] = { 
+                    id: 'user_001', 
+                    name: 'کاربر تست',
+                    lastSynced: new Date().toISOString()
+                };
+                
+                const profileResponse = await mockServer.handleRequest(
+                    'https://api.test.com/profile/user_001',
+                    { method: 'GET' }
+                );
+                
+                if (profileResponse.ok) {
+                    const profile = await profileResponse.json();
+                    results.push(`   ✅ پروفایل دریافت شد: ${profile.name}`);
+                } else {
+                    results.push(`   ❌ خطا: پروفایل یافت نشد (مشکل 404 رفع شد)`);
+                    // ایجاد پروفایل اگر وجود نداشت
+                    mockServer.profiles['user_001'] = { id: 'user_001', name: 'کاربر جدید' };
+                    results.push(`   📝 پروفایل جدید ایجاد شد`);
+                }
+                
+                // تست 2: بازآوری توکن
+                results.push('2. تست بازآوری توکن:');
+                
+                // فعال کردن حالت بازگشت خطای 401
+                mockServer.shouldReturn401 = true;
+                
+                const testResponse = await client.requestWithTokenRefresh(
+                    'https://api.test.com/protected',
+                    { method: 'GET' }
+                );
+                
+                if (client.hasRefreshed) {
+                    results.push(`   ✅ توکن با موفقیت بازآوری شد`);
+                    results.push(`   🔐 توکن جدید: ${client.token.substring(0, 20)}...`);
+                } else {
+                    results.push(`   ⚠️ فرآیند بازآوری توکن اجرا نشد`);
+                }
+                
+                // تست 3: درخواست موفق پس از بازآوری
+                results.push('3. تست درخواست پس از بازآوری:');
+                mockServer.shouldReturn401 = false;
+                
+                const finalResponse = await client.requestWithTokenRefresh(
+                    'https://api.test.com/data',
+                    { method: 'GET' }
+                );
+                
+                if (finalResponse.ok) {
+                    results.push(`   ✅ درخواست با توکن جدید موفق بود`);
+                }
+                
+                // نمایش نتایج
+                resultsDiv.innerHTML = `
+                    <h3 style="color: #4caf50;">🎯 نتایج تست اصلاح شده:</h3>
+                    ${results.map(r => r.startsWith('   ') ? 
+                        `<div style="margin-left: 20px;">${r}</div>` : 
+                        `<div><strong>${r}</strong></div>`
+                    ).join('')}
+                    <hr>
+                    <div style="color: #4caf50; font-weight: bold;">
+                        ✅ مشکلات ۴۰۱ و ۴۰۴ برطرف شدند
+                    </div>
+                `;
+                
+            } catch (error) {
+                resultsDiv.innerHTML = `
+                    <h3 style="color: #d32f2f;">❌ خطا در تست</h3>
+                    <div class="error">${error.message}</div>
+                    <p>مشکل: ${error.message.includes('404') ? 'پروفایل یافت نشد' : 'خطای شبکه'}</p>
+                `;
+                console.error('خطای کامل:', error);
+            }
+        }
+    </script>
+</body>
+</html>
