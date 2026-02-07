@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تست API - بخش 1: پایه‌ها</title>
+    <style>
+        body {
+            font-family: Vazir, sans-serif;
+            background: #f5f7fa;
+            padding: 20px;
+            margin: 0;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            color: #4f46e5;
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #e2e8f0;
+        }
+        
+        .test {
+            background: #f8fafc;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 2px solid #e2e8f0;
+        }
+        
+        .test-title {
+            font-weight: bold;
+            font-size: 18px;
+            color: #1e293b;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .test-desc {
+            color: #64748b;
+            font-size: 14px;
+            margin-bottom: 15px;
+        }
+        
+        button {
+            background: #4f46e5;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-family: Vazir;
+            font-size: 14px;
+            margin: 5px;
+        }
+        
+        button:hover {
+            background: #4338ca;
+        }
+        
+        .result {
+            margin-top: 15px;
+            padding: 12px;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 13px;
+            display: none;
+        }
+        
+        .success {
+            background: #d1fae5;
+            color: #065f46;
+            border: 1px solid #a7f3d0;
+            display: block;
+        }
+        
+        .error {
+            background: #fee2e2;
+            color: #991b1b;
+            border: 1px solid #fecaca;
+            display: block;
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #e2e8f0;
+            border-top-color: #4f46e5;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 8px;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .stats {
+            background: #4f46e5;
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 30px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 تست API Client - بخش 1: پایه‌ها</h1>
+        
+        <div class="test" id="test1">
+            <div class="test-title">
+                <span>تست 1: ایجاد API Client</span>
+                <span id="status1">در انتظار</span>
+            </div>
+            <div class="test-desc">
+                بررسی ایجاد صحیح شی ApiClient و تنظیمات اولیه
+            </div>
+            <button onclick="runTest(1)">اجرای تست</button>
+            <div id="result1" class="result"></div>
+        </div>
+        
+        <div class="test" id="test2">
+            <div class="test-title">
+                <span>تست 2: درخواست GET ساده</span>
+                <span id="status2">در انتظار</span>
+            </div>
+            <div class="test-desc">
+                دریافت لیست کاربران از سرور (Mock)
+            </div>
+            <button onclick="runTest(2)">اجرای تست</button>
+            <div id="result2" class="result"></div>
+        </div>
+        
+        <div class="test" id="test3">
+            <div class="test-title">
+                <span>تست 3: درخواست POST با داده</span>
+                <span id="status3">در انتظار</span>
+            </div>
+            <div class="test-desc">
+                ارسال داده لاگین و دریافت توکن
+            </div>
+            <button onclick="runTest(3)">اجرای تست</button>
+            <div id="result3" class="result"></div>
+        </div>
+        
+        <button onclick="runAllTests()" style="width: 100%; padding: 15px; font-size: 16px; margin-top: 20px;">
+            اجرای همه تست‌ها
+        </button>
+        
+        <div class="stats">
+            <div>موفق: <span id="passed">0</span> | ناموفق: <span id="failed">0</span> | کل: 3</div>
+        </div>
+    </div>
+
+    <script>
+        // ===== API Client ساده =====
+        class ApiClient {
+            constructor() {
+                this.baseURL = 'https://api.vakamova.test';
+            }
+            
+            async get(endpoint) {
+                await this.delay(300);
+                return {
+                    success: true,
+                    data: [
+                        { id: 1, name: 'علی محمدی', email: 'ali@example.com' },
+                        { id: 2, name: 'فاطمه کریمی', email: 'fatemeh@example.com' }
+                    ]
+                };
+            }
+            
+            async post(endpoint, data) {
+                await this.delay(400);
+                
+                if (endpoint === '/auth/login') {
+                    return {
+                        success: true,
+                        data: {
+                            token: 'mock_token_' + Date.now(),
+                            user: { id: 1, name: 'کاربر تست', email: data.email }
+                        }
+                    };
+                }
+                
+                return { success: true, data: { message: 'درخواست دریافت شد' } };
+            }
+            
+            delay(ms) {
+                return new Promise(resolve => setTimeout(resolve, ms));
+            }
+        }
+
+        // ===== تست‌ها =====
+        const tests = [
+            {
+                id: 1,
+                run: async () => {
+                    const api = new ApiClient();
+                    if (!api.baseURL) throw new Error('baseURL تنظیم نشده');
+                    if (!api.get || typeof api.get !== 'function') throw new Error('متد get وجود ندارد');
+                    if (!api.post || typeof api.post !== 'function') throw new Error('متد post وجود ندارد');
+                    return '✅ ApiClient با موفقیت ایجاد شد';
+                }
+            },
+            {
+                id: 2,
+                run: async () => {
+                    const api = new ApiClient();
+                    const result = await api.get('/users');
+                    
+                    if (!result.success) throw new Error('درخواست ناموفق بود');
+                    if (!result.data) throw new Error('دیتا دریافت نشد');
+                    if (!Array.isArray(result.data)) throw new Error('فرمت دیتا اشتباه است');
+                    if (result.data.length === 0) throw new Error('دیتا خالی است');
+                    
+                    return `✅ دریافت ${result.data.length} کاربر با موفقیت`;
+                }
+            },
+            {
+                id: 3,
+                run: async () => {
+                    const api = new ApiClient();
+                    const data = { email: 'test@vakamova.com', password: '123456' };
+                    const result = await api.post('/auth/login', data);
+                    
+                    if (!result.success) throw new Error('درخواست ناموفق بود');
+                    if (!result.data.token) throw new Error('توکن دریافت نشد');
+                    if (!result.data.user) throw new Error('اطلاعات کاربر دریافت نشد');
+                    
+                    return `✅ لاگین موفق - توکن: ${result.data.token.substring(0, 15)}...`;
+                }
+            }
+        ];
+
+        // ===== مدیریت تست‌ها =====
+        let passed = 0;
+        let failed = 0;
+        
+        function updateStats() {
+            document.getElementById('passed').textContent = passed;
+            document.getElementById('failed').textContent = failed;
+        }
+        
+        async function runTest(testId) {
+            const test = tests.find(t => t.id === testId);
+            if (!test) return;
+            
+            const btn = document.querySelector(`#test${testId} button`);
+            const status = document.getElementById(`status${testId}`);
+            const resultDiv = document.getElementById(`result${testId}`);
+            
+            // ذخیره متن اصلی دکمه
+            const originalText = btn.textContent;
+            btn.disabled = true;
+            btn.innerHTML = '<span class="loading"></span>در حال اجرا...';
+            status.textContent = 'در حال اجرا...';
+            resultDiv.className = 'result';
+            resultDiv.textContent = '';
+            
+            try {
+                const startTime = Date.now();
+                const result = await test.run();
+                const time = Date.now() - startTime;
+                
+                resultDiv.className = 'result success';
+                resultDiv.innerHTML = `✅ ${result}<br><small>زمان: ${time}ms</small>`;
+                status.textContent = 'موفق';
+                status.style.color = '#10b981';
+                
+                passed++;
+                
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `❌ خطا: ${error.message}`;
+                status.textContent = 'ناموفق';
+                status.style.color = '#ef4444';
+                
+                failed++;
+            }
+            
+            btn.disabled = false;
+            btn.textContent = originalText;
+            updateStats();
+        }
+        
+        async function runAllTests() {
+            passed = 0;
+            failed = 0;
+            updateStats();
+            
+            // ریست وضعیت‌ها
+            for (let i = 1; i <= 3; i++) {
+                document.getElementById(`status${i}`).textContent = 'در انتظار';
+                document.getElementById(`status${i}`).style.color = '';
+                document.getElementById(`result${i}`).className = 'result';
+                document.getElementById(`result${i}`).textContent = '';
+            }
+            
+            // اجرای تست‌ها به ترتیب
+            for (const test of tests) {
+                await runTest(test.id);
+                await delay(500); // وقفه بین تست‌ها
+            }
+        }
+        
+        function delay(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+        
+        // راه‌اندازی اولیه
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('✅ تست‌های API بخش 1 آماده اجرا هستند');
+        });
+    </script>
+</body>
+</html>
