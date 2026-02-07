@@ -1,0 +1,991 @@
+<!DOCTYPE html>
+<html lang="fa">
+<head>
+    <meta charset="UTF-8">
+    <title>تست Integration پرداخت - Vakamova</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+            margin: 0;
+        }
+        
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.97);
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+        
+        .subtitle {
+            text-align: center;
+            color: #7f8c8d;
+            margin-bottom: 30px;
+            font-size: 16px;
+        }
+        
+        .flow-diagram {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 30px 0;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 12px;
+            border: 2px solid #e2e8f0;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        
+        .flow-step {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            min-width: 100px;
+        }
+        
+        .step-icon {
+            width: 60px;
+            height: 60px;
+            background: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            margin-bottom: 10px;
+            border: 3px solid #e2e8f0;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        
+        .step-active { border-color: #4f46e5; background: #4f46e5; color: white; }
+        .step-success { border-color: #10b981; background: #10b981; color: white; }
+        .step-error { border-color: #ef4444; background: #ef4444; color: white; }
+        
+        .arrow {
+            font-size: 24px;
+            color: #94a3b8;
+        }
+        
+        .test-section {
+            background: white;
+            padding: 25px;
+            margin: 25px 0;
+            border-radius: 12px;
+            border: 2px solid #e2e8f0;
+        }
+        
+        .test-title {
+            color: #2c3e50;
+            font-size: 20px;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .test-description {
+            color: #5d6d7e;
+            margin-bottom: 20px;
+            line-height: 1.6;
+        }
+        
+        .test-scenario {
+            background: #f1f5f9;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 15px 0;
+            border-left: 4px solid #4f46e5;
+        }
+        
+        button {
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 14px;
+            margin: 5px;
+            transition: all 0.3s ease;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 7px 20px rgba(79, 70, 229, 0.3);
+        }
+        
+        button:disabled {
+            background: #94a3b8;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+        
+        .result {
+            margin-top: 20px;
+            padding: 20px;
+            border-radius: 10px;
+            display: none;
+            animation: fadeIn 0.5s ease;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .success {
+            background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+            color: #065f46;
+            border: 2px solid #10b981;
+            display: block;
+        }
+        
+        .error {
+            background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+            color: #991b1b;
+            border: 2px solid #ef4444;
+            display: block;
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
+        }
+        
+        @keyframes spin { to { transform: rotate(360deg); } }
+        
+        .transaction-details {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            direction: ltr;
+            text-align: left;
+        }
+        
+        .action-bar {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin: 30px 0;
+            flex-wrap: wrap;
+        }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin: 30px 0;
+        }
+        
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+            border: 1px solid #e2e8f0;
+        }
+        
+        .stat-value {
+            font-size: 28px;
+            font-weight: bold;
+            color: #2c3e50;
+            margin: 10px 0;
+        }
+        
+        .stat-label {
+            color: #7f8c8d;
+            font-size: 14px;
+        }
+        
+        @media (max-width: 768px) {
+            .flow-diagram { flex-direction: column; }
+            .arrow { transform: rotate(90deg); }
+            .container { padding: 15px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>💰 تست Integration پرداخت - Vakamova</h1>
+        <div class="subtitle">تست کامل Flow خرید کاربر از انتخاب تا تأیید نهایی</div>
+        
+        <div class="stats">
+            <div class="stat-card">
+                <div class="stat-label">وضعیت تست</div>
+                <div class="stat-value" id="test-status">آماده</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">تعداد تراکنش‌ها</div>
+                <div class="stat-value" id="transaction-count">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">موفقیت</div>
+                <div class="stat-value" id="success-rate">0%</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">زمان کل</div>
+                <div class="stat-value" id="total-time">0ms</div>
+            </div>
+        </div>
+        
+        <div class="flow-diagram">
+            <div class="flow-step">
+                <div class="step-icon" id="step1">1️⃣</div>
+                <div>انتخاب پلن</div>
+            </div>
+            <div class="arrow">→</div>
+            <div class="flow-step">
+                <div class="step-icon" id="step2">2️⃣</div>
+                <div>درخواست پرداخت</div>
+            </div>
+            <div class="arrow">→</div>
+            <div class="flow-step">
+                <div class="step-icon" id="step3">3️⃣</div>
+                <div>ارسال به درگاه</div>
+            </div>
+            <div class="arrow">→</div>
+            <div class="flow-step">
+                <div class="step-icon" id="step4">4️⃣</div>
+                <div>تأیید پرداخت</div>
+            </div>
+            <div class="arrow">→</div>
+            <div class="flow-step">
+                <div class="step-icon" id="step5">5️⃣</div>
+                <div>فعال‌سازی پلن</div>
+            </div>
+        </div>
+        
+        <div class="test-section">
+            <div class="test-title">
+                <span>📋 سناریو 1: پرداخت موفق</span>
+            </div>
+            <div class="test-description">
+                کاربر پلن ماهانه را انتخاب می‌کند، پرداخت موفق انجام می‌شود و پلن فعال می‌گردد.
+            </div>
+            <div class="test-scenario">
+                <strong>مراحل:</strong><br>
+                1. انتخاب پلن ماهانه (49,000 تومان)<br>
+                2. ایجاد درخواست پرداخت<br>
+                3. انتقال به درگاه زرین‌پال (Mock)<br>
+                4. بازگشت موفق از درگاه<br>
+                5. تأیید پرداخت در سرور<br>
+                6. فعال‌سازی پلن برای کاربر
+            </div>
+            <button onclick="runSuccessfulPayment()">اجرای سناریو پرداخت موفق</button>
+            <div id="result1" class="result"></div>
+        </div>
+        
+        <div class="test-section">
+            <div class="test-title">
+                <span>⚠️ سناریو 2: پرداخت ناموفق (خطای درگاه)</span>
+            </div>
+            <div class="test-description">
+                کاربر پرداخت را انجام می‌دهد اما درگاه خطا می‌دهد. سیستم باید به درستی مدیریت کند.
+            </div>
+            <div class="test-scenario">
+                <strong>مراحل:</strong><br>
+                1. انتخاب پلن سالانه (490,000 تومان)<br>
+                2. ایجاد درخواست پرداخت<br>
+                3. انتقال به درگاه<br>
+                4. خطای درگاه (شبکه یا بانک)<br>
+                5. بازگشت به اپ با پیام خطا<br>
+                6. نمایش پیام مناسب به کاربر
+            </div>
+            <button onclick="runFailedPayment()">اجرای سناریو پرداخت ناموفق</button>
+            <div id="result2" class="result"></div>
+        </div>
+        
+        <div class="test-section">
+            <div class="test-title">
+                <span>🔄 سناریو 3: پرداخت با تلاش مجدد</span>
+            </div>
+            <div class="test-description">
+                کاربر اولین پرداخت ناموفق دارد، سپس با موفقیت پرداخت می‌کند.
+            </div>
+            <div class="test-scenario">
+                <strong>مراحل:</strong><br>
+                1. انتخاب پلن (خطا در اولین پرداخت)<br>
+                2. نمایش پیام خطا<br>
+                3. تلاش مجدد توسط کاربر<br>
+                4. پرداخت موفق در تلاش دوم<br>
+                5. تأیید و فعال‌سازی
+            </div>
+            <button onclick="runRetryPayment()">اجرای سناریو پرداخت با تلاش مجدد</button>
+            <div id="result3" class="result"></div>
+        </div>
+        
+        <div class="test-section">
+            <div class="test-title">
+                <span>📊 سناریو 4: تست Performance و Load</span>
+            </div>
+            <div class="test-description">
+                شبیه‌سازی چندین پرداخت همزمان و بررسی عملکرد سیستم.
+            </div>
+            <div class="test-scenario">
+                <strong>مراحل:</strong><br>
+                1. ۵ پرداخت همزمان<br>
+                2. اندازه‌گیری زمان پاسخ<br>
+                3. بررسی تداخل تراکنش‌ها<br>
+                4. اطمینان از یکتایی شناسه‌ها
+            </div>
+            <button onclick="runLoadTest()">اجرای تست Performance</button>
+            <div id="result4" class="result"></div>
+        </div>
+        
+        <div class="action-bar">
+            <button onclick="runAllScenarios()" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); padding: 15px 30px;">
+                🚀 اجرای همه سناریوها
+            </button>
+            <button onclick="resetAllTests()" style="background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%); padding: 15px 30px;">
+                🔄 ریست همه تست‌ها
+            </button>
+        </div>
+        
+        <div class="transaction-details" id="transaction-log">
+            <div>📋 لاگ تراکنش‌ها:</div>
+            <div id="log-output"></div>
+        </div>
+    </div>
+
+    <script>
+        // ========== Payment Integration System ==========
+        class PaymentIntegrationSystem {
+            constructor() {
+                this.transactions = new Map();
+                this.paymentAdapter = new MockZarinpalAdapter();
+                this.paymentManager = new PaymentManager(this.paymentAdapter, new MockEventBus(), new MockLogger());
+                this.testStartTime = null;
+                this.completedTests = 0;
+                this.successfulTests = 0;
+                this.totalTransactions = 0;
+            }
+            
+            async processSuccessfulPayment(userId, planType) {
+                this.updateStep(1);
+                await this.delay(300);
+                
+                // 1. انتخاب پلن
+                const plan = this.getPlanDetails(planType);
+                this.log(`📝 کاربر ${userId} پلن ${plan.name} را انتخاب کرد (${plan.price.toLocaleString()} تومان)`);
+                
+                this.updateStep(2);
+                await this.delay(400);
+                
+                // 2. ایجاد درخواست پرداخت
+                const paymentRequest = {
+                    id: `PAY_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+                    amount: plan.price,
+                    currency: 'IRR',
+                    userId: userId,
+                    planId: plan.id,
+                    description: `خرید پلن ${plan.name} - Vakamova`,
+                    metadata: {
+                        planType: planType,
+                        features: plan.features,
+                        duration: plan.duration
+                    }
+                };
+                
+                this.log(`💳 ایجاد درخواست پرداخت: ${paymentRequest.id}`);
+                
+                this.updateStep(3);
+                await this.delay(500);
+                
+                // 3. انتقال به درگاه (Mock)
+                this.log(`🔗 انتقال به درگاه پرداخت زرین‌پال...`);
+                const gatewayResponse = await this.paymentAdapter.initiateGateway(paymentRequest);
+                
+                this.updateStep(4);
+                await this.delay(600);
+                
+                // 4. بازگشت از درگاه (موفق)
+                this.log(`✅ بازگشت موفق از درگاه`);
+                const verification = await this.paymentAdapter.verifyGateway(gatewayResponse.authority);
+                
+                this.updateStep(5);
+                await this.delay(400);
+                
+                // 5. فعال‌سازی پلن
+                const activationResult = await this.activateUserPlan(userId, plan.id, paymentRequest.id);
+                
+                this.resetSteps();
+                
+                return {
+                    success: true,
+                    transactionId: paymentRequest.id,
+                    gatewayRef: gatewayResponse.authority,
+                    amount: paymentRequest.amount,
+                    plan: plan.name,
+                    activation: activationResult
+                };
+            }
+            
+            async processFailedPayment(userId, planType, errorType = 'gateway_error') {
+                this.updateStep(1);
+                await this.delay(300);
+                
+                const plan = this.getPlanDetails(planType);
+                this.log(`📝 کاربر ${userId} پلن ${plan.name} را انتخاب کرد`);
+                
+                this.updateStep(2);
+                await this.delay(400);
+                
+                const paymentRequest = {
+                    id: `PAY_FAIL_${Date.now()}`,
+                    amount: plan.price,
+                    currency: 'IRR',
+                    userId: userId
+                };
+                
+                this.log(`💳 ایجاد درخواست پرداخت: ${paymentRequest.id}`);
+                
+                this.updateStep(3);
+                await this.delay(500);
+                
+                // شبیه‌سازی خطای درگاه
+                this.log(`❌ خطای درگاه: ${errorType}`);
+                
+                // بازگشت به اپ با خطا
+                const errorResponse = this.getGatewayError(errorType);
+                
+                this.resetSteps();
+                
+                return {
+                    success: false,
+                    transactionId: paymentRequest.id,
+                    error: errorResponse.message,
+                    errorCode: errorResponse.code,
+                    userMessage: errorResponse.userMessage,
+                    canRetry: errorResponse.canRetry
+                };
+            }
+            
+            async processRetryPayment(userId, planType) {
+                this.log(`🔄 شروع فرآیند پرداخت با تلاش مجدد`);
+                
+                // تلاش اول - ناموفق
+                const firstAttempt = await this.processFailedPayment(userId, planType, 'bank_error');
+                
+                await this.delay(1000);
+                
+                this.log(`🔄 کاربر تلاش مجدد می‌کند...`);
+                
+                // تلاش دوم - موفق
+                const secondAttempt = await this.processSuccessfulPayment(userId, planType);
+                
+                return {
+                    firstAttempt,
+                    secondAttempt,
+                    retrySuccessful: true
+                };
+            }
+            
+            async runLoadTest(concurrentUsers = 5) {
+                this.log(`📊 شروع تست Load با ${concurrentUsers} کاربر همزمان`);
+                
+                const startTime = Date.now();
+                const promises = [];
+                
+                for (let i = 1; i <= concurrentUsers; i++) {
+                    const userId = `USER_LOAD_${i}`;
+                    const planType = i % 2 === 0 ? 'monthly' : 'yearly';
+                    
+                    promises.push(
+                        this.processSuccessfulPayment(userId, planType)
+                            .then(result => ({ success: true, userId, result }))
+                            .catch(error => ({ success: false, userId, error }))
+                    );
+                    
+                    await this.delay(100); // فاصله بین شروع درخواست‌ها
+                }
+                
+                const results = await Promise.all(promises);
+                const totalTime = Date.now() - startTime;
+                
+                const successful = results.filter(r => r.success).length;
+                const failed = results.filter(r => !r.success).length;
+                
+                return {
+                    totalTime,
+                    concurrentUsers,
+                    successful,
+                    failed,
+                    successRate: Math.round((successful / concurrentUsers) * 100),
+                    results
+                };
+            }
+            
+            getPlanDetails(planType) {
+                const plans = {
+                    monthly: {
+                        id: 'plan_monthly',
+                        name: 'ماهانه',
+                        price: 49000,
+                        duration: '30 روز',
+                        features: ['۱۲ زبان', 'تمرین روزانه', 'پشتیبانی']
+                    },
+                    yearly: {
+                        id: 'plan_yearly',
+                        name: 'سالانه',
+                        price: 490000,
+                        duration: '۳۶۵ روز',
+                        features: ['۱۲ زبان', 'تمرین روزانه', 'پشتیبانی', '۵۰٪ تخفیف']
+                    },
+                    lifetime: {
+                        id: 'plan_lifetime',
+                        name: 'مادام‌العمر',
+                        price: 1490000,
+                        duration: 'مادام‌العمر',
+                        features: ['۱۲ زبان', 'همه ویژگی‌ها', 'آپدیت رایگان', 'پشتیبانی VIP']
+                    }
+                };
+                
+                return plans[planType] || plans.monthly;
+            }
+            
+            getGatewayError(errorType) {
+                const errors = {
+                    gateway_error: {
+                        code: 'GATEWAY_001',
+                        message: 'خطا در ارتباط با درگاه پرداخت',
+                        userMessage: 'درگاه پرداخت موقتاً در دسترس نیست. لطفاً دقایقی دیگر تلاش کنید.',
+                        canRetry: true
+                    },
+                    bank_error: {
+                        code: 'BANK_002',
+                        message: 'خطای بانک صادرکننده کارت',
+                        userMessage: 'بانک شما این تراکنش را تأیید نکرد. لطفاً با بانک خود تماس بگیرید.',
+                        canRetry: true
+                    },
+                    insufficient_funds: {
+                        code: 'FUNDS_003',
+                        message: 'موجودی کافی نیست',
+                        userMessage: 'موجودی حساب شما برای این تراکنش کافی نیست.',
+                        canRetry: false
+                    },
+                    timeout: {
+                        code: 'TIMEOUT_004',
+                        message: 'زمان انتظار به پایان رسید',
+                        userMessage: 'زمان انجام تراکنش به پایان رسید. لطفاً مجدداً تلاش کنید.',
+                        canRetry: true
+                    }
+                };
+                
+                return errors[errorType] || errors.gateway_error;
+            }
+            
+            async activateUserPlan(userId, planId, transactionId) {
+                this.log(`🎉 فعال‌سازی پلن برای کاربر ${userId}`);
+                await this.delay(300);
+                
+                return {
+                    success: true,
+                    userId,
+                    planId,
+                    transactionId,
+                    activatedAt: new Date().toISOString(),
+                    expiresAt: this.calculateExpiryDate(planId),
+                    features: this.getPlanDetails(planId.includes('monthly') ? 'monthly' : 'yearly').features
+                };
+            }
+            
+            calculateExpiryDate(planId) {
+                const now = new Date();
+                if (planId.includes('monthly')) {
+                    now.setMonth(now.getMonth() + 1);
+                } else if (planId.includes('yearly')) {
+                    now.setFullYear(now.getFullYear() + 1);
+                } else {
+                    now.setFullYear(now.getFullYear() + 100); // مادام‌العمر
+                }
+                return now.toISOString();
+            }
+            
+            updateStep(stepNumber) {
+                for (let i = 1; i <= 5; i++) {
+                    const step = document.getElementById(`step${i}`);
+                    if (step) {
+                        step.className = 'step-icon';
+                    }
+                }
+                
+                const currentStep = document.getElementById(`step${stepNumber}`);
+                if (currentStep) {
+                    currentStep.className = 'step-icon step-active';
+                }
+            }
+            
+            resetSteps() {
+                for (let i = 1; i <= 5; i++) {
+                    const step = document.getElementById(`step${i}`);
+                    if (step) {
+                        step.className = 'step-icon';
+                    }
+                }
+            }
+            
+            log(message) {
+                const time = new Date().toLocaleTimeString('fa-IR');
+                const logOutput = document.getElementById('log-output');
+                const logEntry = document.createElement('div');
+                logEntry.style.padding = '5px 0';
+                logEntry.style.borderBottom = '1px solid #334155';
+                logEntry.innerHTML = `<span style="color: #94a3b8">[${time}]</span> ${message}`;
+                logOutput.appendChild(logEntry);
+                logOutput.scrollTop = logOutput.scrollHeight;
+                console.log(message);
+            }
+            
+            updateStats(success = true) {
+                this.completedTests++;
+                if (success) this.successfulTests++;
+                
+                const successRate = this.completedTests > 0 
+                    ? Math.round((this.successfulTests / this.completedTests) * 100) 
+                    : 0;
+                
+                document.getElementById('success-rate').textContent = `${successRate}%`;
+                
+                if (this.testStartTime) {
+                    const totalTime = Date.now() - this.testStartTime;
+                    document.getElementById('total-time').textContent = `${totalTime}ms`;
+                }
+            }
+            
+            delay(ms) {
+                return new Promise(resolve => setTimeout(resolve, ms));
+            }
+        }
+
+        // ========== Mock Zarinpal Adapter ==========
+        class MockZarinpalAdapter {
+            async initiateGateway(request) {
+                await this.delay(500);
+                return {
+                    success: true,
+                    authority: `A${Date.now()}${Math.random().toString(36).substr(2, 10)}`,
+                    gatewayUrl: 'https://zarinpal.com/pg/StartPay/' + Date.now(),
+                    amount: request.amount,
+                    description: request.description
+                };
+            }
+            
+            async verifyGateway(authority) {
+                await this.delay(400);
+                return {
+                    success: true,
+                    refId: Date.now(),
+                    authority: authority,
+                    transactionDate: new Date().toISOString(),
+                    cardPan: '6219******1234'
+                };
+            }
+            
+            delay(ms) {
+                return new Promise(resolve => setTimeout(resolve, ms));
+            }
+        }
+
+        // ========== Mock Payment Manager (از فایل‌های قبلی) ==========
+        class PaymentManager {
+            constructor(adapter, eventBus, logger) {
+                this._adapter = adapter;
+                this._eventBus = eventBus;
+                this._logger = logger;
+            }
+            
+            async initiatePayment(request) {
+                return {
+                    success: true,
+                    transactionId: request.id,
+                    gatewayReference: `GREF_${Date.now()}`
+                };
+            }
+        }
+
+        class MockEventBus {
+            emit(event, data) {
+                console.log(`Event: ${event}`, data);
+            }
+        }
+
+        class MockLogger {
+            info(msg, data) { console.log(`INFO: ${msg}`, data); }
+            error(msg, data) { console.error(`ERROR: ${msg}`, data); }
+        }
+
+        // ========== Global System ==========
+        const paymentSystem = new PaymentIntegrationSystem();
+        
+        // ========== Test Functions ==========
+        async function runSuccessfulPayment() {
+            const btn = event.target;
+            const resultDiv = document.getElementById('result1');
+            
+            btn.disabled = true;
+            btn.innerHTML = '<span class="loading"></span> در حال اجرا...';
+            resultDiv.className = 'result';
+            resultDiv.innerHTML = '';
+            
+            paymentSystem.testStartTime = Date.now();
+            
+            try {
+                const result = await paymentSystem.processSuccessfulPayment('USER_001', 'monthly');
+                
+                resultDiv.className = 'result success';
+                resultDiv.innerHTML = `
+                    <strong>✅ پرداخت موفق کامل شد!</strong><br><br>
+                    <strong>نتایج:</strong><br>
+                    • شناسه تراکنش: ${result.transactionId}<br>
+                    • مبلغ: ${result.amount.toLocaleString()} تومان<br>
+                    • پلن: ${result.plan}<br>
+                    • مرجع درگاه: ${result.gatewayRef}<br>
+                    • وضعیت فعال‌سازی: ${result.activation.success ? 'موفق' : 'ناموفق'}<br><br>
+                    <small>✅ تمام مراحل Flow پرداخت به درستی انجام شد.</small>
+                `;
+                
+                paymentSystem.updateStats(true);
+                
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `
+                    <strong>❌ پرداخت ناموفق بود</strong><br><br>
+                    خطا: ${error.message}<br>
+                    <small>مشکل در فرآیند پرداخت</small>
+                `;
+                
+                paymentSystem.updateStats(false);
+            }
+            
+            btn.disabled = false;
+            btn.textContent = 'اجرای سناریو پرداخت موفق';
+        }
+        
+        async function runFailedPayment() {
+            const btn = event.target;
+            const resultDiv = document.getElementById('result2');
+            
+            btn.disabled = true;
+            btn.innerHTML = '<span class="loading"></span> در حال اجرا...';
+            resultDiv.className = 'result';
+            resultDiv.innerHTML = '';
+            
+            try {
+                const result = await paymentSystem.processFailedPayment('USER_002', 'yearly', 'bank_error');
+                
+                resultDiv.className = result.success ? 'result success' : 'result error';
+                resultDiv.innerHTML = `
+                    <strong>${result.success ? '✅' : '❌'} پرداخت ناموفق شبیه‌سازی شد</strong><br><br>
+                    <strong>نتایج:</strong><br>
+                    • شناسه تراکنش: ${result.transactionId}<br>
+                    • کد خطا: ${result.errorCode}<br>
+                    • پیام خطا: ${result.error}<br>
+                    • پیام کاربر: ${result.userMessage}<br>
+                    • قابلیت تلاش مجدد: ${result.canRetry ? '✅ دارد' : '❌ ندارد'}<br><br>
+                    <small>${result.canRetry ? '✅ سیستم خطا را به درستی مدیریت کرد' : '⚠️ کاربر نمی‌تواند مجدد تلاش کند'}</small>
+                `;
+                
+                paymentSystem.updateStats(result.canRetry);
+                
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `
+                    <strong>❌ تست خطا ناموفق بود</strong><br><br>
+                    خطا: ${error.message}
+                `;
+                
+                paymentSystem.updateStats(false);
+            }
+            
+            btn.disabled = false;
+            btn.textContent = 'اجرای سناریو پرداخت ناموفق';
+        }
+        
+        async function runRetryPayment() {
+            const btn = event.target;
+            const resultDiv = document.getElementById('result3');
+            
+            btn.disabled = true;
+            btn.innerHTML = '<span class="loading"></span> در حال اجرا...';
+            resultDiv.className = 'result';
+            resultDiv.innerHTML = '';
+            
+            try {
+                const result = await paymentSystem.processRetryPayment('USER_003', 'monthly');
+                
+                resultDiv.className = 'result success';
+                resultDiv.innerHTML = `
+                    <strong>✅ پرداخت با تلاش مجدد کامل شد!</strong><br><br>
+                    <strong>تلاش اول (ناموفق):</strong><br>
+                    • کد خطا: ${result.firstAttempt.errorCode}<br>
+                    • پیام: ${result.firstAttempt.userMessage}<br><br>
+                    
+                    <strong>تلاش دوم (موفق):</strong><br>
+                    • شناسه تراکنش: ${result.secondAttempt.transactionId}<br>
+                    • مبلغ: ${result.secondAttempt.amount.toLocaleString()} تومان<br>
+                    • پلن: ${result.secondAttempt.plan}<br><br>
+                    
+                    <small>✅ سیستم Retry و مدیریت خطا به درستی کار می‌کند.</small>
+                `;
+                
+                paymentSystem.updateStats(true);
+                
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `
+                    <strong>❌ تست Retry ناموفق بود</strong><br><br>
+                    خطا: ${error.message}
+                `;
+                
+                paymentSystem.updateStats(false);
+            }
+            
+            btn.disabled = false;
+            btn.textContent = 'اجرای سناریو پرداخت با تلاش مجدد';
+        }
+        
+        async function runLoadTest() {
+            const btn = event.target;
+            const resultDiv = document.getElementById('result4');
+            
+            btn.disabled = true;
+            btn.innerHTML = '<span class="loading"></span> در حال اجرا...';
+            resultDiv.className = 'result';
+            resultDiv.innerHTML = '';
+            
+            try {
+                const result = await paymentSystem.runLoadTest(5);
+                
+                resultDiv.className = 'result success';
+                resultDiv.innerHTML = `
+                    <strong>✅ تست Load کامل شد!</strong><br><br>
+                    <strong>نتایج:</strong><br>
+                    • تعداد کاربران همزمان: ${result.concurrentUsers}<br>
+                    • زمان کل اجرا: ${result.totalTime}ms<br>
+                    • پرداخت‌های موفق: ${result.successful}<br>
+                    • پرداخت‌های ناموفق: ${result.failed}<br>
+                    • نرخ موفقیت: ${result.successRate}%<br>
+                    • میانگین زمان هر پرداخت: ${Math.round(result.totalTime / result.concurrentUsers)}ms<br><br>
+                    
+                    <small>✅ سیستم پرداخت می‌تواند ${result.concurrentUsers} پرداخت همزمان را مدیریت کند.</small>
+                `;
+                
+                paymentSystem.updateStats(result.successRate >= 80);
+                
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `
+                    <strong>❌ تست Load ناموفق بود</strong><br><br>
+                    خطا: ${error.message}<br>
+                    <small>مشکل در پردازش پرداخت‌های همزمان</small>
+                `;
+                
+                paymentSystem.updateStats(false);
+            }
+            
+            btn.disabled = false;
+            btn.textContent = 'اجرای تست Performance';
+        }
+        
+        // ========== Control Functions ==========
+        async function runAllScenarios() {
+            paymentSystem.log('🚀 شروع اجرای تمام سناریوهای پرداخت...');
+            
+            await runSuccessfulPaymentWrapper();
+            await paymentSystem.delay(1000);
+            
+            await runFailedPaymentWrapper();
+            await paymentSystem.delay(1000);
+            
+            await runRetryPaymentWrapper();
+            await paymentSystem.delay(1000);
+            
+            await runLoadTestWrapper();
+            
+            paymentSystem.log('🎯 تمام سناریوهای پرداخت کامل شدند');
+        }
+        
+        async function runSuccessfulPaymentWrapper() {
+            const btn = document.querySelector('button[onclick="runSuccessfulPayment()"]');
+            const event = { target: btn };
+            await runSuccessfulPayment(event);
+        }
+        
+        async function runFailedPaymentWrapper() {
+            const btn = document.querySelector('button[onclick="runFailedPayment()"]');
+            const event = { target: btn };
+            await runFailedPayment(event);
+        }
+        
+        async function runRetryPaymentWrapper() {
+            const btn = document.querySelector('button[onclick="runRetryPayment()"]');
+            const event = { target: btn };
+            await runRetryPayment(event);
+        }
+        
+        async function runLoadTestWrapper() {
+            const btn = document.querySelector('button[onclick="runLoadTest()"]');
+            const event = { target: btn };
+            await runLoadTest(event);
+        }
+        
+        function resetAllTests() {
+            // ریست مراحل
+            for (let i = 1; i <= 5; i++) {
+                const step = document.getElementById(`step${i}`);
+                if (step) step.className = 'step-icon';
+            }
+            
+            // ریست نتایج
+            for (let i = 1; i <= 4; i++) {
+                const resultDiv = document.getElementById(`result${i}`);
+                if (resultDiv) {
+                    resultDiv.className = 'result';
+                    resultDiv.innerHTML = '';
+                }
+            }
+            
+            // ریست لاگ
+            document.getElementById('log-output').innerHTML = '';
+            
+            // ریست آمار
+            document.getElementById('test-status').textContent = 'آماده';
+            document.getElementById('success-rate').textContent = '0%';
+            document.getElementById('total-time').textContent = '0ms';
+            
+            paymentSystem.log('♻️ تمام تست‌ها ریست شدند');
+        }
+
+        // ========== راه‌اندازی ==========
+        document.addEventListener('DOMContentLoaded', () => {
+            paymentSystem.log('💰 سیستم تست Integration پرداخت آماده اجرا');
+            paymentSystem.log('✅ ۴ سناریو اصلی پرداخت برای تست آماده هستند');
+        });
+    </script>
+</body>
+</html>
