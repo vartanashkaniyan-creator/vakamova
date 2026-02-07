@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="fa">
+<head>
+    <meta charset="UTF-8">
+    <title>تست نشت حافظه - Vakamova</title>
+    <style>
+        body { font-family: Tahoma; padding: 20px; background: #0a192f; color: #ccd6f6; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .memory-chart { background: #112240; padding: 20px; border-radius: 10px; margin: 20px 0; }
+        .test-card { background: #233554; padding: 15px; border-radius: 8px; margin: 10px 0; border-left: 4px solid #64ffda; }
+        .leak { border-left-color: #ff6b6b !important; background: rgba(255, 107, 107, 0.1); }
+        .safe { border-left-color: #64ffda !important; background: rgba(100, 255, 218, 0.1); }
+        .warning { border-left-color: #ffd166 !important; background: rgba(255, 209, 102, 0.1); }
+        button { background: linear-gradient(135deg, #64ffda, #0a192f); color: #0a192f; border: none; padding: 12px 24px; border-radius: 6px; cursor: pointer; font-weight: bold; margin: 5px; }
+        .metric { display: inline-block; padding: 8px 15px; margin: 5px; background: #1d2d50; border-radius: 5px; }
+        .progress { height: 20px; background: #1d2d50; border-radius: 10px; overflow: hidden; margin: 15px 0; }
+        .progress-bar { height: 100%; background: linear-gradient(90deg, #64ffda, #4ecdc4); }
+        canvas { width: 100% !important; height: 300px !important; }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>💾 تست نشت حافظه Vakamova</h1>
+        <p>بررسی مصرف حافظه و شناسایی نشت در ماژول‌های اصلی</p>
+        
+        <div class="memory-chart">
+            <h3>📈 نمودار مصرف حافظه</h3>
+            <canvas id="memoryChart"></canvas>
+        </div>
+        
+        <div id="testControls">
+            <button onclick="startExerciseManagerTest()">تست ExerciseManager</button>
+            <button onclick="startUserProfileTest()">تست UserProfileManager</button>
+            <button onclick="startStressTest()">تست استرس (فشار)</button>
+            <button onclick="stopAllTests()">توقف همه تست‌ها</button>
+            <button onclick="forceGarbageCollection()">اجرای Garbage Collection</button>
+        </div>
+        
+        <div id="results"></div>
+        <div id="stats"></div>
+    </div>
+
+    <script>
+        // ==================== Memory Leak Detection System ====================
+        class MemoryLeakDetector {
+            constructor() {
+                this.samples = [];
+                this.testInstances = new Map();
+                this.leakThreshold = 1024 * 1024; // 1MB افزایش برای تشخیص نشت
+                this.samplingInterval = 1000; // هر 1 ثانیه
+                this.maxSamples = 180; // 3 دقیقه داده
+                this.chart = null;
+                this.isRunning = false;
+                
+                // آمار تست
+                this.stats = {
+                    totalTests: 0,
+                    leaksDetected: 0,
+                    peakMemory: 0,
+                    testDuration: 0
+                };
+                
+                this.initChart();
+                this.updateStats();
+            }
+            
+            initChart() {
+                const ctx = document.getElementById('memoryChart').getContext('2d');
+                this.chart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: [],
+                        datasets: [
+                            {
+                                label: 'مصرف حافظه (MB)',
+                                data: [],
+                                borderColor: '#64ffda',
+                                backgroundColor: 'rgba(100, 255, 218, 0.1)',
+                                fill: true,
+                                tension: 0.4
+                            },
+                            {
+                                label: 'آستانه نشت',
+                                data: [],
+                                borderColor: '#ff6b6b',
+                                borderDash: [5, 5],
+                                backgroundColor: 'transparent',
+                                fill: false
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: { position: 'top' },
+                            tooltip: {
+                                callbacks: {
+                                    label: (context) => `${context.dataset.label}: ${context.parsed.y.toFixed(2)}MB`
+                                }
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                title: { display: true, text: 'حافظه (MB)' }
+                            },
+                            x: {
+                                title: { display: true, text: 'زمان (ثانیه)' }
+                            }
+                        }
+                    }
+                });
+            }
+            
+            getMemoryUsage() {
+                if (performance.memory) {
+                    return {
+                        used: performance.memory.usedJSHeapSize,
+                        total: performance.memory.totalJSHeapSize,
+                        limit: performance.memory.jsHeapSizeLimit,
+                        timestamp: Date.now()
+                    };
+                }
+                
+                // Fallback برای مرورگرهایی که performance.memory ندارند
+                return {
+                    used: 0,
+                    total: 0,
+                    limit: 0,
+                    timestamp: Date.now()
+                };
+            }
+            
+            takeSample(testName) {
+                const memory = this.getMemoryUsage();
+                const sample = {
+                    testName,
+                    usedMB: memory.used / 1024 / 1024,
+                    totalMB: memory.total / 1024 / 1024,
+                    limitMB: memory.limit / 1024 / 1024,
+                    timestamp: memory.timestamp,
+                    timeElapsed: this.samples.length
+                };
+                
+                this.samples.push(sample);
+                
+                // حفظ آخرین نمونه‌ها
+                if (this.samples.length > this.maxSamples) {
+                    this.samples.shift();
+                }
+                
+                // آپدیت نمودار
+                this.updateChart();
+                
+                // بررسی نشت
+                if (this.samples.length > 10) {
+                    this.checkForLeaks(testName);
+                }
+                
+                // آپدیت آمار
+                this.stats.peakMemory = Math.max(this.stats.peakMemory, sample.usedMB);
+                this.updateStats();
+                
+                return sample;
+            }
+            
+            updateChart() {
+                const labels = this.samples.map(s => s.timeElapsed);
+                const usedData = this.samples.map(s => s.usedMB);
+                const leakThresholdData = this.samples.map(() => 
+                    (this.samples[0]?.usedMB || 0) + (this.leakThreshold / 1024 / 1024)
+                );
+                
+                this.chart.data.labels = labels;
+                this.chart.data.datasets[0].data = usedData;
+                this.chart.data.datasets[1].data = leakThresholdData;
+                this.chart.update('none');
+            }
+            
+            checkForLeaks(testName) {
+                if (this.samples.length < 20) return;
+                
+                const recentSamples = this.samples.slice(-10);
+                const oldSamples = this.samples.slice(-20, -10);
+                
+                const recentAvg = recentSamples.reduce((sum, s) => sum + s.usedMB, 0) / recentSamples.length;
+                const oldAvg = oldSamples.reduce((sum, s) => sum + s.usedMB, 0) / oldSamples.length;
+                
+                const memoryIncrease = recentAvg - oldAvg;
+                const percentIncrease = (memoryIncrease / oldAvg) * 100;
+                
+                // تشخیص نشت
+                const hasLeak = memoryIncrease > (this.leakThreshold / 1024 / 1024) && percentIncrease > 10;
+                
+                if (hasLeak) {
+                    this.stats.leaksDetected++;
+                    this.reportLeak(testName, memoryIncrease, percentIncrease);
+                }
+                
+                return hasLeak;
+            }
+            
+            reportLeak(testName, increaseMB, percent) {
+                const resultsDiv = document.getElementById('results');
+                const leakTime = new Date().toLocaleTimeString('fa-IR');
+                
+                resultsDiv.innerHTML += `
+                    <div class="test-card leak">
+                        <h4>🚨 نشت حافظه شناسایی شد!</h4>
+                        <p><strong>ماژول:</strong> ${testName}</p>
+                        <p><strong>زمان:</strong> ${leakTime}</p>
+                        <p><strong>افزایش حافظه:</strong> ${increaseMB.toFixed(2)}MB (${percent.toFixed(1)}%)</p>
+                        <p><strong>توصیه:</strong> بررسی references نگه‌داشته شده، event listeners و تایمرها</p>
+                    </div>
+                `;
+                
+                console.error(`🚨 نشت حافظه در ${testName}: ${increaseMB.toFixed(2)}MB افزایش (${percent.toFixed(1)}%)`);
+            }
+            
+            reportSafe(testName, duration) {
+                const resultsDiv = document.getElementById('results');
+                resultsDiv.innerHTML += `
+                    <div class="test-card safe">
+                        <h4>✅ تست حافظه موفق</h4>
+                        <p><strong>ماژول:</strong> ${testName}</p>
+                        <p><strong>مدت تست:</strong> ${duration} ثانیه</p>
+                        <p><strong>وضعیت:</strong> بدون نشت حافظه قابل تشخیص</p>
+                        <p><strong>مصرف پیک:</strong> ${this.stats.peakMemory.toFixed(2)}MB</p>
+                    </div>
+                `;
+            }
+            
+            updateStats() {
+                const statsDiv = document.getElementById('stats');
+                const currentMemory = this.samples.length > 0 ? 
+                    this.samples[this.samples.length - 1].usedMB : 0;
+                
+                statsDiv.innerHTML = `
+                    <div class="test-card">
+                        <h3>📊 آمار حافظه</h3>
+                        <div class="metric">مصرف فعلی: ${currentMemory.toFixed(2)}MB</div>
+                        <div class="metric">پیک مصرف: ${this.stats.peakMemory.toFixed(2)}MB</div>
+                        <div class="metric">تعداد تست‌ها: ${this.stats.totalTests}</div>
+                        <div class="metric">نشت‌های شناسایی: ${this.stats.leaksDetected}</div>
+                        <div class="metric">نمونه‌های جمع‌آوری: ${this.samples.length}</div>
+                        
+                        <div class="progress">
+                            <div class="progress-bar" style="width: ${Math.min(100, (currentMemory / 4000) * 100)}%"></div>
+                        </div>
+                        <small>${currentMemory.toFixed(2)}MB از ~4GB محدودیت مرورگر</small>
+                    </div>
+                `;
+            }
+            
+            startSampling(testName) {
+                if (this.isRunning) return;
+                
+                this.isRunning = true;
+                this.stats.totalTests++;
+                this.testInstances.set(testName, {
+                    startTime: Date.now(),
+                    initialMemory: this.getMemoryUsage(),
+                    samples: []
+                });
+                
+                const sampleInterval = setInterval(() => {
+                    if (!this.isRunning) {
+                        clearInterval(sampleInterval);
+                        return;
+                    }
+                    
+                    const sample = this.takeSample(testName);
+                    const testData = this.testInstances.get(testName);
+                    testData.samples.push(sample);
+                    
+                    // تست 60 ثانیه‌ای
+                    if (Date.now() - testData.startTime > 60000) {
+                        this.stopTest(testName);
+                    }
+                    
+                }, this.samplingInterval);
+                
+                // ذخیره interval برای cleanup
+                this.testInstances.get(testName).intervalId = sampleInterval;
+            }
+            
+            stopTest(testName) {
+                const testData = this.testInstances.get(testName);
+                if (!testData) return;
+                
+                clearInterval(testData.intervalId);
+                this.isRunning = false;
+                
+                const duration = (Date.now() - testData.startTime) / 1000;
+                this.stats.testDuration += duration;
+                
+                // بررسی نهایی
+                const hasLeak = this.checkForLeaks(testName);
+                if (!hasLeak) {
+                    this.reportSafe(testName, duration.toFixed(1));
+                }
+                
+                // Cleanup
+                this.testInstances.delete(testName);
+            }
+            
+            stopAllTests() {
+                this.testInstances.forEach((testData, testName) => {
+                    clearInterval(testData.intervalId);
+                    this.stopTest(testName);
+                });
+            }
+            
+            forceGarbageCollection() {
+                if (window.gc) {
+                    window.gc();
+                    console.log('🗑️ Garbage Collection اجرا شد');
+                } else {
+                    console.warn('⚠️ تابع gc در این مرورگر در دسترس نیست');
+                    // ترفند برای تشویق GC
+                    try {
+                        window.open('about:blank', '_blank')?.close();
+                    } catch {}
+                }
+                
+                // نمونه‌گیری بعد از GC
+                setTimeout(() => this.takeSample('After GC'), 100);
+            }
+        }
+        
+        // ==================== Mock Implementations for Testing ====================
+        
+        // شبیه‌سازی ExerciseManager با قابلیت ایجاد نشت
+        class LeakyExerciseManager {
+            constructor() {
+                this.exercises = [];
+                this.subscribers = [];
+                this.timers = [];
+                this.eventListeners = [];
+                this.cache = new Map();
+                this.leakMode = false;
+            }
+            
+            // حالت عادی (بدون نشت)
+            createExerciseNormal() {
+                return {
+                    id: `ex_${Date.now()}`,
+                    type: 'multipleChoice',
+                    question: 'سوال تست',
+                    options: ['گزینه ۱', 'گزینه ۲'],
+                    correctAnswer: 'گزینه ۱',
+                    timestamp: new Date().toISOString()
+                };
+            }
+            
+            // حالت با نشت عمدی
+            createExerciseLeaky() {
+                const exercise = this.createExerciseNormal();
+                
+                // ایجاد نشت‌های مختلف
+                if (this.leakMode) {
+                    // 1. نگه‌داشتن reference در آرایه
+                    this.exercises.push(exercise);
+                    
+                    // 2. اضافه کردن event listener بدون cleanup
+                    const fakeElement = { addEventListener: () => {} };
+                    const handler = () => console.log('leaky handler');
+                    fakeElement.addEventListener('click', handler);
+                    this.eventListeners.push({ element: fakeElement, handler });
+                    
+                    // 3. تایمر بدون cleanup
+                    const timer = setTimeout(() => {}, 1000000);
+                    this.timers.push(timer);
+                    
+                    // 4. cache بدون محدودیت
+                    this.cache.set(`key_${Date.now()}`, {
+                        data: new Array(1000).fill('X').join(''),
+                        timestamp: Date.now()
+                    });
+                    
+                    // 5. حلقه مرجع (circular reference)
+                    exercise.self = exercise;
+                    exercise.manager = this;
+                }
+                
+                return exercise;
+            }
+            
+            // شبیه‌سازی استفاده‌ی سنگین
+            stressTest(iterations = 1000, leakMode = false) {
+                this.leakMode = leakMode;
+                const results = [];
+                
+                for (let i = 0; i < iterations; i++) {
+                    const exercise = leakMode ? 
+                        this.createExerciseLeaky() : 
+                        this.createExerciseNormal();
+                    
+                    // شبیه‌سازی پردازش
+                    results.push({
+                        ...exercise,
+                        processed: true,
+                        score: Math.random() * 100,
+                        evaluation: { correct: Math.random() > 0.5 }
+                    });
+                    
+                    // ایجاد subscribers leak
+                    if (leakMode && i % 100 === 0) {
+                        this.subscribers.push({
+                            id: i,
+                            callback: () => {},
+                            context: { data: new Array(100).fill('leak') }
+                        });
+                    }
+                }
+                
+                return results;
+            }
+            
+            // cleanup
+            cleanup() {
+                this.exercises = [];
+                this.subscribers = [];
+                this.timers.forEach(timer => clearTimeout(timer));
+                this.timers = [];
+                this.eventListeners = [];
+                this.cache.clear();
+                this.leakMode = false;
+            }
+        }
+        
+        // شبیه‌سازی UserProfileManager با قابلیت ایجاد نشت
+        class LeakyUserProfileManager {
+            constructor() {
+                this.profiles = new Map();
+                this.history = [];
+                this.observers = [];
+                this.leakMode = false;
+            }
+            
+            createProfileNormal(userId) {
+                return {
+                    id: userId,
+                    name: `کاربر ${userId}`,
+                    email: `user${userId}@test.com`,
+                    settings: { theme: 'light' },
+                    languages: ['en', 'fa'],
+                    joinDate: new Date().toISOString()
+                };
+            }
+            
+            createProfileLeaky(userId) {
+                const profile = this.createProfileNormal(userId);
+                
+                if (this.leakMode) {
+                    // نشت‌های مختلف
+                    
+                    // 1. ذخیره در Map بدون حذف
+                    this.profiles.set(userId, profile);
+                    
+                    // 2. اضافه کردن به history بدون محدودیت
+                    this.history.push({
+                        profile,
+                        timestamp: Date.now(),
+                        snapshot: JSON.parse(JSON.stringify(profile)) // deep clone
+                    });
+                    
+                    // 3. ایجاد observers leak
+                    const observer = {
+                        id: Date.now(),
+                        update: () => {},
+                        data: new Array(50).fill({ leak: true })
+                    };
+                    this.observers.push(observer);
+                    
+                    // 4. ایجاد closure leak
+                    profile.getSecret = (() => {
+                        const secretData = new Array(100).fill('SECRET');
+                        return () => secretData;
+                    })();
+                    
+                    // 5. circular reference
+                    profile.manager = this;
+                    this.selfRef = { profile, manager: this };
+                }
+                
+                return profile;
+            }
+            
+            stressTest(iterations = 500, leakMode = false) {
+                this.leakMode = leakMode;
+                const operations = [];
+                
+                for (let i = 0; i < iterations; i++) {
+                    const userId = `user_${i}`;
+                    const profile = leakMode ? 
+                        this.createProfileLeaky(userId) : 
+                        this.createProfileNormal(userId);
+                    
+                    // شبیه‌سازی عملیات‌های مختلف
+                    operations.push({
+                        type: 'update_profile',
+                        userId,
+                        profile,
+                        timestamp: new Date().toISOString(),
+                        changes: { lastLogin: Date.now() }
+                    });
+                    
+                    // شبیه‌سازی activity history leak
+                    if (leakMode && i % 50 === 0) {
+                        this.history.push({
+                            type: 'activity',
+                            data: new Array(100).fill({ activity: 'leak' }),
+                            timestamp: Date.now()
+                        });
+                    }
+                }
+                
+                return operations;
+            }
+            
+            // شبیه‌سازی sync leak
+            simulateSyncLeak() {
+                if (!this.leakMode) return;
+                
+                // ایجاد promise‌های unresolved
+                const promises = [];
+                for (let i = 0; i < 100; i++) {
+                    const promise = new Promise(() => {}); // هرگز resolve نمی‌شود
+                    promises.push(promise);
+                }
+                
+                // اضافه کردن به آرایه global
+                if (!window.leakyPromises) {
+                    window.leakyPromises = [];
+                }
+                window.leakyPromises.push(...promises);
+            }
+            
+            cleanup() {
+                this.profiles.clear();
+                this.history = [];
+                this.observers = [];
+                this.leakMode = false;
+                
+                // cleanup global leaks
+                if (window.leakyPromises) {
+                    window.leakyPromises = [];
+                }
+            }
+        }
+        
+        // ==================== Global State ====================
+        const memoryDetector = new MemoryLeakDetector();
+        const exerciseManager = new LeakyExerciseManager();
+        const profileManager = new LeakyUserProfileManager();
+        
+        // ==================== Test Functions ====================
+        
+        function startExerciseManagerTest() {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML += `
+                <div class="test-card warning">
+                    <h4>🧪 شروع تست ExerciseManager</h4>
+                    <p>در حال اجرای تست حافظه با 1000 عملیات...</p>
+                    <p>مدت تست: 60 ثانیه</p>
+                </div>
+            `;
+            
+            // شروع نمونه‌گیری
+            memoryDetector.startSampling('ExerciseManager');
+            
+            // اجرای تست‌های سنگین
+            setTimeout(() => {
+                console.log('🏋️‍♂️ شروع تمرین سنگین ExerciseManager...');
+                
+                // فاز 1: عملیات عادی (بدون نشت)
+                const normalResults = exerciseManager.stressTest(500, false);
+                console.log(`✅ عملیات عادی: ${normalResults.length} تمرین`);
+                
+                // فاز 2: عملیات با نشت (بعد از 20 ثانیه)
+                setTimeout(() => {
+                    console.log('⚠️ شروع عملیات با نشت عمدی...');
+                    exerciseManager.leakMode = true;
+                    const leakyResults = exerciseManager.stressTest(500, true);
+                    console.log(`🚨 عملیات نشت: ${leakyResults.length} تمرین`);
+                    
+                }, 20000);
+                
+                // فاز 3: تکرار عملیات (بعد از 40 ثانیه)
+                setTimeout(() => {
+                    console.log('🔁 تکرار عملیات برای افزایش فشار...');
+                    exerciseManager.stressTest(300, true);
+                    
+                }, 40000);
+                
+            }, 5000);
+            
+            // پایان تست بعد از 60 ثانیه
+            setTimeout(() => {
+                memoryDetector.stopTest('ExerciseManager');
+                exerciseManager.cleanup();
+                console.log('🧹 ExerciseManager تمیز شد');
+            }, 65000);
+        }
+        
+        function startUserProfileTest() {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML += `
+                <div class="test-card warning">
+                    <h4>👤 شروع تست UserProfileManager</h4>
+                    <p>در حال اجرای تست حافظه با پروفایل‌های متعدد...</p>
+                    <p>مدت تست: 60 ثانیه</p>
+                </div>
+            `;
+            
+            memoryDetector.startSampling('UserProfileManager');
+            
+            setTimeout(() => {
+                console.log('👥 شروع ایجاد پروفایل‌های سنگین...');
+                
+                // فاز 1: پروفایل‌های عادی
+                const normalOps = profileManager.stressTest(300, false);
+                console.log(`✅ پروفایل‌های عادی: ${normalOps.length}`);
+                
+                // فاز 2: پروفایل‌های با نشت
+                setTimeout(() => {
+                    console.log('⚠️ شروع ایجاد پروفایل با نشت...');
+                    profileManager.leakMode = true;
+                    const leakyOps = profileManager.stressTest(300, true);
+                    console.log(`🚨 پروفایل‌های نشت: ${leakyOps.length}`);
+                    
+                    // شبیه‌سازی sync leak
+                    profileManager.simulateSyncLeak();
+                    
+                }, 25000);
+                
+                // فاز 3: عملیات بیشتر
+                setTimeout(() => {
+                    console.log('📈 افزایش عملیات...');
+                    profileManager.stressTest(200, true);
+                    
+                }, 45000);
+                
+            }, 5000);
+            
+            setTimeout(() => {
+                memoryDetector.stopTest('UserProfileManager');
+                profileManager.cleanup();
+                console.log('🧹 UserProfileManager تمیز شد');
+            }, 65000);
+        }
+        
+        function startStressTest() {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML += `
+                <div class="test-card leak">
+                    <h4>💥 شروع تست استرس شدید</h4>
+                    <p>این تست نشت‌های شدید ایجاد می‌کند!</p>
+                    <p>مدت تست: 90 ثانیه</p>
+                </div>
+            `;
+            
+            memoryDetector.startSampling('StressTest');
+            
+            // فعال‌سازی حالت نشت در هر دو مدیر
+            exerciseManager.leakMode = true;
+            profileManager.leakMode = true;
+            
+            // ایجاد فشار شدید
+            let iteration = 0;
+            const stressInterval = setInterval(() => {
+                iteration++;
+                
+                // عملیات‌های مختلف برای ایجاد نشت
+                exerciseManager.stressTest(100, true);
+                profileManager.stressTest(50, true);
+                
+                // ایجاد closures leak
+                for (let i = 0; i < 10; i++) {
+                    const leakyClosure = (() => {
+                        const bigArray = new Array(1000).fill('STRESS_TEST');
+                        return () => bigArray;
+                    })();
+                    window[`leak_${Date.now()}`] = leakyClosure;
+                }
+                
+                // ایجاد event listeners leak
+                if (iteration % 5 === 0) {
+                    for (let i = 0; i < 20; i++) {
+                        window.addEventListener(`fake_event_${i}`, () => {});
+                    }
+                }
+                
+                console.log(`💥 استرس تکرار ${iteration} - فشار بالا`);
+                
+                // پایان تست بعد از 90 ثانیه
+                if (iteration >= 18) { // 18 * 5 = 90 ثانیه
+                    clearInterval(stressInterval);
+                    memoryDetector.stopTest('StressTest');
+                    
+                    // cleanup
+                    exerciseManager.cleanup();
+                    profileManager.cleanup();
+                    
+                    // حذف global leaks
+                    Object.keys(window).forEach(key => {
+                        if (key.startsWith('leak_')) {
+                            delete window[key];
+                        }
+                    });
+                    
+                    console.log('🧹 تست استرس تمیز شد');
+                }
+                
+            }, 5000); // هر 5 ثانیه
+        }
+        
+        function stopAllTests() {
+            memoryDetector.stopAllTests();
+            exerciseManager.cleanup();
+            profileManager.cleanup();
+            
+            document.getElementById('results').innerHTML += `
+                <div class="test-card">
+                    <h4>⏹️ همه تست‌ها متوقف شدند</h4>
+                    <p>تمام منابع آزاد شدند.</p>
+                </div>
+            `;
+        }
+        
+        function forceGarbageCollection() {
+            memoryDetector.forceGarbageCollection();
+            
+            document.getElementById('results').innerHTML += `
+                <div class="test-card">
+                    <h4>🗑️ درخواست Garbage Collection</h4>
+                    <p>در حال آزادسازی حافظه...</p>
+                </div>
+            `;
+        }
+        
+        // ==================== Startup ====================
+        
+        // بررسی support برای memory API
+        if (!performance.memory) {
+            document.getElementById('results').innerHTML = `
+                <div class="test-card leak">
+                    <h4>⚠️ محدودیت مرورگر</h4>
+                    <p>مرورگر شما performance.memory را پشتیبانی نمی‌کند.</p>
+                    <p>لطفاً از Google Chrome استفاده کنید.</p>
+                    <p>با این حال تست‌ها با قابلیت‌های محدود اجرا می‌شوند.</p>
+                </div>
+            `;
+        }
+        
+        // نمایش راهنما
+        document.getElementById('results').innerHTML += `
+            <div class="test-card">
+                <h3>📋 راهنمای تست نشت حافظه</h3>
+                <p><strong>ExerciseManager:</strong> تست تمرین‌ها و ارزیابی‌ها</p>
+                <p><strong>UserProfileManager:</strong> تست پروفایل و همگام‌سازی</p>
+                <p><strong>تست استرس:</strong> ایجاد فشار شدید و نشت‌های عمدی</p>
+                <p><strong>🟢 سبز:</strong> بدون نشت | <strong>🔴 قرمز:</strong> نشت شناسایی شد</p>
+                <p>هر تست 60-90 ثانیه طول می‌کشد.</p>
+            </div>
+        `;
+        
+        // شروع نمونه‌گیری پایه
+        setInterval(() => {
+            if (!memoryDetector.isRunning) {
+                memoryDetector.takeSample('Idle');
+            }
+        }, 5000);
+        
+        console.log('💾 تست نشت حافظه آماده است. از Chrome برای بهترین نتایج استفاده کنید.');
+    </script>
+</body>
+</html>
