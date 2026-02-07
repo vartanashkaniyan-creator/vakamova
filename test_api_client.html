@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="fa">
+<head>
+    <meta charset="UTF-8">
+    <title>تست API Client - Vakamova</title>
+    <style>
+        body { font-family: Tahoma; max-width: 1000px; margin: 20px auto; padding: 20px; background: #f5f7fa; }
+        .test-case { background: white; padding: 15px; margin: 15px 0; border-radius: 8px; border-right: 5px solid #3498db; }
+        .success { color: #27ae60; background: #eafaf1; padding: 10px; margin: 5px 0; border-radius: 4px; }
+        .error { color: #c0392b; background: #fdedec; padding: 10px; margin: 5px 0; border-radius: 4px; }
+        button { background: linear-gradient(to left, #3498db, #9b59b6); color: white; border: none; padding: 12px 25px; border-radius: 6px; cursor: pointer; font-size: 16px; margin: 10px 5px; }
+        .mock-server { background: #fff3cd; padding: 15px; border-radius: 6px; border: 2px dashed #ffc107; margin: 20px 0; }
+    </style>
+</head>
+<body>
+    <h1>🧪 تست API Client</h1>
+    
+    <div class="mock-server">
+        <h3>🖥 Mock Server Configuration</h3>
+        <p><strong>Base URL:</strong> https://api.vakamova.test</p>
+        <p><strong>Endpoints:</strong></p>
+        <ul>
+            <li>GET /lessons → 200 OK (with data)</li>
+            <li>POST /lessons → 201 Created</li>
+            <li>GET /protected → 401 then 200 (token refresh)</li>
+            <li>GET /error → 500 Server Error (with retry)</li>
+            <li>GET /slow → 200 (slow response, timeout test)</li>
+        </ul>
+    </div>
+    
+    <button onclick="runAllTests()">شروع تست کامل</button>
+    <button onclick="runQuickTest()">تست سریع</button>
+    <button onclick="clearResults()">پاک کردن نتایج</button>
+    
+    <div id="results"></div>
+
+    <script>
+        // ==================== Mock وابستگی‌ها ====================
+        const mockDependencies = {
+            authManager: {
+                getToken: () => localStorage.getItem('test_token') || 'initial_token_123',
+                setToken: (token) => localStorage.setItem('test_token', token),
+                clearToken: () => localStorage.removeItem('test_token')
+            },
+            offlineQueue: {
+                add: async (request) => {
+                    console.log('📦 Added to offline queue:', request);
+                    return { queueId: 'offline_' + Date.now(), ...request };
+                },
+                processAll: async () => console.log('Processing offline queue')
+            },
+            logger: {
+                info: (msg, data) => console.log('ℹ️', msg, data || ''),
+                debug: (msg, data) => console.log('🔍', msg, data || ''),
+                warn: (msg, data) => console.log('⚠️', msg, data || ''),
+                error: (msg, data) => console.error('❌', msg, data || '')
+            },
+            config: {
+                baseURL: 'https://api.vakamova.test/v1',
+                appVersion: '1.0.0'
+            }
+        };
+
+        // ==================== Mock fetch API ====================
+        const originalFetch = window.fetch;
+        let fetchCallCount = 0;
+        const mockResponses = new Map();
+        
+        // پیکربندی پاسخ‌های mock
+        mockResponses.set('GET:/lessons', {
+            status: 200,
+            data: { 
+                lessons: [
+                    { id: 1, title: 'مکالمه مقدماتی', duration: '15 دقیقه' },
+                    { id: 2, title: 'گرامر زمان حال', duration: '20 دقیقه' }
+                ],
+                total: 10
+            },
+            delay: 100
+        });
+        
+        mockResponses.set('POST:/lessons', {
+            status: 201,
+            data: { id: 100, title: 'درس جدید', created: true },
+            delay: 150
+        });
+        
+        mockResponses.set('GET:/protected', {
+            status: 401,
+            data: { error: 'Token expired' },
+            delay: 100,
+            callsBeforeSuccess: 1 // اول 401 می‌دهد، بعد 200
+        });
+        
+        mockResponses.set('GET:/error', {
+            status: 500,
+            data: { error: 'Internal Server Error' },
+            delay: 200,
+            maxRetries: 2 // بعد از 2 بار 200 می‌دهد
+        });
+        
+        mockResponses.set('GET:/slow', {
+            status: 200,
+            data: { message: 'Slow response completed' },
+            delay: 2000 // پاسخ کند
+        });
+        
+        // تابع mock fetch
+        window.fetch = async function(url, options = {}) {
+            fetchCallCount++;
+            const method = options.method || 'GET';
+            const endpoint = url.replace('https://api.vakamova.test/v1', '');
+            const key = `${method}:${endpoint}`;
+            
+            console.log(`🔗 Fetch #${fetchCallCount}: ${method} ${endpoint}`);
+            
+            // شبیه‌سازی خطای شبکه
+            if (sessionStorage.getItem('simulateNetworkError') === 'true') {
+                await new Promise(resolve => setTimeout(resolve, 50));
+                throw new TypeError('Failed to fetch');
+            }
+            
+            // پیدا کردن پاسخ mock
+            let responseConfig = mockResponses.get(key);
+            
+            // اگر پاسخ خاصی تعریف نشده، پاسخ پیش‌فرض
+            if (!responseConfig) {
+                responseConfig = {
+                    status: 200,
+                    data: { message: 'Default mock response', url, method },
+                    delay: 50
+                };
+            }
+            
+            // شبیه‌سازی تاخیر
+            await new Promise(resolve => setTimeout(resolve, responseConfig.delay));
+            
+            // مدیریت حالات خاص
+            if (key === 'GET:/protected') {
+                const callCount = parseInt(sessionStorage.getItem('protected_calls') || '0');
+                sessionStorage.setItem('protected_calls', (callCount + 1).toString());
+                
+                if (callCount === 0) {
+                    // بار اول 401 می‌دهد
+                    return {
+                        ok: false,
+                        status: 401,
+                        headers: { get: () => 'application/json' },
+                        json: async () => responseConfig.data
+                    };
+                }
+                // بار دوم 200 می‌دهد
+                responseConfig.status = 200;
+                responseConfig.data = { message: 'Protected data', access: 'granted' };
+            }
+            
+            if (key === 'GET:/error') {
+                const errorCount = parseInt(sessionStorage.getItem('error_calls') || '0');
+                sessionStorage.setItem('error_calls', (errorCount + 1).toString());
+                
+                if (errorCount < 2) {
+                    return {
+                        ok: false,
+                        status: 500,
+                        headers: { get: () => 'application/json' },
+                        json: async () => responseConfig.data
+                    };
+                }
+                // بعد از 2 بار خطا، موفق می‌شود
+                responseConfig.status = 200;
+                responseConfig.data = { message: 'Recovered after retry' };
+            }
+            
+            // بازگوردن پاسخ mock
+            return {
+                ok: responseConfig.status >= 200 && responseConfig.status < 300,
+                status: responseConfig.status,
+                statusText: responseConfig.status === 200 ? 'OK' : 'Error',
+                headers: {
+                    get: (headerName) => {
+                        const headers = {
+                            'content-type': 'application/json',
+                            'x-request-id': 'mock_' + Date.now()
+                        };
+                        return headers[headerName.toLowerCase()];
+                    }
+                },
+                json: async () => responseConfig.data,
+                text: async () => JSON.stringify(responseConfig.data)
+            };
+        };
+
+        // ==================== API Client Implementation ====================
+        class APIClient {
+            constructor(dependencies) {
+                this.authManager = dependencies.authManager;
+                this.offlineQueue = dependencies.offlineQueue;
+                this.logger = dependencies.logger;
+                this.config = dependencies.config;
+                this.baseURL = this.config.baseURL;
+                this.defaultHeaders = {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-App-Version': this.config.appVersion
+                };
+                this.cache = new Map();
+                this.maxRetries = 3;
+                this.tokenRefresher = null;
+            }
+            
+            setHeaders(headers) {
+                this.defaultHeaders = { ...this.defaultHeaders, ...headers };
+            }
+            
+            async get(endpoint, params = {}, options = {}) {
+                return this.request('GET', endpoint, null, params, options);
+            }
+            
+            async post(endpoint, data = {}, options = {}) {
+                return this.request('POST', endpoint, data, {}, options);
+            }
+            
+            async put(endpoint, data = {}, options = {}) {
+                return this.request('PUT', endpoint, data, {}, options);
+            }
+            
+            async delete(endpoint, options = {}) {
+                return this.request('DELETE', endpoint, null, {}, options);
+            }
+            
+            async request(method, endpoint, data = null, params = {}, options = {}) {
+                // ساخت URL
+                let url = `${this.baseURL}${endpoint}`;
+                if (Object.keys(params).length > 0) {
+                    url += '?' + new URLSearchParams(params).toString();
+                }
+                
+                // تنظیمات درخواست
+                const requestOptions = {
+                    method,
+                    headers: { ...this.defaultHeaders, ...options.headers },
+                    ...options
+                };
+                
+                // اضافه کردن توکن
+                const token = this.authManager.getToken();
+                if (token) {
+                    requestOptions.headers.Authorization = `Bearer ${token}`;
+                }
+                
+                // اضافه کردن body برای POST/PUT
+                if (data && (method === 'POST' || method === 'PUT')) {
+                    requestOptions.body = JSON.stringify(data);
+                }
+                
+                // بررسی حالت آفلاین
+                if (!navigator.onLine && this.offlineQueue) {
+                    this.logger.warn('Device offline, queuing request', { endpoint });
+                    return this.offlineQueue.add({
+                        method, endpoint, data, params,
+                        timestamp: new Date().toISOString()
+                    });
+                }
+                
+                // ارسال درخواست با retry
+                return this.fetchWithRetry(url, requestOptions, options);
+            }
+            
+            async fetchWithRetry(url, options, requestOptions, retryCount = 0) {
+                try {
+                    const response = await fetch(url, options);
+                    
+                    // مدیریت خطای 401 و بازآوری توکن
+                    if (response.status === 401 && this.tokenRefresher) {
+                        await this.tokenRefresher();
+                        // اضافه کردن توکن جدید
+                        const newToken = this.authManager.getToken();
+                        options.headers.Authorization = `Bearer ${newToken}`;
+                        // ارسال مجدد درخواست
+                        return this.fetchWithRetry(url, options, requestOptions, retryCount);
+                    }
+                    
+                    // retry برای خطاهای سرور
+                    if (response.status >= 500 && retryCount < this.maxRetries) {
+                        await this.delay(1000 * (retryCount + 1));
+                        return this.fetchWithRetry(url, options, requestOptions, retryCount + 1);
+                    }
+                    
+                    // پردازش پاسخ
+                    if (!response.ok) {
+                        const errorData = await response.json().catch(() => ({}));
+                        throw {
+                            status: response.status,
+                            message: errorData.error || 'API Error',
+                            data: errorData
+                        };
+                    }
+                    
+                    return response.json();
+                    
+                } catch (error) {
+                    // retry برای خطاهای شبکه
+                    if (retryCount < this.maxRetries && error instanceof TypeError) {
+                        await this.delay(1000 * (retryCount + 1));
+                        return this.fetchWithRetry(url, options, requestOptions, retryCount + 1);
+                    }
+                    throw error;
+                }
+            }
+            
+            delay(ms) {
+                return new Promise(resolve => setTimeout(resolve, ms));
+            }
+            
+            setTokenRefresher(refresher) {
+                this.tokenRefresher = refresher;
+            }
+        }
+
+        // ==================== تست‌ها ====================
+        async function runAllTests() {
+            clearResults();
+            addResult('🚀 شروع تست کامل API Client', 'info');
+            
+            try {
+                // ایجاد نمونه API Client
+                const apiClient = new APIClient(mockDependencies);
+                addResult('✅ API Client نمونه‌سازی شد', 'success');
+                
+                // 1. تست GET ساده
+                addResult('1. تست GET /lessons', 'info');
+                try {
+                    const lessons = await apiClient.get('/lessons', { page: 1, limit: 10 });
+                    addResult(`   ✅ دریافت ${lessons.lessons?.length || 0} درس`, 'success');
+                } catch (error) {
+                    addResult(`   ❌ خطا در GET: ${error.message}`, 'error');
+                }
+                
+                // 2. تست POST با داده
+                addResult('2. تست POST /lessons', 'info');
+                try {
+                    const newLesson = {
+                        title: 'درس تست جدید',
+                        description: 'این یک درس تست است',
+                        difficulty: 'beginner'
+                    };
+                    const result = await apiClient.post('/lessons', newLesson);
+                    addResult(`   ✅ درس ایجاد شد: ${result.id}`, 'success');
+                } catch (error) {
+                    addResult(`   ❌ خطا در POST: ${error.message}`, 'error');
+                }
+                
+                // 3. تست مدیریت توکن (401 → refresh → 200)
+                addResult('3. تست مدیریت توکن منقضی شده', 'info');
+                try {
+                    // تنظیم token refresher
+                    apiClient.setTokenRefresher(async () => {
+                        addResult('   🔄 در حال بازآوری توکن...', 'info');
+                        mockDependencies.authManager.setToken('refreshed_token_' + Date.now());
+                        await apiClient.delay(500);
+                    });
+                    
+                    // بازنشانی شمارنده
+                    sessionStorage.setItem('protected_calls', '0');
+                    const protectedData = await apiClient.get('/protected');
+                    addResult(`   ✅ دسترسی به داده‌های حفاظت شده: ${protectedData.message}`, 'success');
+                } catch (error) {
+                    addResult(`   ❌ خطا در مدیریت توکن: ${error.message}`, 'error');
+                }
+                
+                // 4. تست retry خودکار روی خطای سرور
+                addResult('4. تست Retry خودکار روی خطای 500', 'info');
+                try {
+                    sessionStorage.setItem('error_calls', '0');
+                    const result = await apiClient.get('/error');
+                    addResult(`   ✅ بازیابی پس از retry: ${result.message}`, 'success');
+                } catch (error) {
+                    addResult(`   ❌ خطا در retry: ${error.message}`, 'error');
+                }
+                
+                // 5. تست حالت آفلاین
+                addResult('5. تست حالت آفلاین', 'info');
+                try {
+                    const originalOnline = navigator.onLine;
+                    Object.defineProperty(navigator, 'onLine', { value: false, writable: true });
+                    
+                    const queued = await apiClient.post('/lessons', { title: 'درس آفلاین' });
+                    addResult(`   ✅ درخواست در صف آفلاین قرار گرفت: ${queued.queueId}`, 'success');
+                    
+                    // بازگردانی حالت آنلاین
+                    Object.defineProperty(navigator, 'onLine', { value: originalOnline, writable: true });
+                } catch (error) {
+                    addResult(`   ❌ خطا در حالت آفلاین: ${error.message}`, 'error');
+                }
+                
+                // 6. تست خطای شبکه
+                addResult('6. تست خطای شبکه', 'info');
+                try {
+                    sessionStorage.setItem('simulateNetworkError', 'true');
+                    await apiClient.get('/test');
+                    addResult(`   ❌ انتظار خطای شبکه بود اما موفق شد!`, 'error');
+                } catch (error) {
+                    if (error instanceof TypeError) {
+                        addResult(`   ✅ خطای شبکه به درستی شناسایی شد`, 'success');
+                    } else {
+                        addResult(`   ❌ خطای غیرمنتظره: ${error.message}`, 'error');
+                    }
+                } finally {
+                    sessionStorage.removeItem('simulateNetworkError');
+                }
+                
+                // 7. تست timeout
+                addResult('7. تست پاسخ کند (timeout)', 'info');
+                try {
+                    const startTime = Date.now();
+                    const result = await apiClient.get('/slow');
+                    const duration = Date.now() - startTime;
+                    addResult(`   ✅ پاسخ کند دریافت شد (${duration}ms): ${result.message}`, 'success');
+                } catch (error) {
+                    addResult(`   ❌ خطا در دریافت پاسخ کند: ${error.message}`, 'error');
+                }
+                
+                // گزارش نهایی
+                addResult(`\n📊 گزارش نهایی:`, 'info');
+                addResult(`   • تعداد درخواست‌های ارسالی: ${fetchCallCount}`, 'info');
+                addResult(`   • توکن فعلی: ${mockDependencies.authManager.getToken()?.substring(0, 20)}...`, 'info');
+                addResult(`\n🎉 تمام تست‌ها تکمیل شدند!`, 'success');
+                
+            } catch (error) {
+                addResult(`❌ خطای کلی در تست: ${error.message}`, 'error');
+                console.error(error);
+            }
+        }
+        
+        async function runQuickTest() {
+            clearResults();
+            addResult('⚡ تست سریع API Client', 'info');
+            
+            try {
+                const apiClient = new APIClient(mockDependencies);
+                addResult('✅ نمونه‌سازی موفق', 'success');
+                
+                // تست ساده GET
+                const result = await apiClient.get('/lessons', { test: 'quick' });
+                addResult(`✅ GET موفق: ${JSON.stringify(result).substring(0, 100)}...`, 'success');
+                
+                // تست ساده POST
+                const postResult = await apiClient.post('/test', { quick: 'test' });
+                addResult(`✅ POST موفق: ${JSON.stringify(postResult)}`, 'success');
+                
+                addResult('✅ تست سریع با موفقیت انجام شد', 'success');
+                
+            } catch (error) {
+                addResult(`❌ خطا در تست سریع: ${error.message}`, 'error');
+            }
+        }
+        
+        function clearResults() {
+            document.getElementById('results').innerHTML = '';
+            fetchCallCount = 0;
+            sessionStorage.removeItem('protected_calls');
+            sessionStorage.removeItem('error_calls');
+            sessionStorage.removeItem('simulateNetworkError');
+        }
+        
+        function addResult(message, type = 'info') {
+            const div = document.createElement('div');
+            div.className = type === 'success' ? 'success' : 
+                           type === 'error' ? 'error' : 
+                           'test-case';
+            div.innerHTML = message;
+            document.getElementById('results').appendChild(div);
+        }
+    </script>
+</body>
+</html>
