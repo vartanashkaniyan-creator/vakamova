@@ -7,8 +7,8 @@
         body { font-family: Arial; padding: 20px; background: #f0f2f5; }
         .test { background: white; padding: 15px; margin: 15px 0; border-radius: 8px; border: 1px solid #ddd; }
         button { background: #007bff; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; }
-        .success { color: green; margin-top: 10px; }
-        .error { color: red; margin-top: 10px; }
+        .success { color: green; margin-top: 10px; padding: 10px; background: #d4edda; border-radius: 4px; }
+        .error { color: #721c24; margin-top: 10px; padding: 10px; background: #f8d7da; border-radius: 4px; }
         .loading { display: inline-block; width: 16px; height: 16px; border: 2px solid #ccc; border-top-color: #007bff; border-radius: 50%; animation: spin 1s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
     </style>
@@ -31,10 +31,10 @@
     <div class="test">
         <h3>تست 3: درخواست POST</h3>
         <button onclick="runTest3()">اجرا</button>
-        <div id="result2"></div>
+        <div id="result3"></div>  <!-- اصلاح شده: result2 به result3 -->
     </div>
     
-    <button onclick="runAll()" style="padding: 12px; background: #28a745;">اجرای همه</button>
+    <button onclick="runAll()" style="padding: 12px; background: #28a745; margin-top: 20px;">اجرای همه تست‌ها</button>
 
     <script>
         // ApiClient ساده
@@ -46,7 +46,7 @@
             async get() {
                 return new Promise(resolve => {
                     setTimeout(() => {
-                        resolve({ success: true, data: [{id: 1, name: 'تست'}] });
+                        resolve({ success: true, data: [{id: 1, name: 'کاربر تست'}] });
                     }, 300);
                 });
             }
@@ -54,7 +54,11 @@
             async post(data) {
                 return new Promise(resolve => {
                     setTimeout(() => {
-                        resolve({ success: true, token: 'test_token_' + Date.now() });
+                        resolve({ 
+                            success: true, 
+                            token: 'test_token_' + Date.now(),
+                            user: { email: data.email }
+                        });
                     }, 400);
                 });
             }
@@ -65,12 +69,12 @@
             const btn = event.target;
             const resultDiv = document.getElementById('result1');
             btn.disabled = true;
-            btn.innerHTML = '<span class="loading"></span>';
+            btn.innerHTML = '<span class="loading"></span> در حال اجرا...';
             
             try {
                 const api = new ApiClient();
                 if (!api) throw new Error("ApiClient ساخته نشد");
-                resultDiv.innerHTML = '<div class="success">✅ موفق - ApiClient ساخته شد</div>';
+                resultDiv.innerHTML = '<div class="success">✅ موفق - ApiClient با موفقیت ساخته شد</div>';
             } catch (e) {
                 resultDiv.innerHTML = '<div class="error">❌ خطا: ' + e.message + '</div>';
             }
@@ -83,14 +87,14 @@
             const btn = event.target;
             const resultDiv = document.getElementById('result2');
             btn.disabled = true;
-            btn.innerHTML = '<span class="loading"></span>';
+            btn.innerHTML = '<span class="loading"></span> در حال اجرا...';
             
             try {
                 const api = new ApiClient();
                 const result = await api.get();
-                if (!result.success) throw new Error("GET ناموفق");
+                if (!result.success) throw new Error("درخواست GET ناموفق بود");
                 if (!result.data) throw new Error("دیتا دریافت نشد");
-                resultDiv.innerHTML = '<div class="success">✅ موفق - GET کار کرد (' + result.data.length + ' آیتم)</div>';
+                resultDiv.innerHTML = '<div class="success">✅ موفق - GET کار کرد (' + result.data.length + ' آیتم دریافت شد)</div>';
             } catch (e) {
                 resultDiv.innerHTML = '<div class="error">❌ خطا: ' + e.message + '</div>';
             }
@@ -101,16 +105,16 @@
 
         async function runTest3() {
             const btn = event.target;
-            const resultDiv = document.getElementById('result3');
+            const resultDiv = document.getElementById('result3');  // اصلاح شده
             btn.disabled = true;
-            btn.innerHTML = '<span class="loading"></span>';
+            btn.innerHTML = '<span class="loading"></span> در حال اجرا...';
             
             try {
                 const api = new ApiClient();
-                const result = await api.post({email: 'test'});
-                if (!result.success) throw new Error("POST ناموفق");
+                const result = await api.post({email: 'test@vakamova.com'});
+                if (!result.success) throw new Error("درخواست POST ناموفق بود");
                 if (!result.token) throw new Error("توکن دریافت نشد");
-                resultDiv.innerHTML = '<div class="success">✅ موفق - POST کار کرد</div>';
+                resultDiv.innerHTML = '<div class="success">✅ موفق - POST کار کرد. توکن: ' + result.token.substring(0, 15) + '...</div>';
             } catch (e) {
                 resultDiv.innerHTML = '<div class="error">❌ خطا: ' + e.message + '</div>';
             }
@@ -127,7 +131,7 @@
             await runTest3();
         }
 
-        console.log("صفحه تست بارگذاری شد");
+        console.log("✅ صفحه تست بارگذاری شد - آماده اجرا");
     </script>
 </body>
 </html>
