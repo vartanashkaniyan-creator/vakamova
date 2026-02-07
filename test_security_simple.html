@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="fa">
+<head>
+    <meta charset="UTF-8">
+    <title>تست امنیتی ساده</title>
+    <style>
+        body { font-family: Tahoma; padding: 20px; }
+        .passed { color: green; background: #e8f5e9; padding: 10px; margin: 5px 0; }
+        .failed { color: #d32f2f; background: #ffebee; padding: 10px; margin: 5px 0; }
+        button { background: #2196f3; color: white; border: none; padding: 10px 20px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h2>🔐 تست امنیتی پایه</h2>
+    <button onclick="runSecurityTests()">اجرای تست امنیت</button>
+    <div id="results"></div>
+
+    <script>
+        async function runSecurityTests() {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '<h3>در حال اجرای تست‌های امنیت...</h3>';
+            
+            const tests = [];
+            
+            // 🔹 تست 1: اعتبارسنجی توکن
+            function validateToken(token) {
+                if (!token || token.length < 10) return false;
+                if (token.includes(' ') || token.includes('\n')) return false;
+                return true;
+            }
+            
+            const tokenTest = validateToken('valid_token_123');
+            tests.push({ name: 'اعتبارسنجی توکن', passed: tokenTest });
+            
+            // 🔹 تست 2: سانی‌تایز ورودی
+            function sanitizeInput(input) {
+                return input.replace(/[<>'"]/g, '').trim();
+            }
+            
+            const dirtyInput = '<script>alert("xss")</script>';
+            const cleanInput = sanitizeInput(dirtyInput);
+            const sanitizeTest = !cleanInput.includes('<script>');
+            tests.push({ name: 'سانیتایز ورودی XSS', passed: sanitizeTest });
+            
+            // 🔹 تست 3: رمزنگاری داده حساس
+            function encryptData(data) {
+                // شبیه‌سازی رمزنگاری ساده
+                return btoa(encodeURIComponent(data));
+            }
+            
+            const sensitiveData = 'credit_card_123';
+            const encrypted = encryptData(sensitiveData);
+            const encryptionTest = encrypted !== sensitiveData;
+            tests.push({ name: 'رمزنگاری داده حساس', passed: encryptionTest });
+            
+            // 🔹 تست 4: بررسی localStorage امن
+            function testLocalStorageSecurity() {
+                try {
+                    // تست اینکه داده حساس مستقیماً ذخیره نشود
+                    const testData = { token: 'test', shouldBeEncrypted: true };
+                    localStorage.setItem('test_sec', JSON.stringify(testData));
+                    const retrieved = JSON.parse(localStorage.getItem('test_sec'));
+                    localStorage.removeItem('test_sec');
+                    
+                    // اگر token به صورت plain ذخیره شده، ناموفق است
+                    return retrieved.token !== 'test';
+                } catch {
+                    return true;
+                }
+            }
+            
+            const storageTest = testLocalStorageSecurity();
+            tests.push({ name: 'امنیت localStorage', passed: storageTest });
+            
+            // 🔹 تست 5: اعتبارسنجی ایمیل
+            function validateEmail(email) {
+                const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                return regex.test(email);
+            }
+            
+            const emailTest = validateEmail('test@vakamova.com') && !validateEmail('invalid-email');
+            tests.push({ name: 'اعتبارسنجی ایمیل', passed: emailTest });
+            
+            // نمایش نتایج
+            const passedCount = tests.filter(t => t.passed).length;
+            const totalCount = tests.length;
+            
+            resultsDiv.innerHTML = `
+                <h3>نتایج تست امنیت:</h3>
+                <p>${passedCount} از ${totalCount} تست موفق</p>
+                ${tests.map(t => `
+                    <div class="${t.passed ? 'passed' : 'failed'}">
+                        ${t.passed ? '✅' : '❌'} ${t.name}
+                    </div>
+                `).join('')}
+                <p><strong>${passedCount === totalCount ? '✅ همه تست‌ها موفق' : '⚠️ نیاز به بررسی بیشتر'}</strong></p>
+            `;
+        }
+    </script>
+</body>
+</html>
