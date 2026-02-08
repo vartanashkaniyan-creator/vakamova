@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>تست یکپارچه‌سازی Auth + Database - Vakamova</title>
+    <title>تست یکپارچه‌سازی Auth + Database - Vakamova (نسخه اصلاح‌شده)</title>
     <style>
         :root {
             --primary: #4f46e5;
@@ -370,9 +370,9 @@
         <header>
             <h1>
                 <span>🔗 تست یکپارچه‌سازی Auth + Database</span>
-                <span class="badge">Vakamova</span>
+                <span class="badge">Vakamova - نسخه اصلاح‌شده</span>
             </h1>
-            <p>بررسی تعامل کامل بین سیستم احراز هویت و پایگاه داده</p>
+            <p>بررسی تعامل کامل بین سیستم احراز هویت و پایگاه داده (تست 6 اصلاح شد)</p>
         </header>
         
         <div class="integration-flow">
@@ -531,6 +531,18 @@
                     
                     await this.db.create('users', user);
                     
+                    // ایجاد پروفایل کاربر به صورت خودکار
+                    const profile = {
+                        id: `profile_${userId}`,
+                        userId: userId,
+                        level: 'beginner',
+                        points: 0,
+                        createdAt: new Date().toISOString(),
+                        updatedAt: new Date().toISOString()
+                    };
+                    
+                    await this.db.create('profiles', profile);
+                    
                     this.logger.success('کاربر با موفقیت ثبت‌نام شد', { userId }, 'AUTH');
                     return { success: true, userId, user };
                     
@@ -637,7 +649,8 @@
                 this.data = {
                     users: new Map(),
                     sessions: new Map(),
-                    profiles: new Map()
+                    profiles: new Map(),
+                    activities: new Map() // ✅ اضافه شد برای تست 6
                 };
                 this.init();
             }
@@ -787,10 +800,17 @@
                         throw new Error('وضعیت کاربر فعال نیست');
                     }
                     
+                    // ۴. بررسی ایجاد پروفایل خودکار
+                    const userProfile = await db.get('profiles', `profile_${registerResult.userId}`);
+                    if (!userProfile) {
+                        throw new Error('پروفایل کاربر به صورت خودکار ایجاد نشده است');
+                    }
+                    
                     return {
                         success: true,
                         userId: registerResult.userId,
                         userEmail: savedUser.email,
+                        profileCreated: true,
                         dbStats: db.getStats()
                     };
                 }
@@ -1045,8 +1065,8 @@
             {
                 id: 'test-6',
                 number: '۶',
-                title: 'سناریوی کامل کاربر (ثبت‌نام، ورود، فعالیت، خروج)',
-                description: 'بررسی سناریوی کامل کاربر از ثبت‌نام تا خروج',
+                title: 'سناریوی کامل کاربر (ثبت‌نام، ورود، فعالیت، خروج) ✅ اصلاح شده',
+                description: 'بررسی سناریوی کامل کاربر از ثبت‌نام تا خروج (نسخه اصلاح‌شده)',
                 modules: ['AUTH', 'DATABASE', 'STATE'],
                 run: async (auth, db, logger) => {
                     const results = {
@@ -1081,8 +1101,26 @@
                     }
                     results.steps.push('اعتبارسنجی سشن موفق');
                     
-                    // ۴. به‌روزرسانی پروفایل
-                    await db.update('profiles', `profile_${registerResult.userId}`, {
+                    // ۴. بررسی و به‌روزرسانی پروفایل
+                    const profileId = `profile_${registerResult.userId}`;
+                    let profile = await db.get('profiles', profileId);
+                    
+                    if (!profile) {
+                        // ایجاد پروفایل اگر وجود ندارد
+                        profile = {
+                            id: profileId,
+                            userId: registerResult.userId,
+                            level: 'beginner',
+                            points: 0,
+                            createdAt: new Date().toISOString(),
+                            updatedAt: new Date().toISOString()
+                        };
+                        await db.create('profiles', profile);
+                        results.steps.push('ایجاد پروفایل موفق');
+                    }
+                    
+                    // به‌روزرسانی پروفایل
+                    await db.update('profiles', profileId, {
                         level: 'intermediate',
                         points: 100,
                         updatedAt: new Date().toISOString()
@@ -1095,7 +1133,12 @@
                         userId: registerResult.userId,
                         type: 'login',
                         timestamp: new Date().toISOString(),
-                        details: { ip: '127.0.0.1', device: 'desktop' }
+                        details: { 
+                            ip: '127.0.0.1', 
+                            device: 'desktop',
+                            action: 'user_login',
+                            duration: '0s'
+                        }
                     });
                     results.steps.push('ذخیره فعالیت موفق');
                     
@@ -1107,7 +1150,21 @@
                     results.steps.push('خروج موفق');
                     results.timestamps.loggedOut = new Date().toISOString();
                     
-                    // ۷. بررسی نهایی
+                    // ۷. ذخیره فعالیت خروج
+                    await db.create('activities', {
+                        id: `activity_${Date.now()}_logout`,
+                        userId: registerResult.userId,
+                        type: 'logout',
+                        timestamp: new Date().toISOString(),
+                        details: { 
+                            ip: '127.0.0.1',
+                            action: 'user_logout',
+                            sessionDuration: '5m'
+                        }
+                    });
+                    results.steps.push('ذخیره فعالیت خروج موفق');
+                    
+                    // ۸. بررسی نهایی
                     const finalValidation = await auth.validateSession(loginResult.sessionId);
                     if (finalValidation.valid) {
                         throw new Error('سشن پس از خروج هنوز معتبر است');
@@ -1384,9 +1441,10 @@
             
             // راه‌اندازی اولیه
             testRunner.logger.log('سیستم تست یکپارچه‌سازی Auth + Database راه‌اندازی شد', {}, 'SYSTEM');
-            console.log('✅ تست‌های یکپارچه‌سازی آماده اجرا هستند');
+            console.log('✅ تست‌های یکپارچه‌سازی آماده اجرا هستند (نسخه اصلاح‌شده)');
             console.log('📱 این تست‌ها کاملاً در مرورگر موبایل قابل اجرا هستند');
+            console.log('🔧 تست 6 (سناریوی کامل کاربر) اصلاح و آماده اجراست');
         });
     </script>
 </body>
-              </html>
+</html>
