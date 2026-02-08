@@ -1,191 +1,1162 @@
-// core/db/indexeddb-wrapper.js
-/**
- * IndexedDB Wrapper - مدیریت اتصال و عملیات پایه پایگاه داده
- * مسئولیت: ایجاد و نگهداری اتصال به IndexedDB با الگوی Singleton
- * اصل SRP: فقط مدیریت اتصال DB و عملیات پایه
- * اصل DIP: وابستگی به interface (DBWrapper) نه پیاده‌سازی مستقیم
- */
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تست سیستم Undo/Redo - Vakamova</title>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}body{font-family:tahoma;background:#006064;color:#333;padding:20px}.container{max-width:1000px;margin:auto;background:#fff;border-radius:10px;overflow:hidden}header{background:#00838f;color:#fff;padding:20px;text-align:center}h1{font-size:1.5rem}.test-section{padding:20px}.test-item{background:#f5f5f5;border-radius:8px;padding:15px;margin-bottom:15px;border-right:5px solid#4db6ac}.passed{border-right-color:#43a047;background:#e8f5e9}.failed{border-right-color:#e53935;background:#ffebee}.running{border-right-color:#fb8c00;background:#fff3e0}.test-header{display:flex;justify-content:space-between;margin-bottom:10px}.test-name{font-weight:bold}.test-status{padding:3px 10px;border-radius:12px;font-size:.8rem}.status-pending{background:#fff9c4;color:#f57c00}.status-running{background:#bbdefb;color:#1565c0}.status-passed{background:#c8e6c9;color:#2e7d32}.status-failed{background:#ffcdd2;color:#c62828}button{background:#00838f;color:#fff;border:none;padding:12px 25px;border-radius:8px;font-size:1rem;cursor:pointer;width:100%;margin-top:15px}button:hover{background:#006064}.console{background:#263238;color:#80cbc4;padding:15px;margin-top:20px;border-radius:8px;font-family:monospace;font-size:.9rem;max-height:250px;overflow-y:auto}.log{padding:5px 0;border-bottom:1px solid #37474f}.undo-redo-controls{background:#b2ebf2;padding:15px;border-radius:8px;margin:15px 0;display:flex;gap:10px;flex-wrap:wrap}.control-btn{background:#4db6ac;color:#fff;border:none;padding:8px 15px;border-radius:6px;cursor:pointer;flex:1;min-width:120px;text-align:center}.control-btn:hover{background:#26a69a}.history-timeline{background:#e0f7fa;padding:15px;border-radius:8px;margin:15px 0;max-height:200px;overflow-y:auto}.history-item{padding:8px;margin:5px 0;background:#fff;border-radius:4px;border-right:3px solid#4db6ac;font-size:.85rem}.history-item.current{background:#b2ebf2;border-right-color:#00838f}.state-visualizer{background:#f1f8e9;padding:15px;border-radius:8px;margin:15px 0;font-family:monospace;font-size:.85rem;max-height:150px;overflow-y:auto}.btn-group{display:flex;gap:10px;margin-top:15px}.btn-group button{flex:1}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header><h1>⏪⏩ تست سیستم Undo/Redo + Time Travel</h1></header>
+        <div class="test-section">
+            <div class="undo-redo-controls">
+                <button class="control-btn" id="undo-btn" disabled>⏪ Undo</button>
+                <button class="control-btn" id="redo-btn" disabled>⏩ Redo</button>
+                <button class="control-btn" id="clear-history-btn" style="background:#ef5350">🗑️ پاک کردن تاریخچه</button>
+                <button class="control-btn" id="jump-to-btn" style="background:#ab47bc">🕒 پرش به زمان</button>
+            </div>
+            
+            <div class="history-timeline" id="history-timeline">
+                <div class="history-item">تاریخچه Undo/Redo اینجا نمایش داده می‌شود...</div>
+            </div>
+            
+            <div class="state-visualizer" id="state-visualizer">
+                <strong>🎯 State فعلی:</strong> منتظر اجرای تست‌ها...
+            </div>
+            
+            <div class="test-item" id="test1">
+                <div class="test-header"><div class="test-name">۱. Undo/Redo پایه و محدودیت عمق</div><div class="test-status status-pending" id="status1">در انتظار</div></div>
+                <div id="output1"></div>
+            </div>
+            <div class="test-item" id="test2">
+                <div class="test-header"><div class="test-name">۲. Grouped Actions و Transactions</div><div class="test-status status-pending" id="status2">در انتظار</div></div>
+                <div id="output2"></div>
+            </div>
+            <div class="test-item" id="test3">
+                <div class="test-header"><div class="test-name">۳. Time Travel و Export/Import تاریخچه</div><div class="test-status status-pending" id="status3">در انتظار</div></div>
+                <div id="output3"></div>
+            </div>
+            <div class="test-item" id="test4">
+                <div class="test-header"><div class="test-name">۴. Action Logging و Replay</div><div class="test-status status-pending" id="status4">در انتظار</div></div>
+                <div id="output4"></div>
+            </div>
+            
+            <div class="btn-group">
+                <button id="run-btn">▶️ اجرای تمام تست‌ها</button>
+                <button id="run-simulation-btn" style="background:#5c6bc0">🎮 اجرای شبیه‌سازی کاربر</button>
+            </div>
+            
+            <div class="console" id="console">
+                <div class="log">[سیستم] تست Undo/Redo + Time Travel آماده است</div>
+            </div>
+        </div>
+    </div>
 
-class IndexedDBWrapper {
-    constructor() {
-        if (IndexedDBWrapper.instance) {
-            return IndexedDBWrapper.instance;
+<script>
+// ========== سیستم Undo/Redo پیشرفته ==========
+const UndoRedoManager = {
+    state: {},
+    history: [],
+    future: [], // برای Redo
+    currentIndex: -1,
+    maxHistorySize: 50,
+    transactionStack: [],
+    actionLog: [],
+    
+    // ========== مدیریت State با قابلیت Undo/Redo ==========
+    setState(key, value, options = {}) {
+        const { 
+            description = `تنظیم ${key}`,
+            groupId = null,
+            skipHistory = false,
+            timestamp = Date.now()
+        } = options;
+        
+        const oldValue = this.state[key];
+        const newValue = value;
+        
+        // ایجاد action record
+        const action = {
+            id: this.generateId(),
+            type: 'SET_STATE',
+            key,
+            oldValue: JSON.parse(JSON.stringify(oldValue)), // Deep copy
+            newValue: JSON.parse(JSON.stringify(newValue)), // Deep copy
+            description,
+            groupId,
+            timestamp,
+            stateSnapshot: this.getStateSnapshot()
+        };
+        
+        // اگر در transaction هستیم، action را به transaction فعلی اضافه کن
+        if (this.transactionStack.length > 0 && !skipHistory) {
+            const currentTransaction = this.transactionStack[this.transactionStack.length - 1];
+            currentTransaction.actions.push(action);
+            this.log(`Action به transaction "${currentTransaction.name}" اضافه شد`);
+            this.actionLog.push({...action, logType: 'ACTION_ADDED_TO_TRANSACTION'});
+        } 
+        // در غیر این صورت، به تاریخچه اضافه کن
+        else if (!skipHistory) {
+            this.addToHistory(action);
+        } else {
+            // فقط state را تغییر بده
+            this.state[key] = newValue;
+            this.updateVisualizations();
+            return action;
         }
         
-        this.db = null;
-        this.dbName = 'farsinglish_db';
-        this.dbVersion = 1;
-        IndexedDBWrapper.instance = this;
-    }
-
-    /**
-     * ایجاد یا ارتقای اتصال به پایگاه داده
-     * @param {Object} schemaConfig - تنظیمات اسکیما جداول
-     * @returns {Promise<IDBDatabase>} - اتصال پایگاه داده
-     */
-    async connect(schemaConfig = null) {
-        return new Promise((resolve, reject) => {
-            if (this.db) {
-                resolve(this.db);
-                return;
-            }
-
-            const request = indexedDB.open(this.dbName, this.dbVersion);
-
-            request.onerror = (event) => {
-                console.error('خطا در اتصال به IndexedDB:', event.target.error);
-                reject(new Error(`Connection failed: ${event.target.error}`));
-            };
-
-            request.onsuccess = (event) => {
-                this.db = event.target.result;
-                console.log('اتصال به IndexedDB با موفقیت برقرار شد');
-                resolve(this.db);
-            };
-
-            request.onupgradeneeded = (event) => {
-                const db = event.target.result;
-                console.log('بروزرسانی اسکیما IndexedDB');
-
-                // اگر schemaConfig ارائه شده، جداول را ایجاد کن
-                if (schemaConfig) {
-                    this._createTables(db, schemaConfig);
+        // پاک کردن future (وقتی تغییر جدیدی انجام می‌شود، future باطل می‌شود)
+        if (!skipHistory && this.future.length > 0) {
+            this.future = [];
+            this.updateControls();
+        }
+        
+        this.log(`✅ ${description}: ${this.formatValue(oldValue)} → ${this.formatValue(newValue)}`);
+        this.updateVisualizations();
+        
+        return action;
+    },
+    
+    // ========== مدیریت تاریخچه ==========
+    addToHistory(action) {
+        // اگر در میانه تاریخچه هستیم، future را قطع کن
+        if (this.currentIndex < this.history.length - 1) {
+            this.history = this.history.slice(0, this.currentIndex + 1);
+            this.future = []; // future را هم پاک کن
+            this.log(`تاریخچه از ایندکس ${this.currentIndex + 1} قطع شد`);
+        }
+        
+        // اضافه کردن action به تاریخچه
+        this.history.push(action);
+        this.currentIndex = this.history.length - 1;
+        
+        // اجرای تغییر State (اگر قبلاً اجرا نشده)
+        if (action.type === 'SET_STATE') {
+            this.state[action.key] = action.newValue;
+        } else if (action.type === 'TRANSACTION') {
+            for (const subAction of action.actions) {
+                if (subAction.type === 'SET_STATE') {
+                    this.state[subAction.key] = subAction.newValue;
                 }
-            };
-        });
-    }
-
-    /**
-     * ایجاد جداول بر اساس تنظیمات اسکیما
-     * @param {IDBDatabase} db - اتصال پایگاه داده
-     * @param {Object} schemaConfig - تنظیمات جداول
-     * @private
-     */
-    _createTables(db, schemaConfig) {
-        Object.entries(schemaConfig).forEach(([tableName, config]) => {
-            if (!db.objectStoreNames.contains(tableName)) {
-                const store = db.createObjectStore(tableName, {
-                    keyPath: config.keyPath || 'id',
-                    autoIncrement: config.autoIncrement || false
-                });
-
-                // ایجاد ایندکس‌ها
-                if (config.indexes && Array.isArray(config.indexes)) {
-                    config.indexes.forEach(indexConfig => {
-                        store.createIndex(
-                            indexConfig.name,
-                            indexConfig.keyPath,
-                            indexConfig.options || {}
-                        );
-                    });
-                }
-
-                console.log(`جدول ${tableName} ایجاد شد`);
             }
+        }
+        
+        // محدود کردن اندازه تاریخچه
+        if (this.history.length > this.maxHistorySize) {
+            const removed = this.history.shift();
+            this.currentIndex--;
+            this.log(`تاریخچه پر شد. قدیمی‌ترین action حذف شد: ${removed.description}`);
+        }
+        
+        // لاگ action
+        this.actionLog.push({
+            ...action,
+            loggedAt: Date.now(),
+            logType: 'ACTION_ADDED_TO_HISTORY'
         });
-    }
-
-    /**
-     * دریافت اتصال فعلی پایگاه داده
-     * @returns {IDBDatabase|null} - اتصال DB یا null
-     */
-    getConnection() {
-        return this.db;
-    }
-
-    /**
-     * بررسی وضعیت اتصال
-     * @returns {boolean} - وضعیت اتصال
-     */
-    isConnected() {
-        return !!this.db;
-    }
-
-    /**
-     * بستن اتصال پایگاه داده
-     * @returns {Promise<void>}
-     */
-    async disconnect() {
+        
+        this.updateControls();
+        this.updateHistoryTimeline();
+        
+        return action;
+    },
+    
+    // ========== Undo/Redo ==========
+    undo() {
+        if (this.currentIndex < 0) {
+            this.log("هیچ actionای برای undo وجود ندارد", 'warning');
+            return null;
+        }
+        
+        const action = this.history[this.currentIndex];
+        
+        // بازگرداندن State
+        if (action.type === 'SET_STATE') {
+            this.state[action.key] = action.oldValue;
+            this.log(`⏪ Undo SET_STATE: ${action.description} (${this.formatValue(action.newValue)} → ${this.formatValue(action.oldValue)})`);
+        } 
+        else if (action.type === 'TRANSACTION') {
+            // برای transactionها، تمام actions داخلی را undo کن (برعکس ترتیب)
+            for (let i = action.actions.length - 1; i >= 0; i--) {
+                const subAction = action.actions[i];
+                if (subAction.type === 'SET_STATE') {
+                    this.state[subAction.key] = subAction.oldValue;
+                }
+            }
+            this.log(`⏪ Undo TRANSACTION: ${action.name} (${action.actions.length} action)`);
+        }
+        
+        // انتقال به future برای امکان redo
+        this.future.unshift(JSON.parse(JSON.stringify(action))); // Deep copy
+        
+        this.currentIndex--;
+        
+        // لاگ undo
+        this.actionLog.push({
+            id: this.generateId(),
+            type: 'UNDO',
+            actionId: action.id,
+            description: `Undo: ${action.description}`,
+            timestamp: Date.now(),
+            logType: 'UNDO_PERFORMED'
+        });
+        
+        this.updateVisualizations();
+        this.updateControls();
+        this.updateHistoryTimeline();
+        
+        return action;
+    },
+    
+    redo() {
+        if (this.future.length === 0) {
+            this.log("هیچ actionای برای redo وجود ندارد", 'warning');
+            return null;
+        }
+        
+        const action = this.future.shift();
+        
+        // اعمال مجدد تغییر
+        if (action.type === 'SET_STATE') {
+            this.state[action.key] = action.newValue;
+            this.log(`⏩ Redo SET_STATE: ${action.description} (${this.formatValue(action.oldValue)} → ${this.formatValue(action.newValue)})`);
+        } 
+        else if (action.type === 'TRANSACTION') {
+            // برای transactionها، تمام actions داخلی را redo کن
+            for (const subAction of action.actions) {
+                if (subAction.type === 'SET_STATE') {
+                    this.state[subAction.key] = subAction.newValue;
+                }
+            }
+            this.log(`⏩ Redo TRANSACTION: ${action.name} (${action.actions.length} action)`);
+        }
+        
+        this.currentIndex++;
+        
+        // اگر history کوتاه‌تر است، extend کن
+        if (this.currentIndex >= this.history.length) {
+            this.history.push(action);
+        } else {
+            this.history[this.currentIndex] = action;
+        }
+        
+        // لاگ redo
+        this.actionLog.push({
+            id: this.generateId(),
+            type: 'REDO',
+            actionId: action.id,
+            description: `Redo: ${action.description}`,
+            timestamp: Date.now(),
+            logType: 'REDO_PERFORMED'
+        });
+        
+        this.updateVisualizations();
+        this.updateControls();
+        this.updateHistoryTimeline();
+        
+        return action;
+    },
+    
+    // ========== Grouped Actions و Transactions ==========
+    beginTransaction(name = `Transaction_${Date.now()}`) {
+        const transaction = {
+            id: this.generateId(),
+            name,
+            startTime: Date.now(),
+            actions: [],
+            completed: false
+        };
+        
+        this.transactionStack.push(transaction);
+        this.log(`🚀 شروع Transaction: "${name}"`);
+        
+        // لاگ شروع transaction
+        this.actionLog.push({
+            id: this.generateId(),
+            type: 'TRANSACTION_START',
+            transactionId: transaction.id,
+            name: transaction.name,
+            timestamp: Date.now(),
+            logType: 'TRANSACTION_STARTED'
+        });
+        
+        return transaction.id;
+    },
+    
+    commitTransaction() {
+        if (this.transactionStack.length === 0) {
+            this.log("Transaction فعالی وجود ندارد", 'warning');
+            return null;
+        }
+        
+        const transaction = this.transactionStack.pop();
+        transaction.endTime = Date.now();
+        transaction.completed = true;
+        
+        // لاگ commit transaction
+        this.actionLog.push({
+            id: this.generateId(),
+            type: 'TRANSACTION_COMMIT',
+            transactionId: transaction.id,
+            name: transaction.name,
+            actionCount: transaction.actions.length,
+            timestamp: Date.now(),
+            logType: 'TRANSACTION_COMMITTED'
+        });
+        
+        // اگر transaction شامل action باشد، به عنوان یک group به تاریخچه اضافه کن
+        if (transaction.actions.length > 0) {
+            const groupAction = {
+                id: transaction.id,
+                type: 'TRANSACTION',
+                name: transaction.name,
+                actions: JSON.parse(JSON.stringify(transaction.actions)), // Deep copy
+                startTime: transaction.startTime,
+                endTime: transaction.endTime,
+                description: `Transaction: ${transaction.name} (${transaction.actions.length} action)`,
+                timestamp: Date.now()
+            };
+            
+            this.addToHistory(groupAction);
+            this.log(`✅ Transaction "${transaction.name}" ثبت شد: ${transaction.actions.length} action`);
+        } else {
+            this.log(`Transaction "${transaction.name}" بدون action بود`, 'warning');
+        }
+        
+        return transaction;
+    },
+    
+    rollbackTransaction() {
+        if (this.transactionStack.length === 0) {
+            this.log("Transaction فعالی وجود ندارد", 'warning');
+            return null;
+        }
+        
+        const transaction = this.transactionStack.pop();
+        
+        // Undo کردن تمام actionهای transaction
+        for (let i = transaction.actions.length - 1; i >= 0; i--) {
+            const action = transaction.actions[i];
+            if (action.type === 'SET_STATE') {
+                this.state[action.key] = action.oldValue;
+            }
+        }
+        
+        this.log(`↩️ Transaction "${transaction.name}" rollback شد: ${transaction.actions.length} action لغو شدند`);
+        
+        // لاگ rollback transaction
+        this.actionLog.push({
+            id: this.generateId(),
+            type: 'TRANSACTION_ROLLBACK',
+            transactionId: transaction.id,
+            name: transaction.name,
+            actionCount: transaction.actions.length,
+            timestamp: Date.now(),
+            logType: 'TRANSACTION_ROLLED_BACK'
+        });
+        
+        this.updateVisualizations();
+        
+        return transaction;
+    },
+    
+    // ========== Time Travel ==========
+    jumpToHistoryIndex(index) {
+        if (index < 0 || index >= this.history.length) {
+            this.log(`ایندکس ${index} خارج از محدوده تاریخچه است`, 'error');
+            return false;
+        }
+        
+        // محاسبه تعداد steps برای نمایش
+        const steps = Math.abs(index - this.currentIndex);
+        
+        // گرفتن snapshot از state فعلی
+        const currentState = this.getStateSnapshot();
+        
+        // بازسازی state از ابتدا تا index هدف
+        this.state = {};
+        
+        for (let i = 0; i <= index; i++) {
+            const action = this.history[i];
+            
+            if (action.type === 'SET_STATE') {
+                this.state[action.key] = action.newValue;
+            } else if (action.type === 'TRANSACTION') {
+                // برای transactionها، تمام actions داخلی را اجرا کن
+                for (const subAction of action.actions) {
+                    if (subAction.type === 'SET_STATE') {
+                        this.state[subAction.key] = subAction.newValue;
+                    }
+                }
+            }
+        }
+        
+        // بروزرسانی future (actions بعد از index فعلی)
+        this.future = JSON.parse(JSON.stringify(this.history.slice(index + 1))); // Deep copy
+        this.currentIndex = index;
+        
+        this.log(`🕒 Time Travel ${steps} step به action ${index + 1} از ${this.history.length} (${this.history[index].description})`);
+        
+        // لاگ time travel
+        this.actionLog.push({
+            id: this.generateId(),
+            type: 'TIME_TRAVEL',
+            targetIndex: index,
+            steps,
+            description: `Time travel ${steps} step به ایندکس ${index}`,
+            timestamp: Date.now(),
+            logType: 'TIME_TRAVEL_PERFORMED'
+        });
+        
+        this.updateVisualizations();
+        this.updateControls();
+        this.updateHistoryTimeline();
+        
+        return { success: true, steps };
+    },
+    
+    jumpToTimestamp(timestamp) {
+        // پیدا کردن نزدیک‌ترین action به timestamp داده شده
+        let closestIndex = -1;
+        let minDiff = Infinity;
+        
+        for (let i = 0; i < this.history.length; i++) {
+            const diff = Math.abs(this.history[i].timestamp - timestamp);
+            if (diff < minDiff) {
+                minDiff = diff;
+                closestIndex = i;
+            }
+        }
+        
+        if (closestIndex >= 0) {
+            return this.jumpToHistoryIndex(closestIndex);
+        }
+        
+        return false;
+    },
+    
+    // ========== Export/Import و Replay ==========
+    exportHistory() {
+        const exportData = {
+            history: this.history,
+            currentIndex: this.currentIndex,
+            state: this.getStateSnapshot(),
+            exportTime: Date.now(),
+            version: '1.0'
+        };
+        
+        const serialized = JSON.stringify(exportData, null, 2);
+        this.log(`تاریخچه export شد: ${this.history.length} action`);
+        
+        return serialized;
+    },
+    
+    importHistory(serialized) {
+        try {
+            const importData = JSON.parse(serialized);
+            
+            // اعتبارسنجی ساختار
+            if (!importData.history || !Array.isArray(importData.history)) {
+                throw new Error('فرمت تاریخچه نامعتبر است');
+            }
+            
+            this.history = importData.history;
+            this.currentIndex = importData.currentIndex || this.history.length - 1;
+            
+            // بازیابی State
+            if (importData.state) {
+                this.state = importData.state;
+            }
+            
+            // پاک کردن future
+            this.future = [];
+            
+            this.log(`تاریخچه import شد: ${this.history.length} action`);
+            this.updateVisualizations();
+            this.updateControls();
+            this.updateHistoryTimeline();
+            
+            return true;
+        } catch (error) {
+            this.log(`خطا در import تاریخچه: ${error.message}`, 'error');
+            return false;
+        }
+    },
+    
+    replayActions(actions, speed = 100) {
         return new Promise((resolve) => {
-            if (this.db) {
-                this.db.close();
-                this.db = null;
-                console.log('اتصال IndexedDB بسته شد');
-            }
-            resolve();
-        });
-    }
-
-    /**
-     * حذف کامل پایگاه داده (برای توسعه)
-     * @returns {Promise<void>}
-     */
-    async deleteDatabase() {
-        await this.disconnect();
-        return new Promise((resolve, reject) => {
-            const request = indexedDB.deleteDatabase(this.dbName);
+            this.log(`شروع Replay ${actions.length} action با سرعت ${speed}ms`);
             
-            request.onerror = (event) => {
-                reject(new Error(`Delete failed: ${event.target.error}`));
-            };
-            
-            request.onsuccess = () => {
-                console.log('پایگاه داده حذف شد');
-                resolve();
-            };
+            let index = 0;
+            const replayInterval = setInterval(() => {
+                if (index >= actions.length) {
+                    clearInterval(replayInterval);
+                    this.log(`Replay کامل شد`);
+                    resolve(true);
+                    return;
+                }
+                
+                const action = actions[index];
+                
+                // شبیه‌سازی action
+                if (action.type === 'SET_STATE') {
+                    this.state[action.key] = action.newValue;
+                    this.log(`Replay [${index + 1}/${actions.length}]: ${action.description}`);
+                }
+                
+                index++;
+                this.updateVisualizations();
+                
+            }, speed);
         });
-    }
-
-    /**
-     * شروع تراکنش
-     * @param {string} storeName - نام استور
-     * @param {string} mode - حالت تراکنش ('readonly' یا 'readwrite')
-     * @returns {IDBTransaction} - تراکنش
-     */
-    startTransaction(storeName, mode = 'readonly') {
-        if (!this.db) {
-            throw new Error('اتصال پایگاه داده برقرار نیست');
+    },
+    
+    // ========== Utilities ==========
+    generateId() {
+        return `act_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    },
+    
+    getStateSnapshot() {
+        return JSON.parse(JSON.stringify(this.state));
+    },
+    
+    formatValue(value) {
+        if (value === null) return 'null';
+        if (value === undefined) return 'undefined';
+        if (typeof value === 'object') return `{${Object.keys(value).length} key}`;
+        if (typeof value === 'string') return `"${value.substring(0, 20)}${value.length > 20 ? '...' : ''}"`;
+        return String(value);
+    },
+    
+    clearHistory() {
+        this.history = [];
+        this.future = [];
+        this.currentIndex = -1;
+        this.actionLog = [];
+        this.log("تاریخچه کاملاً پاک شد");
+        this.updateVisualizations();
+        this.updateControls();
+        this.updateHistoryTimeline();
+    },
+    
+    // ========== UI Updates ==========
+    updateControls() {
+        const undoBtn = document.getElementById('undo-btn');
+        const redoBtn = document.getElementById('redo-btn');
+        
+        undoBtn.disabled = this.currentIndex < 0;
+        redoBtn.disabled = this.future.length === 0;
+        
+        undoBtn.innerHTML = `⏪ Undo (${Math.max(0, this.currentIndex + 1)}/${this.history.length})`;
+        redoBtn.innerHTML = `⏩ Redo (${this.future.length})`;
+    },
+    
+    updateHistoryTimeline() {
+        const timeline = document.getElementById('history-timeline');
+        timeline.innerHTML = '';
+        
+        if (this.history.length === 0) {
+            timeline.innerHTML = '<div class="history-item">تاریخچه خالی است</div>';
+            return;
         }
         
-        if (!this.db.objectStoreNames.contains(storeName)) {
-            throw new Error(`جدول ${storeName} وجود ندارد`);
+        for (let i = 0; i < this.history.length; i++) {
+            const action = this.history[i];
+            const item = document.createElement('div');
+            item.className = `history-item ${i === this.currentIndex ? 'current' : ''}`;
+            
+            const time = new Date(action.timestamp).toLocaleTimeString('fa-IR');
+            const desc = action.description || action.type;
+            
+            item.innerHTML = `
+                <strong>#${i + 1}</strong> [${time}]: ${desc}
+                ${action.type === 'SET_STATE' ? `<br><small>${action.key}: ${this.formatValue(action.oldValue)} → ${this.formatValue(action.newValue)}</small>` : ''}
+                ${action.type === 'TRANSACTION' ? `<br><small>${action.actions.length} action گروه‌بندی شده</small>` : ''}
+            `;
+            
+            // کلیک برای jump به این action
+            item.style.cursor = 'pointer';
+            item.addEventListener('click', () => {
+                if (i !== this.currentIndex) {
+                    this.jumpToHistoryIndex(i);
+                }
+            });
+            
+            timeline.appendChild(item);
         }
-
-        return this.db.transaction(storeName, mode);
-    }
-
-    /**
-     * اجرای عملیات در تراکنش
-     * @param {Function} operation - عملیات برای اجرا
-     * @param {string} storeName - نام استور
-     * @param {string} mode - حالت تراکنش
-     * @returns {Promise<any>} - نتیجه عملیات
-     */
-    async executeInTransaction(operation, storeName, mode = 'readwrite') {
-        return new Promise((resolve, reject) => {
-            const transaction = this.startTransaction(storeName, mode);
-            const store = transaction.objectStore(storeName);
-            
-            transaction.oncomplete = () => resolve();
-            transaction.onerror = (event) => reject(event.target.error);
-            
-            operation(store, transaction);
+        
+        // اسکرول به آیتم جاری
+        const currentItem = timeline.querySelector('.history-item.current');
+        if (currentItem) {
+            currentItem.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    },
+    
+    updateVisualizations() {
+        const visualizer = document.getElementById('state-visualizer');
+        const stateKeys = Object.keys(this.state);
+        
+        if (stateKeys.length === 0) {
+            visualizer.innerHTML = '<strong>🎯 State فعلی:</strong> خالی';
+            return;
+        }
+        
+        let html = `<strong>🎯 State فعلی (${stateKeys.length} key):</strong><br>`;
+        
+        // نمایش ۵ key اول
+        stateKeys.slice(0, 5).forEach(key => {
+            const value = this.state[key];
+            html += `<div style="margin-top: 5px;"><strong>${key}:</strong> ${this.formatValue(value)}</div>`;
         });
+        
+        if (stateKeys.length > 5) {
+            html += `<div style="color:#666;margin-top:5px;">و ${stateKeys.length - 5} key دیگر...</div>`;
+        }
+        
+        html += `<div style="color:#4db6ac;margin-top:8px;font-size:.8rem;">
+            تاریخچه: ${this.history.length} action | Undoها: ${this.currentIndex + 1} | Redoها: ${this.future.length} | لاگ‌ها: ${this.actionLog.length}
+        </div>`;
+        
+        visualizer.innerHTML = html;
+    },
+    
+    log(message, type = 'info') {
+        const consoleEl = document.getElementById('console');
+        const logEntry = document.createElement('div');
+        logEntry.className = 'log';
+        
+        const prefix = type === 'error' ? '[خطا] ' : 
+                      type === 'warning' ? '[هشدار] ' : 
+                      type === 'success' ? '[موفق] ' : '';
+        
+        logEntry.textContent = `${prefix}${message}`;
+        
+        if (type === 'error') logEntry.style.color = '#ef9a9a';
+        if (type === 'warning') logEntry.style.color = '#fff59d';
+        if (type === 'success') logEntry.style.color = '#c5e1a5';
+        
+        consoleEl.appendChild(logEntry);
+        consoleEl.scrollTop = consoleEl.scrollHeight;
+        console.log(`[UndoRedo] ${message}`);
+    },
+    
+    clear() {
+        this.state = {};
+        this.history = [];
+        this.future = [];
+        this.currentIndex = -1;
+        this.transactionStack = [];
+        this.actionLog = [];
+        this.log("سیستم Undo/Redo پاک شد");
+        this.updateVisualizations();
+        this.updateControls();
+        this.updateHistoryTimeline();
+    }
+};
+
+// ========== تست‌های Undo/Redo ==========
+const undoRedoTests = [
+    {
+        id: 'test1',
+        name: 'Undo/Redo پایه و محدودیت عمق',
+        run: async () => {
+            UndoRedoManager.log("=== شروع تست Undo/Redo پایه ===");
+            UndoRedoManager.clear();
+            
+            // ۱. تست ایجاد چندین تغییر
+            UndoRedoManager.setState('user', 'کاربر تست', { description: 'تنظیم کاربر' });
+            UndoRedoManager.setState('score', 0, { description: 'شروع امتیاز' });
+            UndoRedoManager.setState('level', 1, { description: 'شروع سطح' });
+            UndoRedoManager.setState('score', 50, { description: 'افزایش امتیاز' });
+            UndoRedoManager.setState('level', 2, { description: 'ارتقاء سطح' });
+            
+            // باید دقیقاً ۵ action در تاریخچه باشد
+            if (UndoRedoManager.history.length !== 5) {
+                throw new Error(`تعداد actions تاریخچه اشتباه است. انتظار: 5، واقعی: ${UndoRedoManager.history.length}`);
+            }
+            
+            // ۲. تست Undo
+            const undo1 = UndoRedoManager.undo(); // باید level را از 2 به 1 برگرداند
+            if (!undo1 || undo1.description !== 'ارتقاء سطح') {
+                throw new Error('Undo اول اشتباه عمل کرد');
+            }
+            if (UndoRedoManager.state.level !== 1) {
+                throw new Error(`بعد از undo، level باید 1 باشد، اما ${UndoRedoManager.state.level} است`);
+            }
+            
+            const undo2 = UndoRedoManager.undo(); // باید score را از 50 به 0 برگرداند
+            if (UndoRedoManager.state.score !== 0) {
+                throw new Error(`بعد از undo دوم، score باید 0 باشد، اما ${UndoRedoManager.state.score} است`);
+            }
+            
+            // ۳. تست Redo
+            const redo1 = UndoRedoManager.redo(); // باید score را به 50 برگرداند
+            if (!redo1 || redo1.description !== 'افزایش امتیاز') {
+                throw new Error('Redo اول اشتباه عمل کرد');
+            }
+            if (UndoRedoManager.state.score !== 50) {
+                throw new Error(`بعد از redo، score باید 50 باشد، اما ${UndoRedoManager.state.score} است`);
+            }
+            
+            // ۴. تست محدودیت عمق تاریخچه
+            UndoRedoManager.maxHistorySize = 3;
+            
+            // اضافه کردن actions بیشتر از limit
+            UndoRedoManager.setState('coins', 100, { description: 'افزایش سکه‌ها' });
+            UndoRedoManager.setState('coins', 150, { description: 'افزایش بیشتر سکه‌ها' });
+            UndoRedoManager.setState('coins', 200, { description: 'حداکثر سکه‌ها' });
+            
+            // باید تاریخچه به ۳ action محدود شده باشد (قدیمی‌ترین‌ها حذف شوند)
+            if (UndoRedoManager.history.length !== 3) {
+                throw new Error(`محدودیت عمق تاریخچه رعایت نشد. انتظار: 3، واقعی: ${UndoRedoManager.history.length}`);
+            }
+            
+            // بررسی که قدیمی‌ترین actionها حذف شده‌اند
+            const remainingActions = UndoRedoManager.history.map(a => a.description);
+            if (!remainingActions.includes('حداکثر سکه‌ها') || 
+                !remainingActions.includes('افزایش بیشتر سکه‌ها') ||
+                !remainingActions.includes('افزایش سکه‌ها')) {
+                throw new Error('قدیمی‌ترین actions به درستی حذف نشدند');
+            }
+            
+            // ۵. تست Undo تمام actions
+            let undoCount = 0;
+            while (UndoRedoManager.currentIndex >= 0) {
+                UndoRedoManager.undo();
+                undoCount++;
+            }
+            
+            if (undoCount !== 3) {
+                throw new Error(`باید 3 بار Undo شود، اما ${undoCount} بار Undo شد`);
+            }
+            
+            if (UndoRedoManager.currentIndex !== -1) {
+                throw new Error(`بعد از undo همه actions، currentIndex باید -1 باشد، اما ${UndoRedoManager.currentIndex} است`);
+            }
+            
+            // ۶. تست Redo تمام actions
+            let redoCount = 0;
+            while (UndoRedoManager.future.length > 0) {
+                UndoRedoManager.redo();
+                redoCount++;
+            }
+            
+            if (redoCount !== 3) {
+                throw new Error(`باید 3 بار Redo شود، اما ${redoCount} بار Redo شد`);
+            }
+            
+            if (UndoRedoManager.future.length !== 0) {
+                throw new Error(`بعد از redo همه actions، future باید خالی باشد، اما ${UndoRedoManager.future.length} آیتم دارد`);
+            }
+            
+            // بازگرداندن limit به حالت اولیه
+            UndoRedoManager.maxHistorySize = 50;
+            
+            UndoRedoManager.log("✅ تست Undo/Redo پایه موفقیت‌آمیز بود", 'success');
+            
+            return `✅ Undo/Redo پایه صحیح کار می‌کند (۵ action در تاریخچه، عمق محدود به ۳)`;
+        }
+    },
+    {
+        id: 'test2',
+        name: 'Grouped Actions و Transactions',
+        run: async () => {
+            UndoRedoManager.log("=== شروع تست Grouped Actions ===");
+            UndoRedoManager.clear();
+            
+            // ۱. شروع یک transaction
+            const transactionId = UndoRedoManager.beginTransaction('خرید درس زبان');
+            
+            // اضافه کردن actions به transaction
+            UndoRedoManager.setState('cart', [], { description: 'خالی کردن سبد خرید' });
+            UndoRedoManager.setState('total', 0, { description: 'تنظیم مجموع' });
+            UndoRedoManager.setState('cart', ['درس انگلیسی مقدماتی'], { description: 'افزودن درس به سبد' });
+            UndoRedoManager.setState('total', 50, { description: 'به‌روزرسانی مجموع' });
+            UndoRedoManager.setState('userCoins', 100, { description: 'تنظیم سکه کاربر' });
+            UndoRedoManager.setState('userCoins', 50, { description: 'کسر هزینه خرید' });
+            
+            // ۲. commit transaction
+            const transaction = UndoRedoManager.commitTransaction();
+            
+            if (!transaction) {
+                throw new Error('Transaction commit ناموفق بود');
+            }
+            
+            if (transaction.actions.length !== 6) {
+                throw new Error(`تعداد actions در transaction اشتباه است. انتظار: 6، واقعی: ${transaction.actions.length}`);
+            }
+            
+            // ۳. بررسی که transaction به عنوان یک action در تاریخچه ثبت شده
+            const lastAction = UndoRedoManager.history[UndoRedoManager.history.length - 1];
+            if (lastAction.type !== 'TRANSACTION') {
+                throw new Error('Transaction در تاریخچه ثبت نشد');
+            }
+            
+            // ۴. Undo کردن transaction (باید تمام 6 action با یک Undo برگردند)
+            const undoResult = UndoRedoManager.undo();
+            
+            // بررسی که transaction undo شد
+            if (!undoResult || undoResult.type !== 'TRANSACTION') {
+                throw new Error('Undo transaction باید یک transaction برگرداند');
+            }
+            
+            // بررسی برگشت stateها - userCoins باید به 100 برگردد
+            if (UndoRedoManager.state.userCoins !== 100) {
+                throw new Error(`بعد از undo transaction، userCoins باید 100 باشد، اما ${UndoRedoManager.state.userCoins} است`);
+            }
+            
+            // cart باید خالی شود
+            if (!Array.isArray(UndoRedoManager.state.cart) || UndoRedoManager.state.cart.length !== 0) {
+                throw new Error(`بعد از undo transaction، cart باید [] باشد، اما ${JSON.stringify(UndoRedoManager.state.cart)} است`);
+            }
+            
+            // ۵. Redo کردن transaction
+            UndoRedoManager.redo();
+            
+            // بررسی که stateها دوباره اعمال شدند
+            if (UndoRedoManager.state.userCoins !== 50) {
+                throw new Error(`بعد از redo transaction، userCoins باید 50 باشد، اما ${UndoRedoManager.state.userCoins} است`);
+            }
+            
+            // ۶. تست nested transactions
+            UndoRedoManager.beginTransaction('تراکنش والد');
+            UndoRedoManager.setState('parent', 'مقدار والد', { description: 'تنظیم والد' });
+            
+            UndoRedoManager.beginTransaction('تراکنش فرزند');
+            UndoRedoManager.setState('child', 'مقدار فرزند', { description: 'تنظیم فرزند' });
+            UndoRedoManager.commitTransaction(); // commit فرزند
+            
+            UndoRedoManager.setState('parent', 'مقدار والد تغییر یافته', { description: 'تغییر والد' });
+            UndoRedoManager.commitTransaction(); // commit والد
+            
+            // بررسی لاگ‌های transaction
+            const transactionLogs = UndoRedoManager.actionLog.filter(log => 
+                log.logType && log.logType.includes('TRANSACTION')
+            );
+            
+            // باید حداقل ۵ لاگ transaction داشته باشیم: شروع/کامیت برای هر دو + شروع کلی
+            if (transactionLogs.length < 5) {
+                throw new Error(`لاگ‌های transaction کافی نیستند. انتظار حداقل ۵، واقعی: ${transactionLogs.length}`);
+            }
+            
+            UndoRedoManager.log("✅ تست Grouped Actions موفقیت‌آمیز بود", 'success');
+            
+            return `✅ Transactions صحیح کار می‌کنند (۶ action گروه‌بندی، userCoins از ۵۰ به ۱۰۰ برگشت)`;
+        }
+    },
+    {
+        id: 'test3',
+        name: 'Time Travel و Export/Import تاریخچه',
+        run: async () => {
+            UndoRedoManager.log("=== شروع تست Time Travel ===");
+            UndoRedoManager.clear();
+            
+            // ۱. ایجاد تاریخچه تست
+            UndoRedoManager.setState('step', 0, { description: 'شروع از صفر' });
+            UndoRedoManager.setState('step', 1, { description: 'قدم اول' });
+            UndoRedoManager.setState('step', 2, { description: 'قدم دوم' });
+            UndoRedoManager.setState('step', 3, { description: 'قدم سوم' });
+            UndoRedoManager.setState('step', 4, { description: 'قدم چهارم' });
+            
+            if (UndoRedoManager.history.length !== 5) {
+                throw new Error(`تاریخچه باید ۵ action داشته باشد، اما ${UndoRedoManager.history.length} دارد`);
+            }
+            
+            // ۲. Jump به index 2
+            const initialIndex = UndoRedoManager.currentIndex; // باید 4 باشد
+            const jumpResult = UndoRedoManager.jumpToHistoryIndex(2);
+            
+            if (!jumpResult || !jumpResult.success) {
+                throw new Error('Jump به تاریخچه ناموفق بود');
+            }
+            
+            // بررسی steps گزارش شده
+            const expectedSteps = Math.abs(2 - initialIndex); // |2-4| = 2
+            if (jumpResult.steps !== 2) {
+                throw new Error(`بعد از jump به index 2، steps باید 2 باشد، اما ${jumpResult.steps} است`);
+            }
+            
+            // بررسی state فعلی
+            if (UndoRedoManager.state.step !== 2) {
+                throw new Error(`بعد از jump به index 2، step باید 2 باشد، اما ${UndoRedoManager.state.step} است`);
+            }
+            
+            // بررسی currentIndex
+            if (UndoRedoManager.currentIndex !== 2) {
+                throw new Error(`بعد از jump، currentIndex باید 2 باشد، اما ${UndoRedoManager.currentIndex} است`);
+            }
+            
+            // ۳. Export تاریخچه
+            const exported = UndoRedoManager.exportHistory();
+            if (!exported || exported.length === 0) {
+                throw new Error('Export تاریخچه ناموفق بود');
+            }
+            
+            // ۴. ایجاد تغییر جدید (باید future را پاک کند)
+            UndoRedoManager.setState('newKey', 'مقدار جدید', { description: 'تغییر جدید بعد از jump' });
+            
+            // ۵. Import تاریخچه قبلی
+            const importResult = UndoRedoManager.importHistory(exported);
+            if (!importResult) {
+                throw new Error('Import تاریخچه ناموفق بود');
+            }
+            
+            // بررسی که به state قبل از تغییر جدید برگشتیم
+            if (UndoRedoManager.state.newKey !== undefined) {
+                throw new Error('بعد از import، newKey باید undefined باشد');
+            }
+            
+            if (UndoRedoManager.state.step !== 2) {
+                throw new Error('بعد از import، step باید 2 باشد');
+            }
+            
+            // ۶. تست jump به timestamp
+            const firstActionTime = UndoRedoManager.history[0].timestamp;
+            const jumpToTimeResult = UndoRedoManager.jumpToTimestamp(firstActionTime);
+            
+            if (!jumpToTimeResult) {
+                throw new Error('Jump به timestamp ناموفق بود');
+            }
+            
+            // باید به اولین action برگشته باشیم
+            if (UndoRedoManager.currentIndex !== 0) {
+                throw new Error(`بعد از jump به timestamp اول، currentIndex باید 0 باشد، اما ${UndoRedoManager.currentIndex} است`);
+            }
+            
+            UndoRedoManager.log("✅ تست Time Travel موفقیت‌آمیز بود", 'success');
+            
+            return `✅ Time Travel صحیح کار می‌کند (Jump ۲ step، Export/Import تاریخچه)`;
+        }
+    },
+    {
+        id: 'test4',
+        name: 'Action Logging و Replay',
+        run: async () => {
+            UndoRedoManager.log("=== شروع تست Action Logging ===");
+            UndoRedoManager.clear();
+            
+            // ۱. ایجاد چندین transaction مختلف
+            UndoRedoManager.beginTransaction('تراکنش اول');
+            UndoRedoManager.setState('t1_a', 'مقدار الف', { description: 'تنظیم الف' });
+            UndoRedoManager.setState('t1_b', 'مقدار ب', { description: 'تنظیم ب' });
+            UndoRedoManager.commitTransaction();
+            
+            UndoRedoManager.beginTransaction('تراکنش دوم');
+            UndoRedoManager.setState('t2_a', 'مقدار ج', { description: 'تنظیم ج' });
+            UndoRedoManager.rollbackTransaction(); // rollback این transaction
+            
+            UndoRedoManager.beginTransaction('تراکنش سوم');
+            UndoRedoManager.setState('t3_a', 'مقدار د', { description: 'تنظیم د' });
+            UndoRedoManager.commitTransaction();
+            
+            // ۲. Undo/Redo کردن
+            UndoRedoManager.undo(); // Undo تراکنش سوم
+            UndoRedoManager.redo(); // Redo تراکنش سوم
+            
+            // ۳. بررسی لاگ‌ها
+            const transactionLogs = UndoRedoManager.actionLog.filter(log => 
+                log.logType && log.logType.includes('TRANSACTION')
+            );
+            
+            // باید لاگ‌های زیر را داشته باشیم:
+            // ۱. شروع تراکنش اول
+            // ۲. کامیت تراکنش اول
+            // ۳. شروع تراکنش دوم  
+            // ۴. rollback تراکنش دوم
+            // ۵. شروع تراکنش سوم
+            // ۶. کامیت تراکنش سوم
+            // مجموع: ۶ لاگ transaction
+            
+            if (transactionLogs.length < 6) {
+                throw new Error(`لاگ‌های transaction کافی نیستند. انتظار حداقل ۶، واقعی: ${transactionLogs.length}`);
+            }
+            
+            // ۴. بررسی انواع لاگ‌ها
+            const logTypes = transactionLogs.map(log => log.logType);
+            const startedCount = logTypes.filter(type => type === 'TRANSACTION_STARTED').length;
+            const committedCount = logTypes.filter(type => type === 'TRANSACTION_COMMITTED').length;
+            const rolledBackCount = logTypes.filter(type => type === 'TRANSACTION_ROLLED_BACK').length;
+            
+            if (startedCount < 3) {
+                throw new Error(`باید حداقل ۳ لاگ TRANSACTION_STARTED داشته باشیم، اما ${startedCount} داریم`);
+            }
+            
+            if (committedCount < 2) { // تراکنش اول و سوم
+                throw new Error(`باید حداقل ۲ لاگ TRANSACTION_COMMITTED داشته باشیم، اما ${committedCount} داریم`);
+            }
+            
+            if (rolledBackCount < 1) { // تراکنش دوم
+                throw new Error(`باید حداقل ۱ لاگ TRANSACTION_ROLLED_BACK داشته باشیم، اما ${rolledBackCount} داریم`);
+            }
+            
+            // ۵. تست Replay
+            const testActions = [
+                {
+                    type: 'SET_STATE',
+                    key: 'replay_1',
+                    newValue: 'مقدار تست ۱',
+                    description: 'تست replay 1'
+                },
+                {
+                    type: 'SET_STATE',
+                    key: 'replay_2', 
+                    newValue: 'مقدار تست ۲',
+                    description: 'تست replay 2'
+                },
+                {
+                    type: 'SET_STATE',
+                    key: 'replay_3',
+                    newValue: 'مقدار تست ۳',
+                    description: 'تست replay 3'
+                }
+            ];
+            
+            await UndoRedoManager.replayActions(testActions, 50);
+            
+            // بررسی اینکه actions replay شده‌اند
+            if (UndoRedoManager.state.replay_1 !== 'مقدار تست ۱' ||
+                UndoRedoManager.state.replay_2 !== 'مقدار تست ۲' ||
+                UndoRedoManager.state.replay_3 !== 'مقدار تست ۳') {
+                throw new Error('Replay actions به درستی اجرا نشدند');
+            }
+            
+            // ۶. بررسی لاگ‌های کلی
+            const totalLogs = UndoRedoManager.actionLog.length;
+            if (totalLogs < 20) { // با توجه به actions مختلف
+                throw new Error(`تعداد کل لاگ‌ها کم است. انتظار حداقل ۲۰، واقعی: ${totalLogs}`);
+            }
+            
+            UndoRedoManager.log("✅ تست Action Logging موفقیت‌آمیز بود", 'success');
+            
+            return `✅ Action Logging صحیح کار می‌کند (${transactionLogs.length} لاگ transaction، ${totalLogs} لاگ کلی)`;
+        }
+    }
+];
+
+// ========== اجرای تست‌ها ==========
+async function runAllTests() {
+    const runBtn = document.getElementById('run-btn');
+    runBtn.disabled = true;
+    runBtn.textContent = '⏳ در حال اجرای تمام تست‌ها...';
+    
+    // پاکسازی کنسول
+    document.getElementById('console').innerHTML = '<div class="log">[سیستم] شروع اجرای تست‌های Undo/Redo</div>';
+    
+    UndoRedoManager.log("=== شروع اجرای تمام تست‌های Undo/Redo ===");
+    
+    let passed = 0;
+    
+    for (let i = 0; i < undoRedoTests.length; i++) {
+        const test = undoRedoTests[i];
+        const testElement = document.getElementById(test.id);
+        const statusElement = document.getElementById(`status${i+1}`);
+        const outputElement = document.getElementById(`output${i+1}`);
+        
+        // تغییر وضعیت به در حال اجرا
+        testElement.className = 'test-item running';
+        statusElement.textContent = 'در حال اجرا';
+        statusElement.className = 'test-status status-running';
+        outputElement.innerHTML = '<span style="color:#666">آماده‌سازی...</span>';
+        
+        try {
+            UndoRedoManager.log(`شروع تست: ${test.name}`);
+            
+            // پاکسازی قبل از هر تست
+            UndoRedoManager.clear();
+            
+            const result = await test.run();
+            
+            // تست موفق
+            testElement.className = 'test-item passed';
+            statusElement.textContent = 'موفق';
+            statusElement.className = 'test-status status-passed';
+            outputElement.innerHTML = `<div style="color:#2e7d32">${result}</div>`;
+            passed++;
+            
+            UndoRedoManager.log(`تست "${test.name}" موفق`, 'success');
+            
+        } catch (error) {
+            // تست ناموفق
+            testElement.className = 'test-item failed';
+            statusElement.textContent = 'ناموفق';
+            statusElement.className = 'test-status status-failed';
+            outputElement.innerHTML = `<div style="color:#c62828"><strong>❌ خطا:</strong> ${error.message}</div>`;
+            
+            UndoRedoManager.log(`تست "${test.name}" ناموفق: ${error.message}`, 'error');
+        }
+        
+        // تاخیر کوتاه بین تست‌ها
+        await new Promise(resolve => setTimeout(resolve, 500));
+    }
+    
+    runBtn.disabled = false;
+    runBtn.textContent = `🔄 اجرای مجدد (${passed}/${undoRedoTests.length} موفق)`;
+    
+    // نمایش نتیجه نهایی
+    if (passed === undoRedoTests.length) {
+        UndoRedoManager.log("🎉 تمام تست‌های Undo/Redo با موفقیت پشت سر گذاشته شدند!", 'success');
+        UndoRedoManager.log("✅ سیستم Undo/Redo برای استفاده در Vakamova آماده است.", 'success');
+    } else {
+        UndoRedoManager.log(`تست‌ها کامل شدند: ${passed} از ${undoRedoTests.length} موفق`, 
+                           passed >= 3 ? 'success' : 'warning');
     }
 }
 
-// Singleton instance
-const indexedDBWrapper = new IndexedDBWrapper();
-
-// Interface برای Dependency Injection
-class IDBWrapperInterface {
-    async connect(schemaConfig) {}
-    getConnection() {}
-    isConnected() {}
-    async disconnect() {}
-    async deleteDatabase() {}
-    startTransaction(storeName, mode) {}
-    async executeInTransaction(operation, storeName, mode) {}
-}
-
-export { IndexedDBWrapper, indexedDBWrapper, IDBWrapperInterface };
+// ========== راه‌اندازی ==========
+document.addEventListener('DOMContentLoaded', () => {
+    // اتصال دکمه‌ها
+    document.getElementById('run-btn').addEventListener('click', runAllTests);
+    document.getElementById('undo-btn').addEventListener('click', () => UndoRedoManager.undo());
+    document.getElementById('redo-btn').addEventListener('click', () => UndoRedoManager.redo());
+    document.getElementById('clear-history-btn').addEventListener('click', () => UndoRedoManager.clearHistory());
+    document.getElementById('jump-to-btn').addEventListener('click', () => {
+        const index = prompt('به کدام ایندکس تاریخچه برویم؟ (۰ تا ' + (UndoRedoManager.history.length - 1) + ')');
+        if (index !== null) {
+            const idx = parseInt(index);
+            if (!isNaN(idx)) {
+                UndoRedoManager.jumpToHistoryIndex(idx);
+            }
+        }
+    });
+    
+    // شبیه‌سازی کاربر
+    document.getElementById('run-simulation-btn').addEventListener('click', async () => {
+        UndoRedoManager.clear();
+        UndoRedoManager.log("=== شروع شبیه‌سازی کاربر ===");
+        
+        // شبیه‌سازی خرید درس
+        UndoRedoManager.beginTransaction('خرید درس انگلیسی');
+        await new Promise(r => setTimeout(r, 300));
+        UndoRedoManager.setState('coins', 1000, { description: 'شارژ کیف پول' });
+        await new Promise(r => setTimeout(r, 300));
+        UndoRedoManager.setState('cart', ['درس مقدماتی انگلیسی'], { description: 'افزودن به سبد' });
+        await new Promise(r => setTimeout(r, 300));
+        UndoRedoManager.setState('coins', 900, { description: 'پرداخت ۱۰۰ سکه' });
+        await new Promise(r => setTimeout(r, 300));
+        UndoRedoManager.setState('lessons', ['درس مقدماتی انگلیسی'], { description: 'افزودن به کتابخانه' });
+        await new Promise(r => setTimeout(r, 300));
+        UndoRedoManager.commitTransaction();
+        
+        // Undo برای بررسی
+        await new Promise(r => setTimeout(r, 500));
+        UndoRedoManager.log("کاربر خرید را Undo می‌کند...");
+        UndoRedoManager.undo();
+        
+        // Redo
+        await new Promise(r => setTimeout(r, 500));
+        UndoRedoManager.log("کاربر خرید را Redo می‌کند...");
+        UndoRedoManager.redo();
+        
+        UndoRedoManager.log("✅ شبیه‌سازی کامل شد");
+    });
+    
+    UndoRedoManager.log("سیستم تست Undo/Redo + Time Travel آماده است.");
+    UndoRedoManager.log("روی دکمه 'اجرای تمام تست‌ها' کلیک کنید.");
+    UndoRedoManager.updateVisualizations();
+});
+</script>
+</body>
+    </html>
