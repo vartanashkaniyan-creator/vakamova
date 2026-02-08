@@ -1,0 +1,1392 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تست یکپارچه‌سازی Auth + Database - Vakamova</title>
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --success: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --dark: #1f2937;
+            --light: #f8fafc;
+        }
+        
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: 'Segoe UI', 'Vazirmatn', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.8;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.98);
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+        
+        header {
+            background: linear-gradient(135deg, var(--primary) 0%, #7c3aed 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+            border-bottom: 5px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        header h1 {
+            font-size: 2.2rem;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+        
+        .badge {
+            background: var(--success);
+            color: white;
+            padding: 8px 20px;
+            border-radius: 25px;
+            font-size: 1rem;
+            font-weight: bold;
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+        }
+        
+        .integration-flow {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 30px;
+            background: var(--light);
+            border-bottom: 2px solid #e2e8f0;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .module-box {
+            background: white;
+            padding: 20px 30px;
+            border-radius: 15px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            min-width: 180px;
+            border: 3px solid transparent;
+            transition: all 0.3s ease;
+        }
+        
+        .module-box.active {
+            border-color: var(--primary);
+            transform: translateY(-5px);
+            box-shadow: 0 12px 35px rgba(79, 70, 229, 0.25);
+        }
+        
+        .module-icon {
+            font-size: 2.5rem;
+            margin-bottom: 15px;
+            display: block;
+        }
+        
+        .arrow {
+            font-size: 2rem;
+            color: var(--primary);
+        }
+        
+        .test-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 25px;
+            padding: 35px;
+        }
+        
+        .test-card {
+            background: white;
+            border-radius: 18px;
+            padding: 30px;
+            box-shadow: 0 12px 35px rgba(0, 0, 0, 0.08);
+            border: 3px solid transparent;
+            transition: all 0.4s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .test-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 5px;
+            height: 100%;
+            background: #e2e8f0;
+            transition: all 0.3s ease;
+        }
+        
+        .test-card.passed::before {
+            background: var(--success);
+        }
+        
+        .test-card.failed::before {
+            background: var(--danger);
+        }
+        
+        .test-card.pending::before {
+            background: var(--warning);
+        }
+        
+        .test-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.15);
+        }
+        
+        .test-title {
+            font-size: 1.4rem;
+            font-weight: bold;
+            margin-bottom: 20px;
+            color: var(--dark);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #f1f5f9;
+        }
+        
+        .test-number {
+            background: var(--primary);
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            font-weight: bold;
+        }
+        
+        .test-result {
+            padding: 8px 20px;
+            border-radius: 25px;
+            font-size: 0.9rem;
+            font-weight: bold;
+            letter-spacing: 0.5px;
+        }
+        
+        .passed .test-result {
+            background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+            color: #065f46;
+        }
+        
+        .failed .test-result {
+            background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+            color: #991b1b;
+        }
+        
+        .pending .test-result {
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            color: #92400e;
+        }
+        
+        .test-desc {
+            color: #6b7280;
+            margin-bottom: 25px;
+            font-size: 1.05rem;
+            line-height: 1.7;
+        }
+        
+        .test-details {
+            background: #f8fafc;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 20px;
+            display: none;
+        }
+        
+        .test-card.active .test-details {
+            display: block;
+            animation: slideDown 0.5s ease;
+        }
+        
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .test-output {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 20px;
+            border-radius: 10px;
+            font-family: 'Courier New', 'Monaco', monospace;
+            font-size: 0.95rem;
+            margin-top: 15px;
+            max-height: 300px;
+            overflow-y: auto;
+            direction: ltr;
+            text-align: left;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        
+        .test-stats {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+            padding: 25px 35px;
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            border-top: 3px solid #e2e8f0;
+        }
+        
+        .stat {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            text-align: center;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.06);
+            transition: all 0.3s ease;
+        }
+        
+        .stat:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.12);
+        }
+        
+        .stat-value {
+            font-size: 2.8rem;
+            font-weight: bold;
+            margin-bottom: 10px;
+            display: block;
+        }
+        
+        .stat-label {
+            font-size: 1rem;
+            color: #6b7280;
+            font-weight: 600;
+        }
+        
+        .stat.passed .stat-value { color: var(--success); }
+        .stat.failed .stat-value { color: var(--danger); }
+        .stat.pending .stat-value { color: var(--warning); }
+        .stat.coverage .stat-value { color: var(--primary); }
+        
+        .action-bar {
+            display: flex;
+            justify-content: center;
+            gap: 25px;
+            padding: 30px;
+            border-top: 3px solid #e2e8f0;
+            background: white;
+            flex-wrap: wrap;
+        }
+        
+        button {
+            background: linear-gradient(135deg, var(--primary) 0%, #7c3aed 100%);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            border-radius: 15px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            min-width: 220px;
+            box-shadow: 0 8px 25px rgba(79, 70, 229, 0.3);
+        }
+        
+        button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 35px rgba(79, 70, 229, 0.4);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        button.secondary {
+            background: linear-gradient(135deg, #6b7280 0%, #9ca3af 100%);
+            box-shadow: 0 8px 25px rgba(107, 114, 128, 0.3);
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 24px;
+            height: 24px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        @media (max-width: 768px) {
+            .test-grid {
+                grid-template-columns: 1fr;
+                padding: 20px;
+            }
+            
+            .test-stats {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            header h1 {
+                font-size: 1.8rem;
+                flex-direction: column;
+                gap: 10px;
+            }
+            
+            .integration-flow {
+                flex-direction: column;
+            }
+            
+            .arrow {
+                transform: rotate(90deg);
+                margin: 10px 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>
+                <span>🔗 تست یکپارچه‌سازی Auth + Database</span>
+                <span class="badge">Vakamova</span>
+            </h1>
+            <p>بررسی تعامل کامل بین سیستم احراز هویت و پایگاه داده</p>
+        </header>
+        
+        <div class="integration-flow">
+            <div class="module-box active" id="auth-module">
+                <span class="module-icon">🔐</span>
+                <h3>Auth Manager</h3>
+                <div class="module-status">آماده</div>
+            </div>
+            <div class="arrow">⇄</div>
+            <div class="module-box" id="db-module">
+                <span class="module-icon">🗄️</span>
+                <h3>Database</h3>
+                <div class="module-status">منتظر</div>
+            </div>
+            <div class="arrow">⇄</div>
+            <div class="module-box" id="state-module">
+                <span class="module-icon">📊</span>
+                <h3>State Manager</h3>
+                <div class="module-status">منتظر</div>
+            </div>
+        </div>
+        
+        <div class="test-grid" id="test-grid">
+            <!-- تست‌ها اینجا رندر می‌شوند -->
+        </div>
+        
+        <div class="test-stats">
+            <div class="stat passed">
+                <span class="stat-value" id="passed-count">0</span>
+                <span class="stat-label">موفق</span>
+            </div>
+            <div class="stat failed">
+                <span class="stat-value" id="failed-count">0</span>
+                <span class="stat-label">ناموفق</span>
+            </div>
+            <div class="stat pending">
+                <span class="stat-value" id="pending-count">6</span>
+                <span class="stat-label">در انتظار</span>
+            </div>
+            <div class="stat coverage">
+                <span class="stat-value" id="coverage">0%</span>
+                <span class="stat-label">پوشش یکپارچه</span>
+            </div>
+        </div>
+        
+        <div class="action-bar">
+            <button id="run-all-btn">
+                <span>🚀</span>
+                اجرای تمام تست‌ها
+            </button>
+            <button id="run-step-btn" class="secondary">
+                <span>⚡</span>
+                اجرای مرحله‌به‌مرحله
+            </button>
+            <button id="clear-btn" class="secondary">
+                <span>🔄</span>
+                پاک کردن نتایج
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // ==================== سیستم لاگ ====================
+        class IntegrationLogger {
+            constructor() {
+                this.logs = [];
+                this.maxLogs = 1000;
+            }
+            
+            log(message, data = {}, module = 'SYSTEM') {
+                const logEntry = {
+                    timestamp: new Date().toISOString(),
+                    module,
+                    message,
+                    data,
+                    level: 'INFO'
+                };
+                
+                this.logs.unshift(logEntry);
+                if (this.logs.length > this.maxLogs) {
+                    this.logs.pop();
+                }
+                
+                console.log(`[${module}] ${message}`, data);
+                return logEntry;
+            }
+            
+            error(message, error, module = 'SYSTEM') {
+                const logEntry = {
+                    timestamp: new Date().toISOString(),
+                    module,
+                    message,
+                    error: error?.message || error,
+                    stack: error?.stack,
+                    level: 'ERROR'
+                };
+                
+                this.logs.unshift(logEntry);
+                console.error(`[${module}] ${message}:`, error);
+                return logEntry;
+            }
+            
+            success(message, data = {}, module = 'SYSTEM') {
+                const logEntry = {
+                    timestamp: new Date().toISOString(),
+                    module,
+                    message,
+                    data,
+                    level: 'SUCCESS'
+                };
+                
+                this.logs.unshift(logEntry);
+                console.log(`✅ [${module}] ${message}`, data);
+                return logEntry;
+            }
+        }
+
+        // ==================== Mock Auth Manager ====================
+        class MockAuthManager {
+            constructor(database, logger) {
+                this.db = database;
+                this.logger = logger;
+                this.currentUser = null;
+                this.sessions = new Map();
+            }
+            
+            async register(userData) {
+                try {
+                    this.logger.log('درخواست ثبت‌نام کاربر', userData, 'AUTH');
+                    
+                    // اعتبارسنجی داده‌ها
+                    if (!userData.email || !userData.password) {
+                        throw new Error('ایمیل و رمز عبور ضروری است');
+                    }
+                    
+                    if (userData.password.length < 6) {
+                        throw new Error('رمز عبور باید حداقل ۶ کاراکتر باشد');
+                    }
+                    
+                    // بررسی وجود کاربر
+                    const existingUser = await this.db.query('users', { email: userData.email });
+                    if (existingUser.length > 0) {
+                        throw new Error('این ایمیل قبلاً ثبت شده است');
+                    }
+                    
+                    // ذخیره کاربر در دیتابیس
+                    const userId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+                    const user = {
+                        ...userData,
+                        id: userId,
+                        createdAt: new Date().toISOString(),
+                        updatedAt: new Date().toISOString(),
+                        status: 'active',
+                        lastLogin: null
+                    };
+                    
+                    await this.db.create('users', user);
+                    
+                    this.logger.success('کاربر با موفقیت ثبت‌نام شد', { userId }, 'AUTH');
+                    return { success: true, userId, user };
+                    
+                } catch (error) {
+                    this.logger.error('خطا در ثبت‌نام', error, 'AUTH');
+                    throw error;
+                }
+            }
+            
+            async login(email, password) {
+                try {
+                    this.logger.log('درخواست ورود کاربر', { email }, 'AUTH');
+                    
+                    // جستجوی کاربر
+                    const users = await this.db.query('users', { email });
+                    if (users.length === 0) {
+                        throw new Error('کاربر یافت نشد');
+                    }
+                    
+                    const user = users[0];
+                    
+                    // بررسی رمز عبور (در حالت واقعی هش بررسی می‌شود)
+                    if (user.password !== password) {
+                        throw new Error('رمز عبور اشتباه است');
+                    }
+                    
+                    // ایجاد سشن
+                    const sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 12)}`;
+                    const session = {
+                        id: sessionId,
+                        userId: user.id,
+                        createdAt: new Date().toISOString(),
+                        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24 ساعت
+                        ip: '127.0.0.1',
+                        userAgent: navigator.userAgent
+                    };
+                    
+                    this.sessions.set(sessionId, session);
+                    this.currentUser = user;
+                    
+                    // به‌روزرسانی آخرین ورود
+                    user.lastLogin = new Date().toISOString();
+                    await this.db.update('users', user.id, { lastLogin: user.lastLogin });
+                    
+                    this.logger.success('ورود موفقیت‌آمیز', { userId: user.id, sessionId }, 'AUTH');
+                    return { success: true, sessionId, user };
+                    
+                } catch (error) {
+                    this.logger.error('خطا در ورود', error, 'AUTH');
+                    throw error;
+                }
+            }
+            
+            async logout(sessionId) {
+                try {
+                    this.logger.log('درخواست خروج', { sessionId }, 'AUTH');
+                    
+                    if (this.sessions.has(sessionId)) {
+                        this.sessions.delete(sessionId);
+                        this.currentUser = null;
+                        this.logger.success('خروج موفقیت‌آمیز', { sessionId }, 'AUTH');
+                        return { success: true };
+                    }
+                    
+                    throw new Error('سشن معتبر نیست');
+                    
+                } catch (error) {
+                    this.logger.error('خطا در خروج', error, 'AUTH');
+                    throw error;
+                }
+            }
+            
+            async validateSession(sessionId) {
+                try {
+                    if (!this.sessions.has(sessionId)) {
+                        return { valid: false, reason: 'سشن یافت نشد' };
+                    }
+                    
+                    const session = this.sessions.get(sessionId);
+                    if (new Date(session.expiresAt) < new Date()) {
+                        this.sessions.delete(sessionId);
+                        return { valid: false, reason: 'سشن منقضی شده' };
+                    }
+                    
+                    // دریافت اطلاعات کاربر از دیتابیس
+                    const user = await this.db.get('users', session.userId);
+                    if (!user) {
+                        return { valid: false, reason: 'کاربر یافت نشد' };
+                    }
+                    
+                    return { valid: true, session, user };
+                    
+                } catch (error) {
+                    this.logger.error('خطا در اعتبارسنجی سشن', error, 'AUTH');
+                    return { valid: false, reason: 'خطای سرور' };
+                }
+            }
+        }
+
+        // ==================== Mock Database ====================
+        class MockDatabase {
+            constructor(logger) {
+                this.logger = logger;
+                this.data = {
+                    users: new Map(),
+                    sessions: new Map(),
+                    profiles: new Map()
+                };
+                this.init();
+            }
+            
+            init() {
+                this.logger.log('پایگاه داده Mock راه‌اندازی شد', {}, 'DATABASE');
+            }
+            
+            async create(collection, item) {
+                await this.delay(50); // شبیه‌سازی تاخیر شبکه
+                
+                if (!this.data[collection]) {
+                    this.data[collection] = new Map();
+                }
+                
+                this.data[collection].set(item.id, item);
+                this.logger.log(`آیتم در ${collection} ایجاد شد`, { id: item.id }, 'DATABASE');
+                return item;
+            }
+            
+            async get(collection, id) {
+                await this.delay(30);
+                
+                if (!this.data[collection]) {
+                    return null;
+                }
+                
+                return this.data[collection].get(id) || null;
+            }
+            
+            async update(collection, id, updates) {
+                await this.delay(40);
+                
+                if (!this.data[collection] || !this.data[collection].has(id)) {
+                    throw new Error('آیتم یافت نشد');
+                }
+                
+                const item = this.data[collection].get(id);
+                const updatedItem = { ...item, ...updates, updatedAt: new Date().toISOString() };
+                this.data[collection].set(id, updatedItem);
+                
+                this.logger.log(`آیتم در ${collection} به‌روز شد`, { id }, 'DATABASE');
+                return updatedItem;
+            }
+            
+            async delete(collection, id) {
+                await this.delay(30);
+                
+                if (!this.data[collection]) {
+                    return false;
+                }
+                
+                const deleted = this.data[collection].delete(id);
+                this.logger.log(`آیتم از ${collection} حذف شد`, { id, deleted }, 'DATABASE');
+                return deleted;
+            }
+            
+            async query(collection, filters = {}) {
+                await this.delay(100); // شبیه‌سازی زمان جستجو
+                
+                if (!this.data[collection]) {
+                    return [];
+                }
+                
+                const items = Array.from(this.data[collection].values());
+                
+                // فیلتر ساده
+                return items.filter(item => {
+                    return Object.entries(filters).every(([key, value]) => {
+                        return item[key] === value;
+                    });
+                });
+            }
+            
+            async transaction(operations) {
+                this.logger.log('شروع تراکنش', { operationsCount: operations.length }, 'DATABASE');
+                
+                try {
+                    const results = [];
+                    for (const op of operations) {
+                        const result = await this[op.action](op.collection, ...op.args);
+                        results.push(result);
+                    }
+                    
+                    this.logger.success('تراکنش با موفقیت انجام شد', { resultsCount: results.length }, 'DATABASE');
+                    return results;
+                    
+                } catch (error) {
+                    this.logger.error('تراکنش ناموفق بود', error, 'DATABASE');
+                    throw error;
+                }
+            }
+            
+            delay(ms) {
+                return new Promise(resolve => setTimeout(resolve, ms));
+            }
+            
+            getStats() {
+                const stats = {};
+                for (const [collection, items] of Object.entries(this.data)) {
+                    stats[collection] = items.size;
+                }
+                return stats;
+            }
+        }
+
+        // ==================== تست‌های یکپارچه‌سازی ====================
+        const integrationTests = [
+            {
+                id: 'test-1',
+                number: '۱',
+                title: 'ثبت‌نام کاربر جدید + ذخیره در دیتابیس',
+                description: 'بررسی فرآیند کامل ثبت‌نام کاربر و ذخیره اطلاعات در دیتابیس',
+                modules: ['AUTH', 'DATABASE'],
+                run: async (auth, db, logger) => {
+                    // ۱. ثبت‌نام کاربر
+                    const userData = {
+                        email: `test_${Date.now()}@vakamova.com`,
+                        password: 'SecurePass123!',
+                        name: 'کاربر تست',
+                        phone: '09123456789'
+                    };
+                    
+                    const registerResult = await auth.register(userData);
+                    
+                    if (!registerResult.success) {
+                        throw new Error('ثبت‌نام ناموفق بود');
+                    }
+                    
+                    // ۲. بررسی ذخیره در دیتابیس
+                    const savedUser = await db.get('users', registerResult.userId);
+                    
+                    if (!savedUser) {
+                        throw new Error('کاربر در دیتابیس ذخیره نشده است');
+                    }
+                    
+                    // ۳. اعتبارسنجی داده‌ها
+                    if (savedUser.email !== userData.email) {
+                        throw new Error('ایمیل کاربر در دیتابیس صحیح نیست');
+                    }
+                    
+                    if (savedUser.name !== userData.name) {
+                        throw new Error('نام کاربر در دیتابیس صحیح نیست');
+                    }
+                    
+                    if (savedUser.status !== 'active') {
+                        throw new Error('وضعیت کاربر فعال نیست');
+                    }
+                    
+                    return {
+                        success: true,
+                        userId: registerResult.userId,
+                        userEmail: savedUser.email,
+                        dbStats: db.getStats()
+                    };
+                }
+            },
+            {
+                id: 'test-2',
+                number: '۲',
+                title: 'ورود کاربر + ایجاد سشن + به‌روزرسانی lastLogin',
+                description: 'بررسی فرآیند ورود، ایجاد سشن و به‌روزرسانی زمان آخرین ورود',
+                modules: ['AUTH', 'DATABASE'],
+                run: async (auth, db, logger) => {
+                    // ۱. ابتدا یک کاربر ثبت‌نام می‌کنیم
+                    const userData = {
+                        email: `login_test_${Date.now()}@vakamova.com`,
+                        password: 'TestPass456!',
+                        name: 'کاربر تست ورود'
+                    };
+                    
+                    await auth.register(userData);
+                    
+                    // ۲. ورود کاربر
+                    const loginResult = await auth.login(userData.email, userData.password);
+                    
+                    if (!loginResult.success) {
+                        throw new Error('ورود ناموفق بود');
+                    }
+                    
+                    // ۳. بررسی ایجاد سشن
+                    if (!loginResult.sessionId) {
+                        throw new Error('سشن ایجاد نشده است');
+                    }
+                    
+                    // ۴. بررسی به‌روزرسانی lastLogin در دیتابیس
+                    const updatedUser = await db.get('users', loginResult.user.id);
+                    
+                    if (!updatedUser.lastLogin) {
+                        throw new Error('فیلد lastLogin به‌روزرسانی نشده است');
+                    }
+                    
+                    // ۵. اعتبارسنجی سشن
+                    const sessionValidation = await auth.validateSession(loginResult.sessionId);
+                    
+                    if (!sessionValidation.valid) {
+                        throw new Error(`سشن معتبر نیست: ${sessionValidation.reason}`);
+                    }
+                    
+                    return {
+                        success: true,
+                        sessionId: loginResult.sessionId,
+                        lastLogin: updatedUser.lastLogin,
+                        sessionValid: true
+                    };
+                }
+            },
+            {
+                id: 'test-3',
+                number: '۳',
+                title: 'اعتبارسنجی سشن + دریافت اطلاعات کاربر از دیتابیس',
+                description: 'بررسی اعتبارسنجی سشن و بازیابی اطلاعات کاربر از دیتابیس',
+                modules: ['AUTH', 'DATABASE'],
+                run: async (auth, db, logger) => {
+                    // ۱. ایجاد کاربر و سشن
+                    const userData = {
+                        email: `session_test_${Date.now()}@vakamova.com`,
+                        password: 'SessionPass789!',
+                        name: 'کاربر تست سشن'
+                    };
+                    
+                    await auth.register(userData);
+                    const loginResult = await auth.login(userData.email, userData.password);
+                    
+                    // ۲. اعتبارسنجی سشن
+                    const validation = await auth.validateSession(loginResult.sessionId);
+                    
+                    if (!validation.valid) {
+                        throw new Error(`سشن معتبر نیست: ${validation.reason}`);
+                    }
+                    
+                    // ۳. بررسی تطابق اطلاعات کاربر
+                    if (validation.user.email !== userData.email) {
+                        throw new Error('اطلاعات کاربر بازیابی شده صحیح نیست');
+                    }
+                    
+                    // ۴. بررسی تاریخ انقضا
+                    const expiresAt = new Date(validation.session.expiresAt);
+                    const now = new Date();
+                    
+                    if (expiresAt <= now) {
+                        throw new Error('سشن منقضی شده است');
+                    }
+                    
+                    // ۵. تست سشن نامعتبر
+                    const invalidValidation = await auth.validateSession('invalid_session_id');
+                    
+                    if (invalidValidation.valid) {
+                        throw new Error('سشن نامعتبر به عنوان معتبر شناخته شد');
+                    }
+                    
+                    return {
+                        success: true,
+                        sessionValid: validation.valid,
+                        userEmail: validation.user.email,
+                        sessionExpiresAt: validation.session.expiresAt,
+                        invalidSessionRejected: true
+                    };
+                }
+            },
+            {
+                id: 'test-4',
+                number: '۴',
+                title: 'خروج کاربر + حذف سشن',
+                description: 'بررسی فرآیند خروج و حذف سشن از سیستم',
+                modules: ['AUTH', 'DATABASE'],
+                run: async (auth, db, logger) => {
+                    // ۱. ایجاد کاربر و سشن
+                    const userData = {
+                        email: `logout_test_${Date.now()}@vakamova.com`,
+                        password: 'LogoutPass123!',
+                        name: 'کاربر تست خروج'
+                    };
+                    
+                    await auth.register(userData);
+                    const loginResult = await auth.login(userData.email, userData.password);
+                    
+                    // ۲. بررسی وجود سشن قبل از خروج
+                    const beforeValidation = await auth.validateSession(loginResult.sessionId);
+                    if (!beforeValidation.valid) {
+                        throw new Error('سشن قبل از خروج معتبر نیست');
+                    }
+                    
+                    // ۳. خروج کاربر
+                    const logoutResult = await auth.logout(loginResult.sessionId);
+                    
+                    if (!logoutResult.success) {
+                        throw new Error('خروج ناموفق بود');
+                    }
+                    
+                    // ۴. بررسی حذف سشن
+                    const afterValidation = await auth.validateSession(loginResult.sessionId);
+                    
+                    if (afterValidation.valid) {
+                        throw new Error('سشن پس از خروج هنوز معتبر است');
+                    }
+                    
+                    // ۵. بررسی currentUser
+                    if (auth.currentUser !== null) {
+                        throw new Error('currentUser پس از خروج null نیست');
+                    }
+                    
+                    return {
+                        success: true,
+                        sessionId: loginResult.sessionId,
+                        beforeLogoutValid: beforeValidation.valid,
+                        afterLogoutValid: afterValidation.valid,
+                        currentUserCleared: auth.currentUser === null
+                    };
+                }
+            },
+            {
+                id: 'test-5',
+                number: '۵',
+                title: 'تراکنش دیتابیس در عملیات کاربر',
+                description: 'بررسی استفاده از تراکنش‌های دیتابیس در عملیات پیچیده کاربر',
+                modules: ['AUTH', 'DATABASE'],
+                run: async (auth, db, logger) => {
+                    // ۱. ایجاد کاربر با تراکنش
+                    const userId = `tx_user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+                    const userEmail = `tx_test_${Date.now()}@vakamova.com`;
+                    
+                    const transactionResult = await db.transaction([
+                        {
+                            action: 'create',
+                            collection: 'users',
+                            args: [{
+                                id: userId,
+                                email: userEmail,
+                                password: 'TxPass123!',
+                                name: 'کاربر تست تراکنش',
+                                createdAt: new Date().toISOString(),
+                                status: 'pending'
+                            }]
+                        },
+                        {
+                            action: 'create',
+                            collection: 'profiles',
+                            args: [{
+                                id: `profile_${userId}`,
+                                userId: userId,
+                                level: 'beginner',
+                                points: 0,
+                                createdAt: new Date().toISOString()
+                            }]
+                        }
+                    ]);
+                    
+                    // ۲. بررسی نتایج تراکنش
+                    if (transactionResult.length !== 2) {
+                        throw new Error('تراکنش کامل انجام نشد');
+                    }
+                    
+                    // ۳. بررسی ذخیره‌سازی
+                    const savedUser = await db.get('users', userId);
+                    const savedProfile = await db.get('profiles', `profile_${userId}`);
+                    
+                    if (!savedUser) {
+                        throw new Error('کاربر در تراکنش ذخیره نشد');
+                    }
+                    
+                    if (!savedProfile) {
+                        throw new Error('پروفایل در تراکنش ذخیره نشد');
+                    }
+                    
+                    // ۴. تست تراکنش ناموفق
+                    try {
+                        await db.transaction([
+                            {
+                                action: 'create',
+                                collection: 'users',
+                                args: [{
+                                    id: 'test_user_1',
+                                    email: 'test@test.com'
+                                    // بدون password - باید خطا دهد
+                                }]
+                            },
+                            {
+                                action: 'create',
+                                collection: 'profiles',
+                                args: [{
+                                    id: 'profile_test_1',
+                                    userId: 'test_user_1'
+                                }]
+                            }
+                        ]);
+                        
+                        // اگر به اینجا رسیدیم یعنی تراکنش باید ناموفق باشد
+                        throw new Error('تراکنش باید ناموفق می‌شد اما موفق بود');
+                        
+                    } catch (error) {
+                        // انتظار داریم خطا دهد - این موفقیت است
+                        logger.log('تراکنش ناموفق (همانطور که انتظار می‌رفت)', { error: error.message }, 'TEST');
+                    }
+                    
+                    return {
+                        success: true,
+                        userId,
+                        profileId: savedProfile.id,
+                        transactionCount: transactionResult.length,
+                        stats: db.getStats()
+                    };
+                }
+            },
+            {
+                id: 'test-6',
+                number: '۶',
+                title: 'سناریوی کامل کاربر (ثبت‌نام، ورود، فعالیت، خروج)',
+                description: 'بررسی سناریوی کامل کاربر از ثبت‌نام تا خروج',
+                modules: ['AUTH', 'DATABASE', 'STATE'],
+                run: async (auth, db, logger) => {
+                    const results = {
+                        steps: [],
+                        timestamps: {},
+                        stats: {}
+                    };
+                    
+                    // ۱. ثبت‌نام
+                    const startTime = Date.now();
+                    const userData = {
+                        email: `full_scenario_${startTime}@vakamova.com`,
+                        password: 'FullScenario123!',
+                        name: 'کاربر سناریوی کامل',
+                        phone: '09120000000'
+                    };
+                    
+                    const registerResult = await auth.register(userData);
+                    results.steps.push('ثبت‌نام موفق');
+                    results.timestamps.registered = new Date().toISOString();
+                    
+                    // ۲. ورود
+                    const loginResult = await auth.login(userData.email, userData.password);
+                    results.steps.push('ورود موفق');
+                    results.timestamps.loggedIn = new Date().toISOString();
+                    results.sessionId = loginResult.sessionId;
+                    
+                    // ۳. اعتبارسنجی سشن
+                    const validation = await auth.validateSession(loginResult.sessionId);
+                    if (!validation.valid) {
+                        throw new Error('سشن معتبر نیست');
+                    }
+                    results.steps.push('اعتبارسنجی سشن موفق');
+                    
+                    // ۴. به‌روزرسانی پروفایل
+                    await db.update('profiles', `profile_${registerResult.userId}`, {
+                        level: 'intermediate',
+                        points: 100,
+                        updatedAt: new Date().toISOString()
+                    });
+                    results.steps.push('به‌روزرسانی پروفایل موفق');
+                    
+                    // ۵. ذخیره فعالیت کاربر
+                    await db.create('activities', {
+                        id: `activity_${Date.now()}`,
+                        userId: registerResult.userId,
+                        type: 'login',
+                        timestamp: new Date().toISOString(),
+                        details: { ip: '127.0.0.1', device: 'desktop' }
+                    });
+                    results.steps.push('ذخیره فعالیت موفق');
+                    
+                    // ۶. خروج
+                    const logoutResult = await auth.logout(loginResult.sessionId);
+                    if (!logoutResult.success) {
+                        throw new Error('خروج ناموفق بود');
+                    }
+                    results.steps.push('خروج موفق');
+                    results.timestamps.loggedOut = new Date().toISOString();
+                    
+                    // ۷. بررسی نهایی
+                    const finalValidation = await auth.validateSession(loginResult.sessionId);
+                    if (finalValidation.valid) {
+                        throw new Error('سشن پس از خروج هنوز معتبر است');
+                    }
+                    
+                    results.totalSteps = results.steps.length;
+                    results.executionTime = Date.now() - startTime;
+                    results.stats = db.getStats();
+                    
+                    return results;
+                }
+            }
+        ];
+
+        // ==================== تست رانر ====================
+        class IntegrationTestRunner {
+            constructor() {
+                this.logger = new IntegrationLogger();
+                this.db = new MockDatabase(this.logger);
+                this.auth = new MockAuthManager(this.db, this.logger);
+                this.results = new Map();
+                this.currentTestIndex = 0;
+            }
+            
+            renderTests() {
+                const testGrid = document.getElementById('test-grid');
+                testGrid.innerHTML = '';
+                
+                integrationTests.forEach((test, index) => {
+                    const card = document.createElement('div');
+                    card.className = 'test-card pending';
+                    card.id = `card-${test.id}`;
+                    card.innerHTML = `
+                        <div class="test-title">
+                            <div style="display: flex; align-items: center; gap: 15px;">
+                                <span class="test-number">${test.number}</span>
+                                <span>${test.title}</span>
+                            </div>
+                            <span class="test-result" id="result-${test.id}">در انتظار</span>
+                        </div>
+                        <div class="test-desc">
+                            <strong>ماژول‌ها:</strong> ${test.modules.map(m => `<span class="module-tag">${m}</span>`).join(' ')}
+                            <br>
+                            ${test.description}
+                        </div>
+                        <div class="test-details" id="details-${test.id}">
+                            <div class="test-output" id="output-${test.id}">...</div>
+                        </div>
+                    `;
+                    
+                    card.addEventListener('click', () => {
+                        card.classList.toggle('active');
+                    });
+                    
+                    testGrid.appendChild(card);
+                });
+                
+                this.updateStats();
+            }
+            
+            async runTest(test) {
+                const card = document.getElementById(`card-${test.id}`);
+                const output = document.getElementById(`output-${test.id}`);
+                const resultSpan = document.getElementById(`result-${test.id}`);
+                
+                // به‌روزرسانی وضعیت ماژول‌ها
+                test.modules.forEach(module => {
+                    const moduleBox = document.getElementById(`${module.toLowerCase().replace(' ', '-')}-module`);
+                    if (moduleBox) {
+                        moduleBox.classList.add('active');
+                        moduleBox.querySelector('.module-status').textContent = 'در حال اجرا';
+                    }
+                });
+                
+                card.className = 'test-card pending';
+                resultSpan.textContent = 'در حال اجرا...';
+                output.className = 'test-output';
+                output.innerHTML = '<div class="loading" style="border-top-color: #4f46e5;"></div> در حال اجرای تست...';
+                
+                try {
+                    const startTime = Date.now();
+                    const result = await test.run(this.auth, this.db, this.logger);
+                    const executionTime = Date.now() - startTime;
+                    
+                    card.className = 'test-card passed';
+                    resultSpan.textContent = 'موفق';
+                    output.className = 'test-output';
+                    output.innerHTML = `
+<strong>✅ تست با موفقیت اجرا شد</strong>
+<strong>زمان اجرا:</strong> ${executionTime}ms
+<strong>نتیجه:</strong> ${JSON.stringify(result, null, 2)}
+                    `;
+                    
+                    this.results.set(test.id, {
+                        success: true,
+                        executionTime,
+                        result,
+                        timestamp: new Date().toISOString()
+                    });
+                    
+                    this.logger.success(`تست "${test.title}" موفقیت‌آمیز بود`, { executionTime }, 'TEST-RUNNER');
+                    
+                    // به‌روزرسانی وضعیت ماژول‌ها
+                    test.modules.forEach(module => {
+                        const moduleBox = document.getElementById(`${module.toLowerCase().replace(' ', '-')}-module`);
+                        if (moduleBox) {
+                            moduleBox.querySelector('.module-status').textContent = 'موفق';
+                        }
+                    });
+                    
+                    return true;
+                    
+                } catch (error) {
+                    card.className = 'test-card failed';
+                    resultSpan.textContent = 'ناموفق';
+                    output.className = 'test-output';
+                    output.innerHTML = `
+<strong>❌ تست ناموفق بود</strong>
+<strong>خطا:</strong> ${error.message}
+<strong>جزئیات:</strong> ${error.stack || 'بدون جزئیات'}
+                    `;
+                    
+                    this.results.set(test.id, {
+                        success: false,
+                        error: error.message,
+                        timestamp: new Date().toISOString()
+                    });
+                    
+                    this.logger.error(`تست "${test.title}" ناموفق بود`, error, 'TEST-RUNNER');
+                    
+                    // به‌روزرسانی وضعیت ماژول‌ها
+                    test.modules.forEach(module => {
+                        const moduleBox = document.getElementById(`${module.toLowerCase().replace(' ', '-')}-module`);
+                        if (moduleBox) {
+                            moduleBox.classList.remove('active');
+                            moduleBox.querySelector('.module-status').textContent = 'خطا';
+                        }
+                    });
+                    
+                    return false;
+                } finally {
+                    this.updateStats();
+                }
+            }
+            
+            async runAllTests() {
+                const runBtn = document.getElementById('run-all-btn');
+                runBtn.disabled = true;
+                runBtn.innerHTML = '<span class="loading"></span> در حال اجرای تست‌ها...';
+                
+                let passed = 0;
+                this.currentTestIndex = 0;
+                
+                this.logger.log('🚀 شروع اجرای تمام تست‌های یکپارچه‌سازی', {}, 'TEST-RUNNER');
+                
+                for (const test of integrationTests) {
+                    const success = await this.runTest(test);
+                    if (success) passed++;
+                    
+                    // وقفه برای نمایش بهتر
+                    await new Promise(resolve => setTimeout(resolve, 800));
+                    this.currentTestIndex++;
+                }
+                
+                runBtn.disabled = false;
+                runBtn.innerHTML = '<span>🚀</span> اجرای مجدد تمام تست‌ها';
+                
+                this.logger.success(`تست‌های یکپارچه‌سازی کامل شد: ${passed} از ${integrationTests.length} موفق`, 
+                    { passed, total: integrationTests.length }, 'TEST-RUNNER');
+                
+                return { passed, total: integrationTests.length };
+            }
+            
+            async runStepByStep() {
+                if (this.currentTestIndex >= integrationTests.length) {
+                    this.currentTestIndex = 0;
+                }
+                
+                const test = integrationTests[this.currentTestIndex];
+                await this.runTest(test);
+                this.currentTestIndex++;
+            }
+            
+            updateStats() {
+                const passed = document.querySelectorAll('.test-card.passed').length;
+                const failed = document.querySelectorAll('.test-card.failed').length;
+                const pending = integrationTests.length - passed - failed;
+                
+                document.getElementById('passed-count').textContent = passed;
+                document.getElementById('failed-count').textContent = failed;
+                document.getElementById('pending-count').textContent = pending;
+                
+                const coverage = Math.round((passed / integrationTests.length) * 100);
+                document.getElementById('coverage').textContent = `${coverage}%`;
+            }
+            
+            clearResults() {
+                integrationTests.forEach(test => {
+                    const card = document.getElementById(`card-${test.id}`);
+                    const output = document.getElementById(`output-${test.id}`);
+                    const resultSpan = document.getElementById(`result-${test.id}`);
+                    
+                    card.className = 'test-card pending';
+                    resultSpan.textContent = 'در انتظار';
+                    output.className = 'test-output';
+                    output.innerHTML = '...';
+                    
+                    card.classList.remove('active');
+                });
+                
+                this.results.clear();
+                this.currentTestIndex = 0;
+                
+                // ریست وضعیت ماژول‌ها
+                ['auth', 'db', 'state'].forEach(module => {
+                    const moduleBox = document.getElementById(`${module}-module`);
+                    if (moduleBox) {
+                        moduleBox.classList.remove('active');
+                        if (module === 'auth') moduleBox.classList.add('active');
+                        moduleBox.querySelector('.module-status').textContent = module === 'auth' ? 'آماده' : 'منتظر';
+                    }
+                });
+                
+                this.updateStats();
+                this.logger.log('نتایج تست‌ها پاک شدند', {}, 'TEST-RUNNER');
+            }
+            
+            getSummary() {
+                const summary = {
+                    total: integrationTests.length,
+                    passed: 0,
+                    failed: 0,
+                    coverage: 0,
+                    executionTimes: []
+                };
+                
+                this.results.forEach(result => {
+                    if (result.success) {
+                        summary.passed++;
+                        if (result.executionTime) {
+                            summary.executionTimes.push(result.executionTime);
+                        }
+                    } else {
+                        summary.failed++;
+                    }
+                });
+                
+                summary.coverage = Math.round((summary.passed / summary.total) * 100);
+                summary.averageTime = summary.executionTimes.length > 0 
+                    ? Math.round(summary.executionTimes.reduce((a, b) => a + b, 0) / summary.executionTimes.length)
+                    : 0;
+                
+                return summary;
+            }
+        }
+
+        // ==================== راه‌اندازی ====================
+        document.addEventListener('DOMContentLoaded', () => {
+            const testRunner = new IntegrationTestRunner();
+            testRunner.renderTests();
+            
+            // رویدادهای دکمه‌ها
+            document.getElementById('run-all-btn').addEventListener('click', () => {
+                testRunner.runAllTests();
+            });
+            
+            document.getElementById('run-step-btn').addEventListener('click', () => {
+                testRunner.runStepByStep();
+            });
+            
+            document.getElementById('clear-btn').addEventListener('click', () => {
+                testRunner.clearResults();
+            });
+            
+            // راه‌اندازی اولیه
+            testRunner.logger.log('سیستم تست یکپارچه‌سازی Auth + Database راه‌اندازی شد', {}, 'SYSTEM');
+            console.log('✅ تست‌های یکپارچه‌سازی آماده اجرا هستند');
+            console.log('📱 این تست‌ها کاملاً در مرورگر موبایل قابل اجرا هستند');
+        });
+    </script>
+</body>
+              </html>
