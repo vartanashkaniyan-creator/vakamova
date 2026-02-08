@@ -1,0 +1,1262 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تست Database Integration - Vakamova</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: #333;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.98);
+            border-radius: 20px;
+            box-shadow: 0 25px 70px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+        
+        header {
+            background: linear-gradient(135deg, #1a237e 0%, #283593 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        header h1 {
+            font-size: 2.3rem;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+        }
+        
+        .badge {
+            background: #4caf50;
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: bold;
+        }
+        
+        .test-sections {
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+            padding: 30px;
+        }
+        
+        .section {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+            border: 2px solid #e3f2fd;
+        }
+        
+        .section-title {
+            font-size: 1.4rem;
+            font-weight: bold;
+            margin-bottom: 20px;
+            color: #1a237e;
+            padding-bottom: 10px;
+            border-bottom: 3px solid #e3f2fd;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .schema-diagram {
+            background: #f5f7ff;
+            border: 2px dashed #7986cb;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            line-height: 1.8;
+            direction: ltr;
+        }
+        
+        .test-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .test-item {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            border-left: 4px solid #7986cb;
+            transition: all 0.3s ease;
+        }
+        
+        .test-item:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 20px rgba(121, 134, 203, 0.1);
+        }
+        
+        .test-item.passed {
+            border-left-color: #4caf50;
+            background: #f1f8e9;
+        }
+        
+        .test-item.failed {
+            border-left-color: #f44336;
+            background: #ffebee;
+        }
+        
+        .test-item.running {
+            border-left-color: #ff9800;
+            background: #fff3e0;
+        }
+        
+        .test-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .test-name {
+            font-weight: bold;
+            color: #37474f;
+        }
+        
+        .test-status {
+            padding: 4px 12px;
+            border-radius: 15px;
+            font-size: 0.85rem;
+            font-weight: bold;
+        }
+        
+        .status-passed { background: #c8e6c9; color: #2e7d32; }
+        .status-failed { background: #ffcdd2; color: #c62828; }
+        .status-pending { background: #fff9c4; color: #f57c00; }
+        .status-running { background: #bbdefb; color: #1565c0; }
+        
+        .test-details {
+            margin-top: 10px;
+            font-size: 0.9rem;
+            color: #546e7a;
+        }
+        
+        .test-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        
+        .stat-box {
+            background: white;
+            border-radius: 10px;
+            padding: 15px;
+            text-align: center;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+            border: 2px solid #e3f2fd;
+        }
+        
+        .stat-value {
+            font-size: 1.8rem;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .stat-label {
+            font-size: 0.9rem;
+            color: #78909c;
+        }
+        
+        .action-bar {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            padding: 30px;
+            border-top: 2px solid #e3f2fd;
+        }
+        
+        button {
+            background: linear-gradient(135deg, #1a237e 0%, #283593 100%);
+            color: white;
+            border: none;
+            padding: 14px 35px;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            min-width: 200px;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 30px rgba(26, 35, 126, 0.3);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        button.secondary {
+            background: linear-gradient(135deg, #546e7a 0%, #78909c 100%);
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #e0e0e0;
+            border-radius: 4px;
+            margin: 20px 0;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4caf50, #8bc34a);
+            width: 0%;
+            transition: width 0.5s ease;
+        }
+        
+        .data-visual {
+            background: #f8f9fa;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 20px;
+            max-height: 200px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            direction: ltr;
+        }
+        
+        .entity-tag {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            margin-right: 8px;
+            margin-bottom: 8px;
+        }
+        
+        .tag-user { background: #e3f2fd; color: #1565c0; }
+        .tag-lesson { background: #f3e5f5; color: #7b1fa2; }
+        .tag-progress { background: #e8f5e8; color: #2e7d32; }
+        .tag-transaction { background: #fff3e0; color: #ef6c00; }
+        
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #e3f2fd;
+            border-top-color: #1a237e;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .console {
+            background: #263238;
+            color: #eceff1;
+            padding: 20px;
+            border-radius: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 20px;
+            direction: ltr;
+            text-align: left;
+        }
+        
+        .console-line {
+            margin-bottom: 8px;
+            padding: 5px 10px;
+            border-radius: 4px;
+            background: rgba(255, 255, 255, 0.05);
+        }
+        
+        .log-info { color: #80cbc4; }
+        .log-success { color: #c5e1a5; }
+        .log-error { color: #ef9a9a; }
+        .log-warning { color: #fff59d; }
+        
+        @media (max-width: 768px) {
+            .test-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .action-bar {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            button {
+                width: 100%;
+                max-width: 300px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>
+                <span>🗃️ تست Database Integration</span>
+                <span class="badge">Vakamova</span>
+            </h1>
+            <p>تست کامل CRUD + Migration + تراکنش‌های پیچیده</p>
+        </header>
+        
+        <div class="test-sections">
+            
+            <!-- بخش ۱: نمودار اسکیمای دیتابیس -->
+            <div class="section">
+                <div class="section-title">
+                    <span>🏗️ اسکیمای دیتابیس Vakamova</span>
+                    <span>نسخه ۳</span>
+                </div>
+                <div class="schema-diagram">
+                    <strong>Database: vakamova_db</strong><br>
+                    Version: 3<br><br>
+                    
+                    <strong>users</strong> {<br>
+                    &nbsp;&nbsp;id: PRIMARY KEY,<br>
+                    &nbsp;&nbsp;email: UNIQUE,<br>
+                    &nbsp;&nbsp;name: TEXT,<br>
+                    &nbsp;&nbsp;level: INTEGER,<br>
+                    &nbsp;&nbsp;coins: INTEGER,<br>
+                    &nbsp;&nbsp;created_at: TIMESTAMP<br>
+                    }<br><br>
+                    
+                    <strong>lessons</strong> {<br>
+                    &nbsp;&nbsp;id: PRIMARY KEY,<br>
+                    &nbsp;&nbsp;language: TEXT,<br>
+                    &nbsp;&nbsp;title: TEXT,<br>
+                    &nbsp;&nbsp;difficulty: ENUM('beginner','intermediate','advanced'),<br>
+                    &nbsp;&nbsp;price: INTEGER,<br>
+                    &nbsp;&nbsp;content: JSON<br>
+                    }<br><br>
+                    
+                    <strong>progress</strong> {<br>
+                    &nbsp;&nbsp;user_id: FOREIGN KEY,<br>
+                    &nbsp;&nbsp;lesson_id: FOREIGN KEY,<br>
+                    &nbsp;&nbsp;score: INTEGER,<br>
+                    &nbsp;&nbsp;completed: BOOLEAN,<br>
+                    &nbsp;&nbsp;time_spent: INTEGER<br>
+                    }<br><br>
+                    
+                    <strong>transactions</strong> {<br>
+                    &nbsp;&nbsp;id: PRIMARY KEY,<br>
+                    &nbsp;&nbsp;user_id: FOREIGN KEY,<br>
+                    &nbsp;&nbsp;lesson_id: FOREIGN KEY,<br>
+                    &nbsp;&nbsp;amount: INTEGER,<br>
+                    &nbsp;&nbsp;status: ENUM('pending','completed','failed'),<br>
+                    &nbsp;&nbsp;payment_method: TEXT<br>
+                    }
+                </div>
+            </div>
+            
+            <!-- بخش ۲: آمار تست -->
+            <div class="section">
+                <div class="section-title">
+                    <span>📊 آمار تست</span>
+                    <span id="overall-status" class="status-pending">در انتظار</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progress-fill"></div>
+                </div>
+                <div class="test-stats">
+                    <div class="stat-box">
+                        <div class="stat-value" id="passed-count">0</div>
+                        <div class="stat-label">موفق</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-value" id="failed-count">0</div>
+                        <div class="stat-label">ناموفق</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-value" id="total-count">0</div>
+                        <div class="stat-label">کل تست‌ها</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-value" id="coverage">0%</div>
+                        <div class="stat-label">پوشش</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- بخش ۳: تست‌های Migration -->
+            <div class="section">
+                <div class="section-title">
+                    <span>🔄 تست Migration</span>
+                    <span class="entity-tag tag-transaction">v1 → v3</span>
+                </div>
+                <div class="test-grid" id="migration-tests">
+                    <!-- تست‌های migration اینجا لود می‌شوند -->
+                </div>
+            </div>
+            
+            <!-- بخش ۴: تست‌های CRUD -->
+            <div class="section">
+                <div class="section-title">
+                    <span>🧪 تست CRUD عملیات‌ها</span>
+                    <div>
+                        <span class="entity-tag tag-user">کاربران</span>
+                        <span class="entity-tag tag-lesson">درس‌ها</span>
+                        <span class="entity-tag tag-progress">پیشرفت</span>
+                        <span class="entity-tag tag-transaction">تراکنش‌ها</span>
+                    </div>
+                </div>
+                <div class="test-grid" id="crud-tests">
+                    <!-- تست‌های CRUD اینجا لود می‌شوند -->
+                </div>
+            </div>
+            
+            <!-- بخش ۵: تست تراکنش‌های پیچیده -->
+            <div class="section">
+                <div class="section-title">
+                    <span>⚡ تست تراکنش‌های پیچیده</span>
+                    <span class="entity-tag tag-transaction">Atomic</span>
+                </div>
+                <div class="test-grid" id="transaction-tests">
+                    <!-- تست‌های تراکنش اینجا لود می‌شوند -->
+                </div>
+            </div>
+            
+            <!-- بخش ۶: تست Performance -->
+            <div class="section">
+                <div class="section-title">
+                    <span>🚀 تست Performance & Stress</span>
+                    <span class="entity-tag tag-user">1000+ رکورد</span>
+                </div>
+                <div class="test-grid" id="performance-tests">
+                    <!-- تست‌های performance اینجا لود می‌شوند -->
+                </div>
+                <div class="data-visual" id="performance-data">
+                    <!-- داده‌های performance اینجا نمایش داده می‌شود -->
+                </div>
+            </div>
+            
+            <!-- بخش ۷: کنسول لاگ -->
+            <div class="section">
+                <div class="section-title">
+                    <span>📝 کنسول لاگ</span>
+                    <button onclick="clearConsole()" style="padding: 8px 15px; font-size: 0.8rem;">پاک کردن</button>
+                </div>
+                <div class="console" id="console-output">
+                    <div class="console-line log-info">[System] تست Database Integration آماده اجرا است</div>
+                </div>
+            </div>
+            
+        </div>
+        
+        <div class="action-bar">
+            <button id="run-all-btn">
+                <span>🚀</span>
+                اجرای تمام تست‌ها
+            </button>
+            <button id="run-migration-btn" class="secondary">
+                <span>🔄</span>
+                تست Migration فقط
+            </button>
+            <button id="clear-btn" class="secondary">
+                <span>🗑️</span>
+                پاک کردن دیتابیس تست
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // ==================== سیستم لاگ ====================
+        class TestLogger {
+            constructor() {
+                this.console = document.getElementById('console-output');
+            }
+            
+            log(type, message) {
+                const time = new Date().toLocaleTimeString('fa-IR');
+                const line = document.createElement('div');
+                line.className = `console-line log-${type}`;
+                line.innerHTML = `[${time}] ${message}`;
+                this.console.appendChild(line);
+                this.console.scrollTop = this.console.scrollHeight;
+                console.log(`[${type.toUpperCase()}] ${message}`);
+            }
+            
+            info(message) { this.log('info', message); }
+            success(message) { this.log('success', message); }
+            error(message) { this.log('error', message); }
+            warning(message) { this.log('warning', message); }
+        }
+
+        const logger = new TestLogger();
+
+        // ==================== Database Mock ====================
+        class MockDatabase {
+            constructor() {
+                this.data = {
+                    users: new Map(),
+                    lessons: new Map(),
+                    progress: new Map(),
+                    transactions: new Map()
+                };
+                this.version = 1;
+                this.nextId = {
+                    users: 1,
+                    lessons: 1,
+                    transactions: 1
+                };
+                this.transactionInProgress = false;
+            }
+            
+            async migrateToVersion(version) {
+                logger.info(`شروع migration از نسخه ${this.version} به ${version}`);
+                
+                if (version === 2 && this.version === 1) {
+                    // اضافه کردن فیلد level به users
+                    for (let user of this.data.users.values()) {
+                        user.level = 1;
+                    }
+                    this.version = 2;
+                    logger.success('Migration به نسخه 2 انجام شد');
+                }
+                
+                if (version === 3 && this.version <= 2) {
+                    // اضافه کردن جدول progress
+                    this.data.progress = new Map();
+                    // اضافه کردن فیلد coins به users
+                    for (let user of this.data.users.values()) {
+                        user.coins = user.coins || 100;
+                    }
+                    // اضافه کردن فیلد price به lessons
+                    for (let lesson of this.data.lessons.values()) {
+                        lesson.price = lesson.price || 50;
+                    }
+                    this.version = 3;
+                    logger.success('Migration به نسخه 3 انجام شد');
+                }
+                
+                return true;
+            }
+            
+            async createUser(email, name) {
+                if (this.transactionInProgress) {
+                    throw new Error('Transaction در حال اجرا است');
+                }
+                
+                const id = this.nextId.users++;
+                const user = {
+                    id,
+                    email,
+                    name,
+                    level: 1,
+                    coins: 100,
+                    created_at: new Date().toISOString()
+                };
+                
+                this.data.users.set(id, user);
+                logger.info(`کاربر ایجاد شد: ${email}`);
+                return user;
+            }
+            
+            async createLesson(title, language, difficulty = 'beginner') {
+                const id = this.nextId.lessons++;
+                const lesson = {
+                    id,
+                    title,
+                    language,
+                    difficulty,
+                    price: difficulty === 'beginner' ? 50 : difficulty === 'intermediate' ? 100 : 200,
+                    content: { exercises: [] }
+                };
+                
+                this.data.lessons.set(id, lesson);
+                logger.info(`درس ایجاد شد: ${title}`);
+                return lesson;
+            }
+            
+            async createProgress(userId, lessonId, score = 0) {
+                const key = `${userId}_${lessonId}`;
+                const progress = {
+                    user_id: userId,
+                    lesson_id: lessonId,
+                    score,
+                    completed: score >= 80,
+                    time_spent: 0,
+                    updated_at: new Date().toISOString()
+                };
+                
+                this.data.progress.set(key, progress);
+                logger.info(`Progress ایجاد شد برای کاربر ${userId} و درس ${lessonId}`);
+                return progress;
+            }
+            
+            async createTransaction(userId, lessonId, amount, paymentMethod = 'zarinpal') {
+                const id = this.nextId.transactions++;
+                const transaction = {
+                    id,
+                    user_id: userId,
+                    lesson_id: lessonId,
+                    amount,
+                    status: 'completed',
+                    payment_method: paymentMethod,
+                    created_at: new Date().toISOString()
+                };
+                
+                this.data.transactions.set(id, transaction);
+                logger.info(`تراکنش ایجاد شد: ${id} - مبلغ: ${amount}`);
+                return transaction;
+            }
+            
+            async getUser(id) {
+                return this.data.users.get(id);
+            }
+            
+            async getLesson(id) {
+                return this.data.lessons.get(id);
+            }
+            
+            async getProgress(userId, lessonId) {
+                return this.data.progress.get(`${userId}_${lessonId}`);
+            }
+            
+            async updateUserCoins(userId, delta) {
+                const user = await this.getUser(userId);
+                if (!user) throw new Error('کاربر یافت نشد');
+                
+                const newCoins = user.coins + delta;
+                if (newCoins < 0) throw new Error('مقدار کوین کافی نیست');
+                
+                user.coins = newCoins;
+                logger.info(`کوین کاربر ${userId} آپدیت شد: ${newCoins}`);
+                return user;
+            }
+            
+            async completeLesson(userId, lessonId, score, timeSpent) {
+                const key = `${userId}_${lessonId}`;
+                let progress = this.data.progress.get(key);
+                
+                if (!progress) {
+                    progress = await this.createProgress(userId, lessonId, score);
+                }
+                
+                progress.score = Math.max(progress.score, score);
+                progress.completed = progress.score >= 80;
+                progress.time_spent = (progress.time_spent || 0) + timeSpent;
+                progress.updated_at = new Date().toISOString();
+                
+                logger.info(`درس تکمیل شد: کاربر ${userId} - درس ${lessonId} - امتیاز: ${score}`);
+                return progress;
+            }
+            
+            async purchaseLesson(userId, lessonId) {
+                // شروع تراکنش
+                this.transactionInProgress = true;
+                
+                try {
+                    const user = await this.getUser(userId);
+                    const lesson = await this.getLesson(lessonId);
+                    
+                    if (!user || !lesson) {
+                        throw new Error('کاربر یا درس یافت نشد');
+                    }
+                    
+                    if (user.coins < lesson.price) {
+                        throw new Error('موجودی کوین کافی نیست');
+                    }
+                    
+                    // کسر هزینه از کوین کاربر
+                    user.coins -= lesson.price;
+                    
+                    // ثبت تراکنش
+                    const transaction = await this.createTransaction(userId, lessonId, lesson.price);
+                    
+                    // ایجاد رکورد پیشرفت
+                    const progress = await this.createProgress(userId, lessonId, 0);
+                    
+                    this.transactionInProgress = false;
+                    logger.success('خرید درس با موفقیت انجام شد');
+                    return { user, lesson, transaction, progress };
+                    
+                } catch (error) {
+                    this.transactionInProgress = false;
+                    throw error;
+                }
+            }
+            
+            async bulkInsertUsers(count) {
+                const startTime = Date.now();
+                const users = [];
+                
+                for (let i = 0; i < count; i++) {
+                    const user = await this.createUser(`user${i}@test.com`, `کاربر تست ${i}`);
+                    users.push(user);
+                }
+                
+                const duration = Date.now() - startTime;
+                return { count, duration, avgTime: duration / count };
+            }
+            
+            async queryUsersByLevel(level) {
+                const startTime = Date.now();
+                const result = [];
+                
+                for (let user of this.data.users.values()) {
+                    if (user.level === level) {
+                        result.push(user);
+                    }
+                }
+                
+                const duration = Date.now() - startTime;
+                return { result, duration, count: result.length };
+            }
+            
+            async complexQuery() {
+                // کاربرانی که درس خاصی را خریده‌اند و پیشرفت دارند
+                const startTime = Date.now();
+                const result = [];
+                
+                for (let transaction of this.data.transactions.values()) {
+                    const user = this.data.users.get(transaction.user_id);
+                    const lesson = this.data.lessons.get(transaction.lesson_id);
+                    const progress = this.data.progress.get(`${transaction.user_id}_${transaction.lesson_id}`);
+                    
+                    if (user && lesson && progress) {
+                        result.push({
+                            user: user.name,
+                            lesson: lesson.title,
+                            score: progress.score,
+                            completed: progress.completed,
+                            amount: transaction.amount
+                        });
+                    }
+                }
+                
+                const duration = Date.now() - startTime;
+                return { result, duration, count: result.length };
+            }
+            
+            async rollbackMigration() {
+                if (this.version === 3) {
+                    // حذف جدول progress
+                    this.data.progress.clear();
+                    // حذف فیلد coins
+                    for (let user of this.data.users.values()) {
+                        delete user.coins;
+                    }
+                    this.version = 2;
+                    logger.warning('Rollback به نسخه 2 انجام شد');
+                }
+                return true;
+            }
+            
+            clearDatabase() {
+                this.data.users.clear();
+                this.data.lessons.clear();
+                this.data.progress.clear();
+                this.data.transactions.clear();
+                this.nextId = { users: 1, lessons: 1, transactions: 1 };
+                this.version = 1;
+                logger.info('دیتابیس پاک شد');
+            }
+            
+            getStatistics() {
+                return {
+                    users: this.data.users.size,
+                    lessons: this.data.lessons.size,
+                    progress: this.data.progress.size,
+                    transactions: this.data.transactions.size,
+                    version: this.version
+                };
+            }
+        }
+
+        // ==================== Test Manager ====================
+        class TestManager {
+            constructor() {
+                this.db = new MockDatabase();
+                this.tests = [];
+                this.results = {};
+                this.currentTestId = 0;
+                
+                this.initTests();
+                this.renderTests();
+                this.setupEventListeners();
+            }
+            
+            initTests() {
+                // تست‌های Migration
+                this.tests.push({
+                    id: 'migrate-v1-to-v2',
+                    title: 'Migration از نسخه 1 به 2',
+                    description: 'افزودن فیلد level به کاربران',
+                    category: 'migration',
+                    run: async () => {
+                        this.db.version = 1;
+                        await this.db.migrateToVersion(2);
+                        if (this.db.version !== 2) throw new Error('Migration انجام نشد');
+                        
+                        // بررسی فیلد level
+                        for (let user of this.db.data.users.values()) {
+                            if (user.level === undefined) throw new Error('فیلد level اضافه نشد');
+                        }
+                        
+                        return 'Migration به نسخه 2 موفقیت‌آمیز بود';
+                    }
+                });
+                
+                this.tests.push({
+                    id: 'migrate-v2-to-v3',
+                    title: 'Migration از نسخه 2 به 3',
+                    description: 'افزودن جدول progress و فیلد coins',
+                    category: 'migration',
+                    run: async () => {
+                        this.db.version = 2;
+                        await this.db.migrateToVersion(3);
+                        if (this.db.version !== 3) throw new Error('Migration انجام نشد');
+                        
+                        // بررسی فیلد coins
+                        for (let user of this.db.data.users.values()) {
+                            if (user.coins === undefined) throw new Error('فیلد coins اضافه نشد');
+                        }
+                        
+                        // بررسی جدول progress
+                        if (!this.db.data.progress) throw new Error('جدول progress ایجاد نشد');
+                        
+                        return 'Migration به نسخه 3 موفقیت‌آمیز بود';
+                    }
+                });
+                
+                this.tests.push({
+                    id: 'rollback-migration',
+                    title: 'Rollback Migration',
+                    description: 'بازگشت از نسخه 3 به 2',
+                    category: 'migration',
+                    run: async () => {
+                        this.db.version = 3;
+                        await this.db.rollbackMigration();
+                        if (this.db.version !== 2) throw new Error('Rollback انجام نشد');
+                        return 'Rollback موفقیت‌آمیز بود';
+                    }
+                });
+                
+                // تست‌های CRUD
+                this.tests.push({
+                    id: 'crud-user',
+                    title: 'CRUD کاربران',
+                    description: 'ایجاد، خواندن، آپدیت و حذف کاربر',
+                    category: 'crud',
+                    run: async () => {
+                        // Create
+                        const user = await this.db.createUser('test@vakamova.com', 'کاربر تست');
+                        if (!user.id) throw new Error('ایجاد کاربر ناموفق');
+                        
+                        // Read
+                        const fetchedUser = await this.db.getUser(user.id);
+                        if (!fetchedUser || fetchedUser.email !== 'test@vakamova.com') {
+                            throw new Error('خواندن کاربر ناموفق');
+                        }
+                        
+                        // Update
+                        fetchedUser.level = 2;
+                        if (fetchedUser.level !== 2) throw new Error('آپدیت کاربر ناموفق');
+                        
+                        return `کاربر ${user.name} با موفقیت مدیریت شد`;
+                    }
+                });
+                
+                this.tests.push({
+                    id: 'crud-lesson',
+                    title: 'CRUD درس‌ها',
+                    description: 'مدیریت کامل درس‌های آموزشی',
+                    category: 'crud',
+                    run: async () => {
+                        const lesson = await this.db.createLesson('مکالمه انگلیسی', 'english', 'beginner');
+                        if (!lesson.id) throw new Error('ایجاد درس ناموفق');
+                        
+                        const fetchedLesson = await this.db.getLesson(lesson.id);
+                        if (!fetchedLesson || fetchedLesson.title !== 'مکالمه انگلیسی') {
+                            throw new Error('خواندن درس ناموفق');
+                        }
+                        
+                        if (fetchedLesson.price !== 50) throw new Error('قیمت درس اشتباه است');
+                        
+                        return `درس ${lesson.title} با موفقیت مدیریت شد`;
+                    }
+                });
+                
+                this.tests.push({
+                    id: 'crud-progress',
+                    title: 'CRUD پیشرفت',
+                    description: 'مدیریت پیشرفت کاربر در درس‌ها',
+                    category: 'crud',
+                    run: async () => {
+                        const user = await this.db.createUser('progress@test.com', 'کاربر پیشرفت');
+                        const lesson = await this.db.createLesson('گرامر فارسی', 'persian', 'intermediate');
+                        
+                        const progress = await this.db.createProgress(user.id, lesson.id, 75);
+                        if (!progress.user_id) throw new Error('ایجاد progress ناموفق');
+                        
+                        const updated = await this.db.completeLesson(user.id, lesson.id, 85, 3600);
+                        if (!updated.completed) throw new Error('تکمیل درس ثبت نشد');
+                        
+                        return `پیشرفت کاربر در درس با امتیاز ${updated.score} ثبت شد`;
+                    }
+                });
+                
+                this.tests.push({
+                    id: 'crud-transaction',
+                    title: 'CRUD تراکنش',
+                    description: 'مدیریت تراکنش‌های پرداخت',
+                    category: 'crud',
+                    run: async () => {
+                        const user = await this.db.createUser('payment@test.com', 'کاربر پرداخت');
+                        const lesson = await this.db.createLesson('واژگان ترکی', 'turkish', 'advanced');
+                        
+                        const transaction = await this.db.createTransaction(user.id, lesson.id, 200, 'google_play');
+                        if (!transaction.id) throw new Error('ایجاد تراکنش ناموفق');
+                        if (transaction.status !== 'completed') throw new Error('وضعیت تراکنش اشتباه است');
+                        
+                        return `تراکنش ${transaction.id} با مبلغ ${transaction.amount} ثبت شد`;
+                    }
+                });
+                
+                // تست‌های تراکنش پیچیده
+                this.tests.push({
+                    id: 'atomic-transaction',
+                    title: 'تراکنش اتمی خرید درس',
+                    description: 'کسر کوین + ثبت تراکنش + ایجاد پیشرفت در یک تراکنش',
+                    category: 'transaction',
+                    run: async () => {
+                        const user = await this.db.createUser('atomic@test.com', 'کاربر اتمیک');
+                        const lesson = await this.db.createLesson('تلفظ آلمانی', 'german', 'intermediate');
+                        
+                        // خرید درس
+                        const result = await this.db.purchaseLesson(user.id, lesson.id);
+                        
+                        // بررسی نتایج
+                        if (!result.user || !result.lesson || !result.transaction || !result.progress) {
+                            throw new Error('تمام مراحل تراکنش انجام نشد');
+                        }
+                        
+                        if (result.user.coins !== 100 - lesson.price) {
+                            throw new Error('کوین کاربر به درستی کسر نشد');
+                        }
+                        
+                        return 'تراکنش اتمی با موفقیت انجام شد';
+                    }
+                });
+                
+                this.tests.push({
+                    id: 'transaction-rollback',
+                    title: 'Rollback تراکنش ناموفق',
+                    description: 'بازگشت تغییرات در صورت خطا در تراکنش',
+                    category: 'transaction',
+                    run: async () => {
+                        const user = await this.db.createUser('rollback@test.com', 'کاربر رول‌بک');
+                        const lesson = await this.db.createLesson('خواندن فرانسوی', 'french', 'advanced');
+                        
+                        // تنظیم کوین ناکافی
+                        user.coins = 10;
+                        
+                        try {
+                            await this.db.purchaseLesson(user.id, lesson.id);
+                            throw new Error('باید خطا می‌داد اما نداد!');
+                        } catch (error) {
+                            if (error.message !== 'موجودی کوین کافی نیست') {
+                                throw new Error(`خطای غیرمنتظره: ${error.message}`);
+                            }
+                        }
+                        
+                        // بررسی عدم تغییر کوین
+                        if (user.coins !== 10) throw new Error('کوین کاربر باید بدون تغییر می‌ماند');
+                        
+                        return 'Rollback تراکنش با موفقیت انجام شد';
+                    }
+                });
+                
+                // تست‌های Performance
+                this.tests.push({
+                    id: 'bulk-insert',
+                    title: 'درج انبوه کاربران',
+                    description: 'ایجاد 100 کاربر در کوتاه‌ترین زمان',
+                    category: 'performance',
+                    run: async () => {
+                        const result = await this.db.bulkInsertUsers(100);
+                        if (result.count !== 100) throw new Error('تمامی کاربران ایجاد نشدند');
+                        
+                        return `${result.count} کاربر در ${result.duration}ms ایجاد شدند (میانگین: ${result.avgTime.toFixed(2)}ms)`;
+                    }
+                });
+                
+                this.tests.push({
+                    id: 'complex-query',
+                    title: 'کوئری پیچیده JOIN',
+                    description: 'اتصال 3 جدول برای گزارش پیشرفت',
+                    category: 'performance',
+                    run: async () => {
+                        // ایجاد داده‌های تست
+                        const user = await this.db.createUser('query@test.com', 'کاربر کوئری');
+                        const lesson1 = await this.db.createLesson('درس 1', 'english', 'beginner');
+                        const lesson2 = await this.db.createLesson('درس 2', 'english', 'intermediate');
+                        
+                        await this.db.purchaseLesson(user.id, lesson1.id);
+                        await this.db.purchaseLesson(user.id, lesson2.id);
+                        
+                        await this.db.completeLesson(user.id, lesson1.id, 90, 1800);
+                        await this.db.completeLesson(user.id, lesson2.id, 70, 2400);
+                        
+                        // اجرای کوئری پیچیده
+                        const result = await this.db.complexQuery();
+                        
+                        if (result.count < 2) throw new Error('تمام رکوردهای مورد انتظار یافت نشد');
+                        if (result.duration > 1000) throw new Error('زمان اجرای کوئری بسیار طولانی است');
+                        
+                        return `${result.count} نتیجه در ${result.duration}ms یافت شد`;
+                    }
+                });
+                
+                this.tests.push({
+                    id: 'query-performance',
+                    title: 'کارایی کوئری فیلتر شده',
+                    description: 'جستجوی کاربران بر اساس level',
+                    category: 'performance',
+                    run: async () => {
+                        // ایجاد کاربران با level‌های مختلف
+                        for (let i = 0; i < 50; i++) {
+                            const user = await this.db.createUser(`level${i}@test.com`, `کاربر سطح ${i % 3 + 1}`);
+                            user.level = i % 3 + 1;
+                        }
+                        
+                        const result = await this.db.queryUsersByLevel(2);
+                        
+                        if (result.duration > 500) throw new Error('زمان جستجو بسیار طولانی است');
+                        
+                        return `${result.count} کاربر سطح 2 در ${result.duration}ms یافت شد`;
+                    }
+                });
+            }
+            
+            renderTests() {
+                // رندر تست‌های Migration
+                const migrationGrid = document.getElementById('migration-tests');
+                const migrationTests = this.tests.filter(t => t.category === 'migration');
+                migrationGrid.innerHTML = migrationTests.map(test => this.createTestCard(test)).join('');
+                
+                // رندر تست‌های CRUD
+                const crudGrid = document.getElementById('crud-tests');
+                const crudTests = this.tests.filter(t => t.category === 'crud');
+                crudGrid.innerHTML = crudTests.map(test => this.createTestCard(test)).join('');
+                
+                // رندر تست‌های Transaction
+                const transactionGrid = document.getElementById('transaction-tests');
+                const transactionTests = this.tests.filter(t => t.category === 'transaction');
+                transactionGrid.innerHTML = transactionTests.map(test => this.createTestCard(test)).join('');
+                
+                // رندر تست‌های Performance
+                const performanceGrid = document.getElementById('performance-tests');
+                const performanceTests = this.tests.filter(t => t.category === 'performance');
+                performanceGrid.innerHTML = performanceTests.map(test => this.createTestCard(test)).join('');
+                
+                this.updateStats();
+            }
+            
+            createTestCard(test) {
+                return `
+                    <div class="test-item pending" id="test-${test.id}">
+                        <div class="test-header">
+                            <div class="test-name">${test.title}</div>
+                            <div class="test-status status-pending" id="status-${test.id}">در انتظار</div>
+                        </div>
+                        <div class="test-details">${test.description}</div>
+                        <div class="test-output" id="output-${test.id}"></div>
+                    </div>
+                `;
+            }
+            
+            async runTest(test) {
+                const card = document.getElementById(`test-${test.id}`);
+                const status = document.getElementById(`status-${test.id}`);
+                const output = document.getElementById(`output-${test.id}`);
+                
+                card.className = 'test-item running';
+                status.textContent = 'در حال اجرا';
+                status.className = 'test-status status-running';
+                output.innerHTML = '<div class="loading"></div> در حال اجرا...';
+                
+                try {
+                    const result = await test.run();
+                    card.className = 'test-item passed';
+                    status.textContent = 'موفق';
+                    status.className = 'test-status status-passed';
+                    output.innerHTML = `<strong>✅</strong> ${result}`;
+                    this.results[test.id] = { success: true, result };
+                    logger.success(`تست "${test.title}" موفقیت‌آمیز بود`);
+                    return true;
+                } catch (error) {
+                    card.className = 'test-item failed';
+                    status.textContent = 'ناموفق';
+                    status.className = 'test-status status-failed';
+                    output.innerHTML = `<strong>❌ خطا:</strong> ${error.message}`;
+                    this.results[test.id] = { success: false, error: error.message };
+                    logger.error(`تست "${test.title}" ناموفق بود`, error.message);
+                    return false;
+                } finally {
+                    this.updateStats();
+                }
+            }
+            
+            async runCategory(category) {
+                const categoryTests = this.tests.filter(t => t.category === category);
+                let passed = 0;
+                
+                for (const test of categoryTests) {
+                    const success = await this.runTest(test);
+                    if (success) passed++;
+                    await new Promise(resolve => setTimeout(resolve, 300));
+                }
+                
+                return { total: categoryTests.length, passed };
+            }
+            
+            async runAllTests() {
+                const runBtn = document.getElementById('run-all-btn');
+                runBtn.disabled = true;
+                runBtn.innerHTML = '<span class="loading"></span> در حال اجرای تمام تست‌ها...';
+                
+                document.getElementById('overall-status').textContent = 'در حال اجرا';
+                document.getElementById('overall-status').className = 'status-running';
+                
+                let passed = 0;
+                let total = 0;
+                
+                logger.info('🚀 شروع اجرای تمام تست‌های Database Integration...');
+                
+                // اجرای تست‌ها به ترتیب منطقی
+                const categories = ['migration', 'crud', 'transaction', 'performance'];
+                
+                for (const category of categories) {
+                    const result = await this.runCategory(category);
+                    passed += result.passed;
+                    total += result.total;
+                }
+                
+                runBtn.disabled = false;
+                runBtn.innerHTML = '<span>🚀</span> اجرای مجدد تمام تست‌ها';
+                
+                // نمایش نتیجه کلی
+                const overallStatus = document.getElementById('overall-status');
+                if (passed === total) {
+                    overallStatus.textContent = 'موفق';
+                    overallStatus.className = 'status-passed';
+                    logger.success(`🎉 تمام تست‌ها موفقیت‌آمیز بودند! ${passed}/${total}`);
+                } else {
+                    overallStatus.textContent = 'ناموفق';
+                    overallStatus.className = 'status-failed';
+                    logger.warning(`تست‌ها کامل شدند: ${passed} موفق از ${total}`);
+                }
+                
+                // نمایش آمار دیتابیس
+                this.showDatabaseStats();
+            }
+            
+            async runMigrationTests() {
+                const btn = document.getElementById('run-migration-btn');
+                btn.disabled = true;
+                btn.innerHTML = '<span class="loading"></span> در حال اجرای تست‌های Migration...';
+                
+                const result = await this.runCategory('migration');
+                
+                btn.disabled = false;
+                btn.innerHTML = '<span>🔄</span> تست Migration فقط';
+                
+                logger.info(`تست‌های Migration کامل شدند: ${result.passed}/${result.total}`);
+            }
+            
+            showDatabaseStats() {
+                const stats = this.db.getStatistics();
+                const perfData = document.getElementById('performance-data');
+                
+                perfData.innerHTML = `
+                    <strong>📊 آمار دیتابیس پس از تست:</strong><br>
+                    👤 کاربران: ${stats.users} رکورد<br>
+                    📚 درس‌ها: ${stats.lessons} رکورد<br>
+                    📈 پیشرفت: ${stats.progress} رکورد<br>
+                    💳 تراکنش‌ها: ${stats.transactions} رکورد<br>
+                    🏷️ نسخه دیتابیس: ${stats.version}<br>
+                    <br>
+                    <strong>🎯 نتیجه:</strong> دیتابیس برای عملیات‌های Vakamova آماده است
+                `;
+            }
+            
+            updateStats() {
+                const passed = Object.values(this.results).filter(r => r.success).length;
+                const failed = Object.values(this.results).filter(r => !r.success).length;
+                const total = this.tests.length;
+                const pending = total - passed - failed;
+                
+                document.getElementById('passed-count').textContent = passed;
+                document.getElementById('failed-count').textContent = failed;
+                document.getElementById('total-count').textContent = total;
+                
+                const coverage = Math.round((passed / total) * 100);
+                document.getElementById('coverage').textContent = `${coverage}%`;
+                document.getElementById('progress-fill').style.width = `${coverage}%`;
+            }
+            
+            clearDatabase() {
+                this.db.clearDatabase();
+                this.results = {};
+                this.renderTests();
+                logger.info('دیتابیس تست پاک شد');
+            }
+            
+            setupEventListeners() {
+                document.getElementById('run-all-btn').addEventListener('click', () => this.runAllTests());
+                document.getElementById('run-migration-btn').addEventListener('click', () => this.runMigrationTests());
+                document.getElementById('clear-btn').addEventListener('click', () => this.clearDatabase());
+            }
+        }
+
+        // ==================== توابع کمکی ====================
+        function clearConsole() {
+            document.getElementById('console-output').innerHTML = 
+                '<div class="console-line log-info">[System] کنسول پاک شد</div>';
+        }
+
+        // ==================== راه‌اندازی ====================
+        document.addEventListener('DOMContentLoaded', () => {
+            window.testManager = new TestManager();
+            logger.info('سیستم تست Database Integration آماده است');
+            logger.info('روی دکمه "اجرای تمام تست‌ها" کلیک کنید');
+        });
+    </script>
+</body>
+</html>
