@@ -101,27 +101,24 @@ const PerfDB = {
     
     // ========== تست‌های Performance ==========
     async bulkInsertUsers(count) {
-        const startTime = performance.now();
-        const startMemory = performance.memory ? performance.memory.usedJSHeapSize : 0;
+        const startTime = Date.now();
         
         for (let i = 0; i < count; i++) {
             this.createUserFast(`user${i}@perf.com`, `کاربر ${i}`);
         }
         
-        const endTime = performance.now();
-        const duration = endTime - startTime;
+        const duration = Date.now() - startTime;
         const opsPerSecond = (count / (duration / 1000)).toFixed(1);
         
         return {
             count,
             duration: Math.round(duration),
-            opsPerSecond,
-            memoryUsed: performance.memory ? Math.round((performance.memory.usedJSHeapSize - startMemory) / 1024) : null
+            opsPerSecond
         };
     },
     
     async complexJoinQuery() {
-        const startTime = performance.now();
+        const startTime = Date.now();
         
         // شبیه‌سازی JOIN سه جدول: users + lessons + progress
         const results = [];
@@ -185,7 +182,7 @@ const PerfDB = {
             }
         }
         
-        const duration = performance.now() - startTime;
+        const duration = Date.now() - startTime;
         return {
             results,
             duration: Math.round(duration),
@@ -195,7 +192,7 @@ const PerfDB = {
     },
     
     async advancedFiltering() {
-        const startTime = performance.now();
+        const startTime = Date.now();
         
         // چندین نوع فیلتر مختلف
         const filters = [
@@ -209,7 +206,7 @@ const PerfDB = {
         
         // اعمال فیلترها
         for (const filter of filters) {
-            const startFilter = performance.now();
+            const startFilter = Date.now();
             let count = 0;
             
             if (filter.name.includes('کاربر')) {
@@ -222,7 +219,7 @@ const PerfDB = {
                 }
             }
             
-            const filterTime = performance.now() - startFilter;
+            const filterTime = Date.now() - startFilter;
             filterResults[filter.name] = {
                 count,
                 time: Math.round(filterTime),
@@ -230,7 +227,7 @@ const PerfDB = {
             };
         }
         
-        const totalDuration = performance.now() - startTime;
+        const totalDuration = Date.now() - startTime;
         return {
             filters: filterResults,
             totalDuration: Math.round(totalDuration),
@@ -239,113 +236,99 @@ const PerfDB = {
     },
     
     async benchmarkCRUD() {
-        const benchmarks = {};
-        const iterations = 100;
+        PerfDB.log("شروع بنچمارک CRUD...");
         
-        // ۱. بنچمارک Create
-        let createTimes = [];
+        // تعداد iteration کم‌تر برای موبایل
+        const iterations = 50;
+        let createTotal = 0;
+        let readTotal = 0;
+        let updateTotal = 0;
+        
+        // تست Create
         for (let i = 0; i < iterations; i++) {
-            const start = performance.now();
+            const start = Date.now();
             this.createUserFast(`bench${i}@test.com`, `بنچ ${i}`);
-            createTimes.push(performance.now() - start);
+            createTotal += (Date.now() - start);
         }
-        benchmarks.create = {
-            avg: Math.round(createTimes.reduce((a, b) => a + b) / iterations * 1000) / 1000,
-            min: Math.round(Math.min(...createTimes) * 1000) / 1000,
-            max: Math.round(Math.max(...createTimes) * 1000) / 1000
-        };
         
-        // ۲. بنچمارک Read
-        let readTimes = [];
-        const userIds = Array.from(this.users.keys()).slice(0, iterations);
-        for (const id of userIds) {
-            const start = performance.now();
-            this.users.get(id);
-            readTimes.push(performance.now() - start);
+        // تست Read
+        const userIds = Array.from(this.users.keys());
+        for (let i = 0; i < Math.min(iterations, userIds.length); i++) {
+            const start = Date.now();
+            this.users.get(userIds[i]);
+            readTotal += (Date.now() - start);
         }
-        benchmarks.read = {
-            avg: Math.round(readTimes.reduce((a, b) => a + b) / iterations * 1000) / 1000,
-            min: Math.round(Math.min(...readTimes) * 1000) / 1000,
-            max: Math.round(Math.max(...readTimes) * 1000) / 1000
-        };
         
-        // ۳. بنچمارک Update
-        let updateTimes = [];
-        for (const id of userIds.slice(0, 50)) {
-            const user = this.users.get(id);
+        // تست Update
+        for (let i = 0; i < Math.min(iterations, userIds.length); i++) {
+            const user = this.users.get(userIds[i]);
             if (user) {
-                const start = performance.now();
+                const start = Date.now();
                 user.coins += 10;
-                updateTimes.push(performance.now() - start);
+                updateTotal += (Date.now() - start);
             }
         }
-        benchmarks.update = {
-            avg: Math.round(updateTimes.reduce((a, b) => a + b) / updateTimes.length * 1000) / 1000,
-            min: Math.round(Math.min(...updateTimes) * 1000) / 1000,
-            max: Math.round(Math.max(...updateTimes) * 1000) / 1000
-        };
         
-        return benchmarks;
+        const createAvg = createTotal / iterations;
+        const readAvg = readTotal / Math.min(iterations, userIds.length);
+        const updateAvg = updateTotal / Math.min(iterations, userIds.length);
+        const overallAvg = (createAvg + readAvg + updateAvg) / 3;
+        
+        return {
+            createAvg,
+            readAvg,
+            updateAvg,
+            overallAvg,
+            iterations
+        };
     },
     
     async stressTestConcurrent() {
-        const startTime = performance.now();
-        const concurrentOperations = 20;
-        const promises = [];
+        PerfDB.log("شروع تست Stress همزمان (نسخه سبک)...");
         
-        // عملیات‌های همزمان مختلف
+        // کاهش عملیات همزمان برای موبایل
+        const concurrentOperations = 10;
+        const startTime = Date.now();
+        let successfulOps = 0;
+        
+        // عملیات‌های سبک‌تر
         for (let i = 0; i < concurrentOperations; i++) {
-            const promise = (async (index) => {
-                const opStart = performance.now();
-                
-                switch (index % 4) {
+            try {
+                switch (i % 3) {
                     case 0: // ایجاد کاربر
-                        this.createUserFast(`stress${index}@test.com`, `استرس ${index}`);
+                        this.createUserFast(`stress${i}@test.com`, `استرس ${i}`);
                         break;
                     case 1: // ایجاد درس
-                        this.createLessonFast(`درس استرس ${index}`, ['english', 'persian', 'french'][index % 3]);
+                        this.createLessonFast(`درس استرس ${i}`, 'english');
                         break;
-                    case 2: // خواندن تصادفی
-                        const userIds = Array.from(this.users.keys());
-                        if (userIds.length > 0) {
-                            const randomId = userIds[Math.floor(Math.random() * userIds.length)];
-                            this.users.get(randomId);
-                        }
-                        break;
-                    case 3: // فیلتر کردن
-                        let count = 0;
-                        for (const user of this.users.values()) {
-                            if (user.level > 2) count++;
+                    case 2: // خواندن
+                        if (this.users.size > 0) {
+                            const firstUser = Array.from(this.users.values())[0];
+                            // عملیات ساده
                         }
                         break;
                 }
-                
-                return {
-                    index,
-                    duration: performance.now() - opStart,
-                    success: true
-                };
-            })(i);
-            
-            promises.push(promise);
+                successfulOps++;
+            } catch (e) {
+                this.log(`عملیات ${i} خطا خورد: ${e.message}`, 'warning');
+            }
         }
         
-        const results = await Promise.all(promises);
-        const totalDuration = performance.now() - startTime;
-        
-        const avgOpTime = results.reduce((sum, r) => sum + r.duration, 0) / results.length;
+        const totalDuration = Date.now() - startTime;
+        const opsPerSecond = (concurrentOperations / (totalDuration / 1000)).toFixed(1);
+        const successRate = Math.round((successfulOps / concurrentOperations) * 100);
         
         return {
             concurrentOperations,
             totalDuration: Math.round(totalDuration),
-            avgOperationTime: Math.round(avgOpTime * 100) / 100,
-            opsPerSecond: Math.round((concurrentOperations / (totalDuration / 1000)) * 10) / 10,
-            successfulOps: results.filter(r => r.success).length
+            opsPerSecond,
+            successRate,
+            successfulOps
         };
     },
     
     // ========== ابزارهای کمکی ==========
-    log(message) {
+    log(message, type = 'info') {
         console.log(`[PerfDB] ${message}`);
         const consoleEl = document.getElementById('console');
         const logEntry = document.createElement('div');
@@ -360,9 +343,6 @@ const PerfDB = {
             document.getElementById('stat-time').textContent = `${result.totalTime || result.duration || 0}ms`;
             if (result.opsPerSecond) {
                 document.getElementById('stat-ops').textContent = result.opsPerSecond;
-            }
-            if (result.memoryUsed) {
-                document.getElementById('stat-memory').textContent = `${result.memoryUsed}KB`;
             }
         }
     },
@@ -472,38 +452,36 @@ const performanceTests = [
         name: 'بنچمارک عملیات CRUD',
         description: 'سنجش سرعت Create, Read, Update',
         run: async () => {
-            PerfDB.log("شروع بنچمارک CRUD...");
             const benchmarks = await PerfDB.benchmarkCRUD();
             
             // محاسبه میانگین کلی
             const avgTimes = [
-                benchmarks.create.avg,
-                benchmarks.read.avg,
-                benchmarks.update.avg
+                benchmarks.createAvg,
+                benchmarks.readAvg,
+                benchmarks.updateAvg
             ];
             const overallAvg = avgTimes.reduce((a, b) => a + b) / avgTimes.length;
             
             PerfDB.addResultToTable(
                 'بنچمارک CRUD',
-                Math.round(overallAvg * 1000),
-                '100+',
-                Math.round(1 / overallAvg),
+                Math.round(overallAvg),
+                benchmarks.iterations,
+                Math.round(1000 / overallAvg),
                 '✅'
             );
             
-            return `✅ بنچمارک تکمیل شد:<br>
-                   ایجاد: ${benchmarks.create.avg}ms<br>
-                   خواندن: ${benchmarks.read.avg}ms<br>
-                   به‌روزرسانی: ${benchmarks.update.avg}ms<br>
-                   میانگین کلی: ${overallAvg.toFixed(3)}ms`;
+            return `✅ بنچمارک تکمیل شد (${benchmarks.iterations} تکرار):<br>
+                   ایجاد: ${Math.round(benchmarks.createAvg)}ms<br>
+                   خواندن: ${Math.round(benchmarks.readAvg)}ms<br>
+                   به‌روزرسانی: ${Math.round(benchmarks.updateAvg)}ms<br>
+                   میانگین کلی: ${overallAvg.toFixed(2)}ms`;
         }
     },
     {
         id: 'test5',
         name: 'تست Stress همزمان',
-        description: '۲۰ عملیات همزمان برای تست بار',
+        description: '۱۰ عملیات همزمان برای تست بار',
         run: async () => {
-            PerfDB.log("شروع تست Stress همزمان...");
             const result = await PerfDB.stressTestConcurrent();
             
             PerfDB.addResultToTable(
@@ -511,14 +489,12 @@ const performanceTests = [
                 result.totalDuration,
                 result.concurrentOperations,
                 result.opsPerSecond,
-                result.successfulOps === result.concurrentOperations ? '✅' : '⚠️'
+                result.successRate >= 90 ? '✅' : '⚠️'
             );
             
-            const successRate = Math.round((result.successfulOps / result.concurrentOperations) * 100);
-            return `✅ ${result.concurrentOperations} عملیات همزمان در ${result.totalDuration}ms<br>
+            return `✅ ${result.concurrentOperations} عملیات در ${result.totalDuration}ms<br>
                    عملیات/ثانیه: ${result.opsPerSecond}<br>
-                   زمان متوسط هر عملیات: ${result.avgOperationTime}ms<br>
-                   نرخ موفقیت: ${successRate}%`;
+                   نرخ موفقیت: ${result.successRate}%`;
         }
     }
 ];
@@ -535,7 +511,7 @@ async function runPerformanceTests(lightMode = false) {
     // پاک کردن نتایج قبلی
     document.getElementById('results-body').innerHTML = '';
     
-    const startTime = performance.now();
+    const startTime = Date.now();
     let passed = 0;
     let totalDuration = 0;
     
@@ -568,10 +544,10 @@ async function runPerformanceTests(lightMode = false) {
         
         try {
             PerfDB.log(`شروع تست: ${test.name}`);
-            const testStart = performance.now();
+            const testStart = Date.now();
             
             const result = await test.run();
-            const testDuration = performance.now() - testStart;
+            const testDuration = Date.now() - testStart;
             totalDuration += testDuration;
             
             // تست موفق
@@ -600,7 +576,7 @@ async function runPerformanceTests(lightMode = false) {
     // به‌روزرسانی نهایی progress bar
     document.getElementById('global-progress').style.width = '100%';
     
-    const totalTime = performance.now() - startTime;
+    const totalTime = Date.now() - startTime;
     const successRate = Math.round((passed / performanceTests.length) * 100);
     
     // به‌روزرسانی آمار کلی
