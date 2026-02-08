@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تست یکپارچه‌سازی Payment + State</title>
+    <style>
+        /* استایل مشابه تست‌های قبلی */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test-card { background: white; padding: 20px; margin: 10px; border-radius: 10px; }
+        .success { border-right: 5px solid #10b981; }
+        .failed { border-right: 5px solid #ef4444; }
+    </style>
+</head>
+<body>
+    <h1>🧪 تست یکپارچه‌سازی Payment + State Management</h1>
+    <div id="test-results"></div>
+
+    <script type="module">
+        import { PaymentManager } from './core/payment-manager.js';
+        import { StateManager } from './core/state-manager.js';
+        import { MockPaymentAdapter } from './core/zarinpal-adapter.js';
+
+        const tests = [
+            {
+                name: "پرداخت موفق + به‌روزرسانی State",
+                run: async () => {
+                    const stateManager = new StateManager();
+                    const paymentAdapter = new MockPaymentAdapter();
+                    const paymentManager = new PaymentManager(paymentAdapter, stateManager);
+                    
+                    // 1. شروع پرداخت
+                    const result = await paymentManager.initiatePayment({
+                        userId: "user_123",
+                        amount: 49000,
+                        productId: "premium_monthly"
+                    });
+                    
+                    // 2. بررسی به‌روزرسانی State
+                    const state = stateManager.getState();
+                    if (!state.payments[result.transactionId]) {
+                        throw new Error("State به‌روزرسانی نشد");
+                    }
+                    
+                    return "✅ پرداخت و State هماهنگ به‌روزرسانی شدند";
+                }
+            },
+            {
+                name: "پرداخت ناموفق + حفظ State قبلی",
+                run: async () => {
+                    const stateManager = new StateManager();
+                    const failingAdapter = {
+                        async processPayment() {
+                            throw new Error("کمبود موجودی");
+                        }
+                    };
+                    const paymentManager = new PaymentManager(failingAdapter, stateManager);
+                    
+                    const initialState = stateManager.getState();
+                    
+                    try {
+                        await paymentManager.initiatePayment({
+                            userId: "user_456",
+                            amount: 99000,
+                            productId: "yearly_subscription"
+                        });
+                    } catch (error) {
+                        // انتظار داریم خطا دهد
+                    }
+                    
+                    // State نباید تغییر کند
+                    const finalState = stateManager.getState();
+                    if (JSON.stringify(initialState) !== JSON.stringify(finalState)) {
+                        throw new Error("State پس از پرداخت ناموفق تغییر کرد");
+                    }
+                    
+                    return "✅ State پس از خطا حفظ شد";
+                }
+            },
+            {
+                name: "بازگشت وجه + Rollback State",
+                run: async () => {
+                    const stateManager = new StateManager();
+                    const adapter = new MockPaymentAdapter();
+                    const paymentManager = new PaymentManager(adapter, stateManager);
+                    
+                    // پرداخت اولیه
+                    const payment = await paymentManager.initiatePayment({
+                        userId: "user_789",
+                        amount: 25000,
+                        productId: "course_access"
+                    });
+                    
+                    const stateAfterPayment = stateManager.getState();
+                    
+                    // بازگشت وجه
+                    await paymentManager.refundPayment(payment.transactionId);
+                    
+                    const stateAfterRefund = stateManager.getState();
+                    
+                    // بررسی Rollback State
+                    if (stateAfterRefund.userBalance === stateAfterPayment.userBalance) {
+                        throw new Error("موجودی کاربر پس از بازگشت وجه به‌روزرسانی نشد");
+                    }
+                    
+                    return "✅ بازگشت وجه و Rollback State موفق";
+                }
+            },
+            {
+                name: "همگام‌سازی State چندین پرداخت",
+                run: async () => {
+                    const stateManager = new StateManager();
+                    const adapter = new MockPaymentAdapter();
+                    const paymentManager = new PaymentManager(adapter, stateManager);
+                    
+                    // 3 پرداخت همزمان
+                    const payments = await Promise.all([
+                        paymentManager.initiatePayment({ userId: "user_1", amount: 10000, productId: "item_1" }),
+                        paymentManager.initiatePayment({ userId: "user_1", amount: 20000, productId: "item_2" }),
+                        paymentManager.initiatePayment({ userId: "user_1", amount: 15000, productId: "item_3" })
+                    ]);
+                    
+                    const state = stateManager.getState();
+                    
+                    // بررسی صحت State نهایی
+                    const totalInState = Object.values(state.payments)
+                        .reduce((sum, p) => sum + p.amount, 0);
+                    
+                    const expectedTotal = 10000 + 20000 + 15000;
+                    
+                    if (totalInState !== expectedTotal) {
+                        throw new Error(`مجموع مبالغ در State نادرست است: ${totalInState} ≠ ${expectedTotal}`);
+                    }
+                    
+                    return "✅ همگام‌سازی State پرداخت‌های موازی موفق";
+                }
+            }
+        ];
+
+        // اجرای تست‌ها
+        async function runTests() {
+            const resultsDiv = document.getElementById('test-results');
+            let passed = 0;
+            
+            for (const test of tests) {
+                const card = document.createElement('div');
+                card.className = 'test-card';
+                card.innerHTML = `<h3>${test.name}</h3><p>در حال اجرا...</p>`;
+                resultsDiv.appendChild(card);
+                
+                try {
+                    const result = await test.run();
+                    card.classList.add('success');
+                    card.innerHTML = `<h3>${test.name}</h3><p>${result}</p>`;
+                    passed++;
+                } catch (error) {
+                    card.classList.add('failed');
+                    card.innerHTML = `<h3>${test.name}</h3><p>❌ ${error.message}</p>`;
+                }
+            }
+            
+            // خلاصه نتایج
+            const summary = document.createElement('div');
+            summary.className = 'test-card';
+            summary.innerHTML = `
+                <h2>📊 خلاصه نتایج</h2>
+                <p>تعداد تست‌ها: ${tests.length}</p>
+                <p>موفق: ${passed}</p>
+                <p>ناموفق: ${tests.length - passed}</p>
+                <p>نرخ موفقیت: ${Math.round((passed / tests.length) * 100)}%</p>
+            `;
+            resultsDiv.appendChild(summary);
+        }
+
+        // اجرا هنگام بارگذاری صفحه
+        document.addEventListener('DOMContentLoaded', runTests);
+    </script>
+</body>
+</html>
