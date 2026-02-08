@@ -1,0 +1,796 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تست پیشرفته State Manager - Vakamova</title>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}body{font-family:tahoma;background:#4527a0;color:#333;padding:20px}.container{max-width:900px;margin:auto;background:#fff;border-radius:10px;overflow:hidden}header{background:#5e35b1;color:#fff;padding:20px;text-align:center}h1{font-size:1.5rem}.test-section{padding:20px}.test-item{background:#f5f5f5;border-radius:8px;padding:15px;margin-bottom:15px;border-right:5px solid#7e57c2}.passed{border-right-color:#43a047;background:#e8f5e9}.failed{border-right-color:#e53935;background:#ffebee}.running{border-right-color:#fb8c00;background:#fff3e0}.test-header{display:flex;justify-content:space-between;margin-bottom:10px}.test-name{font-weight:bold}.test-status{padding:3px 10px;border-radius:12px;font-size:.8rem}.status-pending{background:#fff9c4;color:#f57c00}.status-running{background:#bbdefb;color:#1565c0}.status-passed{background:#c8e6c9;color:#2e7d32}.status-failed{background:#ffcdd2;color:#c62828}button{background:#5e35b1;color:#fff;border:none;padding:12px 25px;border-radius:8px;font-size:1rem;cursor:pointer;width:100%;margin-top:15px}button:hover{background:#4527a0}.console{background:#263238;color:#80cbc4;padding:15px;margin-top:20px;border-radius:8px;font-family:monospace;font-size:.9rem;max-height:200px;overflow-y:auto}.log{padding:5px 0;border-bottom:1px solid #37474f}.controls{display:flex;gap:10px;margin:15px 0}.controls button{flex:1;margin-top:0}.history-panel{background:#f3e5f5;padding:15px;border-radius:8px;margin:15px 0}.history-item{padding:5px;border-bottom:1px solid #d1c4e9}.undo-redo{display:flex;justify-content:center;gap:10px;margin:10px 0}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header><h1>🧠 تست پیشرفته State Manager - Undo/Redo + Middleware</h1></header>
+        <div class="test-section">
+            <div class="history-panel">
+                <h3>📜 تاریخچه State (آخرین ۵ تغییر):</h3>
+                <div id="history-list">هیچ تغییری ثبت نشده</div>
+                <div class="undo-redo">
+                    <button id="undo-btn" style="background:#ff9800">↶ Undo</button>
+                    <button id="redo-btn" style="background:#2196f3">↷ Redo</button>
+                </div>
+            </div>
+            
+            <div class="test-item" id="test1">
+                <div class="test-header"><div class="test-name">۱. Undo/Redo پیچیده (۱۰ عملیات)</div><div class="test-status status-pending" id="status1">در انتظار</div></div>
+                <div id="output1"></div>
+            </div>
+            <div class="test-item" id="test2">
+                <div class="test-header"><div class="test-name">۲. State پیچیده (آرایه + شیء تودرتو)</div><div class="test-status status-pending" id="status2">در انتظار</div></div>
+                <div id="output2"></div>
+            </div>
+            <div class="test-item" id="test3">
+                <div class="test-header"><div class="test-name">۳. Middleware (Logging + Validation)</div><div class="test-status status-pending" id="status3">در انتظار</div></div>
+                <div id="output3"></div>
+            </div>
+            <div class="test-item" id="test4">
+                <div class="test-header"><div class="test-name">۴. State Diff و Patch</div><div class="test-status status-pending" id="status4">در انتظار</div></div>
+                <div id="output4"></div>
+            </div>
+            <div class="test-item" id="test5">
+                <div class="test-header"><div class="test-name">۵. Performance با عملیات زیاد</div><div class="test-status status-pending" id="status5">در انتظار</div></div>
+                <div id="output5"></div>
+            </div>
+            
+            <div class="controls">
+                <button id="run-btn">▶️ اجرای تمام تست‌ها</button>
+                <button id="reset-btn" style="background:#78909c">🔄 ریست State</button>
+            </div>
+            
+            <div class="console" id="console">
+                <div class="log">[سیستم] State Manager پیشرفته آماده است</div>
+            </div>
+        </div>
+    </div>
+
+<script>
+// ========== State Manager پیشرفته ==========
+class AdvancedStateManager {
+    constructor(options = {}) {
+        this.state = options.initialState || {};
+        this.history = [];
+        this.future = []; // برای redo
+        this.maxHistory = options.maxHistory || 50;
+        this.middlewares = [];
+        this.listeners = new Set();
+        this.isUndoing = false;
+        this.isRedoing = false;
+        
+        // middleware پیش‌فرض
+        this.addMiddleware(this.loggingMiddleware.bind(this));
+    }
+    
+    // ========== Core Methods ==========
+    set(path, value) {
+        if (this.isUndoing || this.isRedoing) {
+            this._setDirect(path, value);
+            return;
+        }
+        
+        const oldState = this._clone(this.state);
+        const newState = this._setDirect(path, value);
+        
+        // اجرای middlewareها
+        const middlewareResult = this._runMiddlewares('beforeSet', { path, value, oldState, newState });
+        if (middlewareResult.cancel) return oldState;
+        
+        // ذخیره در تاریخچه
+        this._saveToHistory(oldState);
+        
+        // پاک کردن future هنگام تغییر جدید
+        if (!this.isUndoing && !this.isRedoing) {
+            this.future = [];
+        }
+        
+        // اجرای middleware پس از set
+        this._runMiddlewares('afterSet', { path, value, oldState, newState });
+        
+        // اطلاع‌رسانی به listeners
+        this._notifyListeners(path, value);
+        
+        return newState;
+    }
+    
+    get(path, defaultValue = undefined) {
+        const parts = Array.isArray(path) ? path : path.split('.');
+        let current = this.state;
+        
+        for (const part of parts) {
+            if (current && typeof current === 'object' && part in current) {
+                current = current[part];
+            } else {
+                return defaultValue;
+            }
+        }
+        
+        return current;
+    }
+    
+    update(path, updater) {
+        const currentValue = this.get(path);
+        const newValue = typeof updater === 'function' 
+            ? updater(currentValue)
+            : { ...currentValue, ...updater };
+        
+        return this.set(path, newValue);
+    }
+    
+    // ========== Undo/Redo ==========
+    undo() {
+        if (this.history.length === 0) return null;
+        
+        this.isUndoing = true;
+        
+        const previousState = this.history.pop();
+        const currentState = this.state;
+        
+        this.future.push(currentState);
+        this.state = previousState;
+        
+        this._runMiddlewares('onUndo', { previousState, currentState });
+        this._notifyListeners('*', null); // اطلاع به همه listeners
+        
+        this.isUndoing = false;
+        return previousState;
+    }
+    
+    redo() {
+        if (this.future.length === 0) return null;
+        
+        this.isRedoing = true;
+        
+        const nextState = this.future.pop();
+        const currentState = this.state;
+        
+        this.history.push(currentState);
+        this.state = nextState;
+        
+        this._runMiddlewares('onRedo', { nextState, currentState });
+        this._notifyListeners('*', null);
+        
+        this.isRedoing = false;
+        return nextState;
+    }
+    
+    canUndo() {
+        return this.history.length > 0;
+    }
+    
+    canRedo() {
+        return this.future.length > 0;
+    }
+    
+    // ========== Middleware ==========
+    addMiddleware(middleware) {
+        this.middlewares.push(middleware);
+    }
+    
+    // ========== Listeners ==========
+    subscribe(listener) {
+        this.listeners.add(listener);
+        return () => this.listeners.delete(listener);
+    }
+    
+    // ========== Complex State Operations ==========
+    merge(path, partialState) {
+        const current = this.get(path, {});
+        const merged = Array.isArray(current) 
+            ? [...current, ...(Array.isArray(partialState) ? partialState : [partialState])]
+            : { ...current, ...partialState };
+        
+        return this.set(path, merged);
+    }
+    
+    push(path, item) {
+        const array = this.get(path, []);
+        if (!Array.isArray(array)) {
+            throw new Error(`Path ${path} is not an array`);
+        }
+        
+        const newArray = [...array, item];
+        return this.set(path, newArray);
+    }
+    
+    filter(path, predicate) {
+        const array = this.get(path, []);
+        if (!Array.isArray(array)) {
+            throw new Error(`Path ${path} is not an array`);
+        }
+        
+        const filtered = array.filter(predicate);
+        return this.set(path, filtered);
+    }
+    
+    // ========== Diff & Patch ==========
+    getDiff(oldState, newState) {
+        const diff = {};
+        
+        const compare = (obj1, obj2, path = '') => {
+            const allKeys = new Set([...Object.keys(obj1 || {}), ...Object.keys(obj2 || {})]);
+            
+            for (const key of allKeys) {
+                const currentPath = path ? `${path}.${key}` : key;
+                const val1 = obj1?.[key];
+                const val2 = obj2?.[key];
+                
+                if (val1 !== val2) {
+                    if (typeof val1 === 'object' && typeof val2 === 'object' && 
+                        val1 !== null && val2 !== null) {
+                        compare(val1, val2, currentPath);
+                    } else {
+                        diff[currentPath] = { old: val1, new: val2 };
+                    }
+                }
+            }
+        };
+        
+        compare(oldState, newState);
+        return diff;
+    }
+    
+    // ========== Helper Methods ==========
+    _setDirect(path, value) {
+        const parts = Array.isArray(path) ? path : path.split('.');
+        const newState = this._clone(this.state);
+        let current = newState;
+        
+        for (let i = 0; i < parts.length - 1; i++) {
+            const part = parts[i];
+            if (!(part in current) || typeof current[part] !== 'object') {
+                current[part] = {};
+            }
+            current = current[part];
+        }
+        
+        const lastPart = parts[parts.length - 1];
+        current[lastPart] = value;
+        
+        this.state = newState;
+        return newState;
+    }
+    
+    _saveToHistory(state) {
+        this.history.push(this._clone(state));
+        
+        // محدود کردن اندازه تاریخچه
+        if (this.history.length > this.maxHistory) {
+            this.history.shift();
+        }
+    }
+    
+    _clone(obj) {
+        return JSON.parse(JSON.stringify(obj));
+    }
+    
+    _runMiddlewares(event, data) {
+        const result = { cancel: false };
+        
+        for (const middleware of this.middlewares) {
+            const middlewareResult = middleware(event, data, result);
+            if (middlewareResult && middlewareResult.cancel) {
+                result.cancel = true;
+                break;
+            }
+        }
+        
+        return result;
+    }
+    
+    _notifyListeners(path, value) {
+        for (const listener of this.listeners) {
+            try {
+                listener(path, value, this.state);
+            } catch (error) {
+                console.error('Listener error:', error);
+            }
+        }
+    }
+    
+    loggingMiddleware(event, data) {
+        const timestamp = new Date().toLocaleTimeString('fa-IR');
+        let message = '';
+        
+        switch (event) {
+            case 'beforeSet':
+                message = `📝 قبل از set: ${data.path} = ${JSON.stringify(data.value).substring(0, 50)}`;
+                break;
+            case 'afterSet':
+                message = `✅ بعد از set: ${data.path} تغییر یافت`;
+                break;
+            case 'onUndo':
+                message = `↶ Undo اجرا شد`;
+                break;
+            case 'onRedo':
+                message = `↷ Redo اجرا شد`;
+                break;
+        }
+        
+        if (message) {
+            StateLogger.log(`[${timestamp}] ${message}`);
+        }
+    }
+    
+    // ========== Validation Middleware ==========
+    static createValidationMiddleware(rules) {
+        return function validationMiddleware(event, data) {
+            if (event === 'beforeSet') {
+                for (const rule of rules) {
+                    if (rule.path === data.path || rule.path === '*') {
+                        const error = rule.validator(data.value, data.state);
+                        if (error) {
+                            StateLogger.log(`❌ اعتبارسنجی شکست خورد: ${error}`, 'error');
+                            return { cancel: true };
+                        }
+                    }
+                }
+            }
+        };
+    }
+}
+
+// ========== Logger ==========
+class StateLogger {
+    static log(message, type = 'info') {
+        const consoleEl = document.getElementById('console');
+        const logEntry = document.createElement('div');
+        logEntry.className = 'log';
+        
+        const prefix = type === 'error' ? '[خطا] ' : type === 'success' ? '[موفق] ' : '';
+        logEntry.textContent = `${prefix}${message}`;
+        
+        if (type === 'error') logEntry.style.color = '#ef9a9a';
+        if (type === 'success') logEntry.style.color = '#c5e1a5';
+        
+        consoleEl.appendChild(logEntry);
+        consoleEl.scrollTop = consoleEl.scrollHeight;
+        console.log(`[StateManager] ${message}`);
+    }
+    
+    static updateHistory(manager) {
+        const historyList = document.getElementById('history-list');
+        const lastItems = manager.history.slice(-5).reverse();
+        
+        if (lastItems.length === 0) {
+            historyList.innerHTML = 'هیچ تغییری ثبت نشده';
+            return;
+        }
+        
+        let html = '';
+        lastItems.forEach((state, index) => {
+            const keys = Object.keys(state).join(', ');
+            html += `<div class="history-item">${lastItems.length - index}. ${keys || 'خالی'}</div>`;
+        });
+        
+        historyList.innerHTML = html;
+        
+        // آپدیت وضعیت دکمه‌ها
+        document.getElementById('undo-btn').disabled = !manager.canUndo();
+        document.getElementById('redo-btn').disabled = !manager.canRedo();
+    }
+}
+
+// ========== تست‌ها ==========
+const stateTests = [
+    {
+        id: 'test1',
+        name: 'Undo/Redo پیچیده',
+        description: '۱۰ عملیات مختلف + undo/redo زنجیره‌ای',
+        run: async () => {
+            StateLogger.log("=== شروع تست Undo/Redo پیچیده ===");
+            
+            const manager = new AdvancedStateManager({
+                initialState: { counter: 0, user: { name: 'اولیه' } }
+            });
+            
+            // ۱۰ عملیات مختلف
+            const operations = [
+                () => manager.set('counter', 1),
+                () => manager.set('user.name', 'علی'),
+                () => manager.set('user.age', 25),
+                () => manager.set('items', ['الف', 'ب']),
+                () => manager.push('items', 'ج'),
+                () => manager.set('settings.theme', 'dark'),
+                () => manager.set('counter', 2),
+                () => manager.merge('user', { city: 'تهران' }),
+                () => manager.set('user.age', 26),
+                () => manager.set('items.0', 'الف-ویرایش')
+            ];
+            
+            // اجرای عملیات
+            for (let i = 0; i < operations.length; i++) {
+                operations[i]();
+                StateLogger.log(`عملیات ${i+1} انجام شد`);
+            }
+            
+            // بررسی state نهایی
+            const finalState = manager.state;
+            if (finalState.counter !== 2) throw new Error(`counter باید ۲ باشد: ${finalState.counter}`);
+            if (finalState.user.name !== 'علی') throw new Error(`user.name باید علی باشد`);
+            if (finalState.items.length !== 3) throw new Error(`items باید ۳ آیتم داشته باشد`);
+            
+            // undo 5 مرحله
+            for (let i = 0; i < 5; i++) {
+                manager.undo();
+                StateLogger.log(`Undo ${i+1} اجرا شد`);
+            }
+            
+            // بررسی پس از undo
+            const afterUndo = manager.state;
+            if (afterUndo.counter !== 1) throw new Error(`پس از undo، counter باید ۱ باشد: ${afterUndo.counter}`);
+            
+            // redo 3 مرحله
+            for (let i = 0; i < 3; i++) {
+                manager.redo();
+                StateLogger.log(`Redo ${i+1} اجرا شد`);
+            }
+            
+            // بررسی پس از redo
+            const afterRedo = manager.state;
+            if (afterRedo.user.city !== 'تهران') throw new Error(`پس از redo، user.city باید تهران باشد`);
+            
+            StateLogger.log(`✓ تاریخچه: ${manager.history.length} آیتم`);
+            StateLogger.log(`✓ Future: ${manager.future.length} آیتم`);
+            
+            return `✅ ${operations.length} عملیات + ۵ Undo + ۳ Redo با موفقیت`;
+        }
+    },
+    {
+        id: 'test2',
+        name: 'State پیچیده',
+        description: 'آرایه‌ها و اشیاء تودرتو + عملیات merge/filter',
+        run: async () => {
+            StateLogger.log("=== شروع تست State پیچیده ===");
+            
+            const manager = new AdvancedStateManager({
+                initialState: {
+                    users: [
+                        { id: 1, name: 'کاربر ۱', active: true },
+                        { id: 2, name: 'کاربر ۲', active: false }
+                    ],
+                    settings: {
+                        theme: 'light',
+                        language: 'fa',
+                        notifications: { email: true, push: false }
+                    }
+                }
+            });
+            
+            // ۱. اضافه کردن کاربر جدید با push
+            manager.push('users', { id: 3, name: 'کاربر ۳', active: true });
+            if (manager.get('users').length !== 3) throw new Error('تعداد کاربران باید ۳ باشد');
+            
+            // ۲. ویرایش کاربر موجود
+            manager.set('users.1.active', true);
+            if (!manager.get('users.1.active')) throw new Error('کاربر ۲ باید active باشد');
+            
+            // ۳. filter کردن کاربران active
+            const activeBefore = manager.get('users').filter(u => u.active).length;
+            manager.filter('users', user => user.active);
+            const activeAfter = manager.get('users').length;
+            
+            if (activeBefore !== activeAfter) {
+                throw new Error(`فیلتر اشتباه: ${activeBefore} → ${activeAfter}`);
+            }
+            
+            // ۴. merge کردن settings
+            manager.merge('settings', { language: 'en', fontSize: 14 });
+            const settings = manager.get('settings');
+            
+            if (settings.language !== 'en') throw new Error('language باید en باشد');
+            if (settings.fontSize !== 14) throw new Error('fontSize باید ۱۴ باشد');
+            if (settings.theme !== 'light') throw new Error('theme باید light باقی بماند');
+            
+            // ۵. ساختار تودرتو عمیق
+            manager.set('app.data.metrics.weekly.visits', 1500);
+            manager.set('app.data.metrics.weekly.conversions', 45);
+            
+            const visits = manager.get('app.data.metrics.weekly.visits');
+            if (visits !== 1500) throw new Error(`visits باید ۱۵۰۰ باشد: ${visits}`);
+            
+            StateLogger.log(`✓ ساختار پیچیده: ${JSON.stringify(manager.state).length} بایت`);
+            
+            return `✅ State پیچیده با ${Object.keys(manager.state).length} key مدیریت شد`;
+        }
+    },
+    {
+        id: 'test3',
+        name: 'Middleware',
+        description: 'Logging + Validation + Cancel عملیات',
+        run: async () => {
+            StateLogger.log("=== شروع تست Middleware ===");
+            
+            const manager = new AdvancedStateManager({
+                initialState: { score: 0, user: { email: '' } }
+            });
+            
+            // اضافه کردن validation middleware
+            const validationMiddleware = AdvancedStateManager.createValidationMiddleware([
+                {
+                    path: 'score',
+                    validator: (value) => {
+                        if (typeof value !== 'number') return 'score باید عدد باشد';
+                        if (value < 0) return 'score نمی‌تواند منفی باشد';
+                        if (value > 1000) return 'score نمی‌تواند بیش از ۱۰۰۰ باشد';
+                        return null;
+                    }
+                },
+                {
+                    path: 'user.email',
+                    validator: (value) => {
+                        if (!value.includes('@')) return 'ایمیل نامعتبر است';
+                        return null;
+                    }
+                }
+            ]);
+            
+            manager.addMiddleware(validationMiddleware);
+            
+            // تست validation موفق
+            manager.set('score', 100);
+            if (manager.get('score') !== 100) throw new Error('score باید ۱۰۰ باشد');
+            
+            // تست validation ناموفق (باید cancel شود)
+            const beforeInvalid = manager.state;
+            manager.set('score', -10);
+            const afterInvalid = manager.state;
+            
+            if (JSON.stringify(beforeInvalid) !== JSON.stringify(afterInvalid)) {
+                throw new Error('عملیات نامعتبر باید cancel شود');
+            }
+            
+            // تست validation ایمیل
+            manager.set('user.email', 'test@example.com');
+            if (manager.get('user.email') !== 'test@example.com') {
+                throw new Error('ایمیل باید ذخیره شود');
+            }
+            
+            // تست cancel شدن ایمیل نامعتبر
+            manager.set('user.email', 'invalid-email');
+            if (manager.get('user.email') === 'invalid-email') {
+                throw new Error('ایمیل نامعتبر نباید ذخیره شود');
+            }
+            
+            StateLogger.log(`✓ ${manager.middlewares.length} middleware فعال`);
+            
+            return `✅ Validation Middleware با ${Object.keys(manager.state).length} rule تست شد`;
+        }
+    },
+    {
+        id: 'test4',
+        name: 'State Diff و Patch',
+        description: 'مقایسه stateها و تشخیص تغییرات',
+        run: async () => {
+            StateLogger.log("=== شروع تست Diff/Patch ===");
+            
+            const manager = new AdvancedStateManager({
+                initialState: {
+                    a: 1,
+                    b: { c: 2, d: [1, 2, 3] },
+                    e: 'مقدار اولیه'
+                }
+            });
+            
+            const state1 = manager._clone(manager.state);
+            
+            // ایجاد تغییرات
+            manager.set('a', 10);
+            manager.set('b.c', 20);
+            manager.push('b.d', 4);
+            manager.set('b.newKey', 'اضافه شد');
+            manager.set('f', 'کلید جدید');
+            
+            const state2 = manager.state;
+            
+            // محاسبه diff
+            const diff = manager.getDiff(state1, state2);
+            
+            // بررسی diff
+            const expectedChanges = ['a', 'b.c', 'b.d', 'b.newKey', 'f'];
+            for (const key of expectedChanges) {
+                if (!diff[key]) {
+                    throw new Error(`تغییر ${key} در diff ثبت نشده`);
+                }
+            }
+            
+            // بررسی مقادیر
+            if (diff['a'].old !== 1 || diff['a'].new !== 10) {
+                throw new Error(`diff برای a اشتباه است`);
+            }
+            
+            if (diff['b.c'].old !== 2 || diff['b.c'].new !== 20) {
+                throw new Error(`diff برای b.c اشتباه است`);
+            }
+            
+            StateLogger.log(`✓ ${Object.keys(diff).length} تغییر تشخیص داده شد`);
+            
+            // نمایش diff (برای نمونه)
+            const diffSample = Object.entries(diff)
+                .slice(0, 3)
+                .map(([key, change]) => `${key}: ${change.old} → ${change.new}`)
+                .join(', ');
+            
+            return `✅ Diff/Patch: ${diffSample}...`;
+        }
+    },
+    {
+        id: 'test5',
+        name: 'Performance با عملیات زیاد',
+        description: '۱۰۰ عملیات سریع + بررسی حافظه',
+        run: async () => {
+            StateLogger.log("=== شروع تست Performance ===");
+            
+            const manager = new AdvancedStateManager({
+                initialState: {},
+                maxHistory: 1000
+            });
+            
+            const startTime = Date.now();
+            const operationCount = 100;
+            
+            // عملیات‌های متنوع
+            for (let i = 0; i < operationCount; i++) {
+                switch (i % 5) {
+                    case 0:
+                        manager.set(`key${i}`, i);
+                        break;
+                    case 1:
+                        manager.set(`nested.${i}.value`, `value${i}`);
+                        break;
+                    case 2:
+                        manager.push(`array`, i);
+                        break;
+                    case 3:
+                        manager.merge(`obj`, { [`prop${i}`]: i });
+                        break;
+                    case 4:
+                        manager.update(`counter`, (val = 0) => val + 1);
+                        break;
+                }
+                
+                // هر ۲۰ عملیات یک undo/redo
+                if (i % 20 === 0 && i > 0) {
+                    manager.undo();
+                    manager.redo();
+                }
+            }
+            
+            const endTime = Date.now();
+            const duration = endTime - startTime;
+            
+            // بررسی performance
+            if (duration > 5000) {
+                throw new Error(`Performance ضعیف: ${duration}ms برای ${operationCount} عملیات`);
+            }
+            
+            // بررسی صحت state
+            const finalState = manager.state;
+            const keyCount = Object.keys(finalState).length;
+            
+            if (keyCount < 10) {
+                throw new Error(`state نهایی فقط ${keyCount} key دارد`);
+            }
+            
+            StateLogger.log(`✓ ${operationCount} عملیات در ${duration}ms`);
+            StateLogger.log(`✓ تاریخچه: ${manager.history.length} آیتم`);
+            
+            const opsPerSecond = Math.round((operationCount / (duration / 1000)) * 10) / 10;
+            return `✅ ${operationCount} عملیات در ${duration}ms (${opsPerSecond} عملیات/ثانیه)`;
+        }
+    }
+];
+
+// ========== اجرای تست‌ها ==========
+async function runAllTests() {
+    const runBtn = document.getElementById('run-btn');
+    runBtn.disabled = true;
+    runBtn.textContent = '⏳ در حال اجرای تست‌های پیشرفته...';
+    
+    // پاکسازی کنسول
+    document.getElementById('console').innerHTML = '<div class="log">[سیستم] تست State Manager پیشرفته شروع شد</div>';
+    
+    StateLogger.log("=== شروع تمام تست‌های State Manager ===");
+    
+    let passed = 0;
+    
+    for (let i = 0; i < stateTests.length; i++) {
+        const test = stateTests[i];
+        const testEl = document.getElementById(test.id);
+        const statusEl = document.getElementById(`status${i+1}`);
+        const outputEl = document.getElementById(`output${i+1}`);
+        
+        // به‌روزرسانی وضعیت
+        testEl.className = 'test-item running';
+        statusEl.textContent = 'در حال اجرا';
+        statusEl.className = 'test-status status-running';
+        outputEl.innerHTML = '<span style="color:#666">در حال آماده‌سازی...</span>';
+        
+        try {
+            StateLogger.log(`شروع تست: ${test.name}`);
+            const result = await test.run();
+            
+            // تست موفق
+            testEl.className = 'test-item passed';
+            statusEl.textContent = 'موفق';
+            statusEl.className = 'test-status status-passed';
+            outputEl.innerHTML = `<div style="color:#2e7d32">${result}</div>`;
+            passed++;
+            
+            StateLogger.log(`✅ ${test.name} موفقیت‌آمیز بود`, 'success');
+            
+        } catch (error) {
+            // تست ناموفق
+            testEl.className = 'test-item failed';
+            statusEl.textContent = 'ناموفق';
+            statusEl.className = 'test-status status-failed';
+            outputEl.innerHTML = `<div style="color:#c62828"><strong>❌ خطا:</strong> ${error.message}</div>`;
+            
+            StateLogger.log(`❌ ${test.name} ناموفق: ${error.message}`, 'error');
+        }
+        
+        // تاخیر برای نمایش بهتر
+        await new Promise(resolve => setTimeout(resolve, 400));
+    }
+    
+    runBtn.disabled = false;
+    runBtn.textContent = `🔄 اجرای مجدد (${passed}/${stateTests.length} موفق)`;
+    
+    // نتیجه نهایی
+    if (passed === stateTests.length) {
+        StateLogger.log("🎉 تمام تست‌های State Manager با موفقیت پشت سر گذاشته شدند!", 'success');
+        StateLogger.log("✅ State Manager برای استفاده در Vakamova آماده است.", 'success');
+    } else {
+        StateLogger.log(`تست‌ها کامل شدند: ${passed} از ${stateTests.length} موفق`);
+    }
+}
+
+// ========== راه‌اندازی UI ==========
+document.addEventListener('DOMContentLoaded', () => {
+    // نمونه State Manager برای نمایش در UI
+    const demoManager = new AdvancedStateManager({
+        initialState: { demo: true, counter: 0 }
+    });
+    
+    // آپدیت history panel
+    demoManager.subscribe(() => {
+        StateLogger.updateHistory(demoManager);
+    });
+    
+    // دکمه‌های undo/redo
+    document.getElementById('undo-btn').addEventListener('click', () => {
+        demoManager.undo();
+        StateLogger.log('دکمه Undo زده شد');
+    });
+    
+    document.getElementById('redo-btn').addEventListener('click', () => {
+        demoManager.redo();
+        StateLogger.log('دکمه Redo زده شد');
+    });
+    
+    // دکمه‌های اصلی
+    document.getElementById('run-btn').addEventListener('click', runAllTests);
+    
+    document.getElementById('reset-btn').addEventListener('click', () => {
+        demoManager.state = { demo: true, counter: 0 };
+        demoManager.history = [];
+        demoManager.future = [];
+        StateLogger.updateHistory(demoManager);
+        StateLogger.log('State ریست شد');
+    });
+    
+    StateLogger.log("سیستم تست State Manager پیشرفته آماده است.");
+    StateLogger.log("روی دکمه 'اجرای تمام تست‌ها' کلیک کنید.");
+    StateLogger.updateHistory(demoManager);
+});
+</script>
+</body>
+</html>
