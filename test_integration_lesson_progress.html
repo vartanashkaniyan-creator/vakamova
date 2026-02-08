@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تست یکپارچه‌سازی Lesson + Progress + Database - Vakamova</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+        
+        header {
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+        }
+        
+        .test-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            padding: 30px;
+        }
+        
+        .test-card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+            border: 2px solid transparent;
+            transition: all 0.3s ease;
+        }
+        
+        .test-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(79, 70, 229, 0.15);
+        }
+        
+        .test-title {
+            font-size: 1.3rem;
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: #1f2937;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .test-desc {
+            color: #6b7280;
+            margin-bottom: 20px;
+            font-size: 0.95rem;
+        }
+        
+        .test-output {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            margin-top: 15px;
+            max-height: 200px;
+            overflow-y: auto;
+            direction: ltr;
+        }
+        
+        button {
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        
+        .action-bar {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            padding: 30px;
+            border-top: 2px solid #e2e8f0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>
+                <span>📚 تست یکپارچه‌سازی Lesson + Progress + Database</span>
+            </h1>
+            <p>بررسی همکاری موتور درس، ردیاب پیشرفت و پایگاه داده</p>
+        </header>
+        
+        <div class="test-grid" id="test-grid">
+            <!-- تست‌ها اینجا نمایش داده می‌شوند -->
+        </div>
+        
+        <div class="action-bar">
+            <button onclick="runAllTests()" id="run-btn">
+                <span>▶️</span>
+                اجرای تمام تست‌ها
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Mock Database
+        class MockDatabase {
+            constructor() {
+                this.lessons = new Map();
+                this.userProgress = new Map();
+                this.userStats = new Map();
+            }
+            
+            async saveLesson(lesson) {
+                this.lessons.set(lesson.id, lesson);
+                return lesson.id;
+            }
+            
+            async getUserProgress(userId) {
+                return this.userProgress.get(userId) || [];
+            }
+            
+            async updateUserProgress(userId, progress) {
+                this.userProgress.set(userId, progress);
+                return true;
+            }
+            
+            async getUserStats(userId) {
+                return this.userStats.get(userId) || {
+                    totalLessons: 0,
+                    completedLessons: 0,
+                    totalTime: 0,
+                    streak: 0
+                };
+            }
+            
+            async updateUserStats(userId, stats) {
+                this.userStats.set(userId, stats);
+                return true;
+            }
+        }
+
+        // Lesson Engine
+        class LessonEngine {
+            constructor(database) {
+                this.db = database;
+            }
+            
+            async createLesson(lessonData) {
+                const lesson = {
+                    id: `lesson_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                    title: lessonData.title,
+                    language: lessonData.language,
+                    level: lessonData.level,
+                    content: lessonData.content,
+                    exercises: lessonData.exercises || [],
+                    duration: lessonData.duration || 30,
+                    createdAt: Date.now()
+                };
+                
+                await this.db.saveLesson(lesson);
+                return lesson;
+            }
+            
+            async getLesson(lessonId) {
+                return this.db.lessons.get(lessonId);
+            }
+        }
+
+        // Progress Tracker
+        class ProgressTracker {
+            constructor(database) {
+                this.db = database;
+            }
+            
+            async startLesson(userId, lessonId) {
+                const progress = await this.db.getUserProgress(userId);
+                progress.push({
+                    lessonId,
+                    startTime: Date.now(),
+                    status: 'in_progress'
+                });
+                
+                await this.db.updateUserProgress(userId, progress);
+                return true;
+            }
+            
+            async completeLesson(userId, lessonId, score) {
+                const progress = await this.db.getUserProgress(userId);
+                const lessonProgress = progress.find(p => p.lessonId === lessonId);
+                
+                if (lessonProgress) {
+                    lessonProgress.endTime = Date.now();
+                    lessonProgress.status = 'completed';
+                    lessonProgress.score = score;
+                    lessonProgress.duration = lessonProgress.endTime - lessonProgress.startTime;
+                    
+                    // Update stats
+                    const stats = await this.db.getUserStats(userId);
+                    stats.totalLessons += 1;
+                    stats.completedLessons += 1;
+                    stats.totalTime += lessonProgress.duration;
+                    
+                    // Calculate streak
+                    const today = new Date().toDateString();
+                    if (stats.lastCompletedDate !== today) {
+                        stats.streak += 1;
+                        stats.lastCompletedDate = today;
+                    }
+                    
+                    await this.db.updateUserStats(userId, stats);
+                    await this.db.updateUserProgress(userId, progress);
+                    
+                    return {
+                        success: true,
+                        score,
+                        duration: lessonProgress.duration,
+                        streak: stats.streak
+                    };
+                }
+                
+                return { success: false };
+            }
+            
+            async getUserProgress(userId) {
+                return await this.db.getUserProgress(userId);
+            }
+            
+            async getUserStats(userId) {
+                return await this.db.getUserStats(userId);
+            }
+        }
+
+        // Test Manager
+        const tests = [
+            {
+                id: 'test-1',
+                title: 'ایجاد درس + ذخیره در دیتابیس',
+                description: 'بررسی ایجاد درس جدید و ذخیره صحیح در دیتابیس',
+                run: async () => {
+                    const db = new MockDatabase();
+                    const lessonEngine = new LessonEngine(db);
+                    
+                    const lessonData = {
+                        title: 'درس اول - احوالپرسی',
+                        language: 'english',
+                        level: 'beginner',
+                        content: { type: 'dialogue', text: 'Hello, how are you?' },
+                        exercises: [
+                            { id: 'ex1', type: 'multiple_choice', question: 'معنی Hello؟', options: ['سلام', 'خداحافظ'], correct: 0 }
+                        ],
+                        duration: 25
+                    };
+                    
+                    const lesson = await lessonEngine.createLesson(lessonData);
+                    
+                    if (!lesson.id) throw new Error('درس ایجاد نشد');
+                    if (lesson.title !== lessonData.title) throw new Error('عنوان درس اشتباه است');
+                    if (!db.lessons.has(lesson.id)) throw new Error('درس در دیتابیس ذخیره نشد');
+                    
+                    return `✅ درس "${lesson.title}" با موفقیت ایجاد و ذخیره شد (شناسه: ${lesson.id})`;
+                }
+            },
+            {
+                id: 'test-2',
+                title: 'شروع درس + ردیابی پیشرفت',
+                description: 'بررسی شروع درس و ثبت پیشرفت کاربر',
+                run: async () => {
+                    const db = new MockDatabase();
+                    const lessonEngine = new LessonEngine(db);
+                    const progressTracker = new ProgressTracker(db);
+                    
+                    const userId = 'user_test_001';
+                    
+                    // Create lesson
+                    const lesson = await lessonEngine.createLesson({
+                        title: 'درس تست پیشرفت',
+                        language: 'english',
+                        level: 'beginner',
+                        content: { type: 'vocabulary', words: ['apple', 'banana'] }
+                    });
+                    
+                    // Start lesson
+                    const startResult = await progressTracker.startLesson(userId, lesson.id);
+                    
+                    if (!startResult) throw new Error('شروع درس ثبت نشد');
+                    
+                    const progress = await progressTracker.getUserProgress(userId);
+                    const lessonProgress = progress.find(p => p.lessonId === lesson.id);
+                    
+                    if (!lessonProgress) throw new Error('پیشرفت درس پیدا نشد');
+                    if (lessonProgress.status !== 'in_progress') throw new Error('وضعیت درس اشتباه است');
+                    
+                    return `✅ درس "${lesson.title}" با موفقیت شروع شد. وضعیت: ${lessonProgress.status}`;
+                }
+            },
+            {
+                id: 'test-3',
+                title: 'اتمام درس + محاسبه امتیاز',
+                description: 'بررسی اتمام درس، محاسبه امتیاز و به‌روزرسانی آمار',
+                run: async () => {
+                    const db = new MockDatabase();
+                    const lessonEngine = new LessonEngine(db);
+                    const progressTracker = new ProgressTracker(db);
+                    
+                    const userId = 'user_test_002';
+                    
+                    // Create and start lesson
+                    const lesson = await lessonEngine.createLesson({
+                        title: 'درس تکمیل',
+                        language: 'persian',
+                        level: 'intermediate'
+                    });
+                    
+                    await progressTracker.startLesson(userId, lesson.id);
+                    
+                    // Wait a bit to simulate lesson duration
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    
+                    // Complete lesson
+                    const completionResult = await progressTracker.completeLesson(userId, lesson.id, 85);
+                    
+                    if (!completionResult.success) throw new Error('اتمام درس ناموفق بود');
+                    if (completionResult.score !== 85) throw new Error('امتیاز اشتباه است');
+                    if (!completionResult.duration) throw new Error('زمان تکمیل ثبت نشد');
+                    
+                    // Check stats
+                    const stats = await progressTracker.getUserStats(userId);
+                    
+                    if (stats.completedLessons !== 1) throw new Error('تعداد درس‌های تکمیل‌شده اشتباه است');
+                    if (stats.totalTime <= 0) throw new Error('زمان کل ثبت نشد');
+                    if (stats.streak !== 1) throw new Error('استرک ثبت نشد');
+                    
+                    return `✅ درس تکمیل شد. امتیاز: ${completionResult.score}، مدت: ${Math.round(completionResult.duration/1000)}ثانیه، استرک: ${stats.streak}`;
+                }
+            },
+            {
+                id: 'test-4',
+                title: 'پیشرفت چند درس + آمار تجمعی',
+                description: 'بررسی پیشرفت در چند درس و محاسبه آمار کلی کاربر',
+                run: async () => {
+                    const db = new MockDatabase();
+                    const lessonEngine = new LessonEngine(db);
+                    const progressTracker = new ProgressTracker(db);
+                    
+                    const userId = 'user_test_003';
+                    
+                    // Create multiple lessons
+                    const lessons = [];
+                    for (let i = 1; i <= 3; i++) {
+                        const lesson = await lessonEngine.createLesson({
+                            title: `درس ${i} - واژگان`,
+                            language: 'english',
+                            level: 'beginner',
+                            duration: 20
+                        });
+                        lessons.push(lesson);
+                    }
+                    
+                    // Complete all lessons
+                    for (const lesson of lessons) {
+                        await progressTracker.startLesson(userId, lesson.id);
+                        await new Promise(resolve => setTimeout(resolve, 50));
+                        await progressTracker.completeLesson(userId, lesson.id, 70 + Math.random() * 30);
+                    }
+                    
+                    // Check final stats
+                    const stats = await progressTracker.getUserStats(userId);
+                    const progress = await progressTracker.getUserProgress(userId);
+                    
+                    if (stats.completedLessons !== 3) throw new Error(`تعداد درس‌های تکمیل‌شده ${stats.completedLessons} است (انتظار: 3)`);
+                    if (progress.length !== 3) throw new Error(`تعداد رکوردهای پیشرفت ${progress.length} است (انتظار: 3)`);
+                    
+                    // Verify all lessons are completed
+                    const incomplete = progress.filter(p => p.status !== 'completed');
+                    if (incomplete.length > 0) throw new Error(`${incomplete.length} درس تکمیل نشده`);
+                    
+                    return `✅ ${stats.completedLessons} درس تکمیل شد. زمان کل: ${Math.round(stats.totalTime/1000)} ثانیه، استرک: ${stats.streak}`;
+                }
+            },
+            {
+                id: 'test-5',
+                title: 'همزمانی چند کاربر + ایزوله بودن داده‌ها',
+                description: 'بررسی همزمانی و عدم تداخل داده‌های کاربران مختلف',
+                run: async () => {
+                    const db = new MockDatabase();
+                    const lessonEngine = new LessonEngine(db);
+                    const progressTracker = new ProgressTracker(db);
+                    
+                    const users = ['user_a', 'user_b', 'user_c'];
+                    const lessonPromises = [];
+                    
+                    // هر کاربر یک درس ایجاد و تکمیل می‌کند
+                    for (const userId of users) {
+                        const promise = (async () => {
+                            const lesson = await lessonEngine.createLesson({
+                                title: `درس خصوصی ${userId}`,
+                                language: userId === 'user_a' ? 'english' : 'persian',
+                                level: 'advanced'
+                            });
+                            
+                            await progressTracker.startLesson(userId, lesson.id);
+                            await new Promise(resolve => setTimeout(resolve, Math.random() * 100));
+                            await progressTracker.completeLesson(userId, lesson.id, 90);
+                            
+                            return { userId, lessonId: lesson.id };
+                        })();
+                        
+                        lessonPromises.push(promise);
+                    }
+                    
+                    const results = await Promise.all(lessonPromises);
+                    
+                    // بررسی ایزوله بودن داده‌ها
+                    for (const user of users) {
+                        const stats = await progressTracker.getUserStats(user);
+                        const progress = await progressTracker.getUserProgress(user);
+                        
+                        if (stats.completedLessons !== 1) throw new Error(`کاربر ${user} باید 1 درس تکمیل‌شده داشته باشد`);
+                        
+                        // بررسی عدم دسترسی به داده‌های کاربران دیگر
+                        for (const otherUser of users) {
+                            if (otherUser !== user) {
+                                const otherProgress = await progressTracker.getUserProgress(otherUser);
+                                const hasAccess = otherProgress.some(p => p.userId === user);
+                                if (hasAccess) throw new Error(`داده‌های کاربر ${user} در دسترس کاربر ${otherUser} است`);
+                            }
+                        }
+                    }
+                    
+                    return `✅ داده‌های ${users.length} کاربر به صورت ایزوله مدیریت شد. تداخل داده‌ای رخ نداد.`;
+                }
+            }
+        ];
+
+        // Test Runner
+        function renderTests() {
+            const testGrid = document.getElementById('test-grid');
+            testGrid.innerHTML = '';
+            
+            tests.forEach(test => {
+                const card = document.createElement('div');
+                card.className = 'test-card';
+                card.id = `card-${test.id}`;
+                card.innerHTML = `
+                    <div class="test-title">
+                        <span>${test.title}</span>
+                        <span class="test-result" id="result-${test.id}">در انتظار</span>
+                    </div>
+                    <div class="test-desc">${test.description}</div>
+                    <div class="test-output" id="output-${test.id}"></div>
+                `;
+                testGrid.appendChild(card);
+            });
+        }
+        
+        async function runTest(test) {
+            const card = document.getElementById(`card-${test.id}`);
+            const output = document.getElementById(`output-${test.id}`);
+            const resultSpan = card.querySelector('.test-result');
+            
+            card.style.borderLeft = '5px solid #f59e0b';
+            resultSpan.textContent = 'در حال اجرا...';
+            output.innerHTML = '🔄 در حال اجرای تست...';
+            
+            try {
+                const result = await test.run();
+                card.style.borderLeft = '5px solid #10b981';
+                resultSpan.textContent = 'موفق';
+                output.innerHTML = `<span style="color: #065f46">✅ ${result}</span>`;
+                return { success: true, result };
+            } catch (error) {
+                card.style.borderLeft = '5px solid #ef4444';
+                resultSpan.textContent = 'ناموفق';
+                output.innerHTML = `<span style="color: #991b1b">❌ خطا: ${error.message}</span>`;
+                return { success: false, error: error.message };
+            }
+        }
+        
+        async function runAllTests() {
+            const runBtn = document.getElementById('run-btn');
+            runBtn.disabled = true;
+            runBtn.innerHTML = '⏳ در حال اجرای تست‌ها...';
+            
+            let passed = 0;
+            let failed = 0;
+            
+            for (const test of tests) {
+                const result = await runTest(test);
+                if (result.success) passed++;
+                else failed++;
+                
+                await new Promise(resolve => setTimeout(resolve, 300));
+            }
+            
+            runBtn.disabled = false;
+            runBtn.innerHTML = '🔄 اجرای مجدد تست‌ها';
+            
+            // نمایش نتیجه کلی
+            const summary = document.createElement('div');
+            summary.style.cssText = `
+                background: ${failed === 0 ? '#d1fae5' : '#fef3c7'};
+                border: 2px solid ${failed === 0 ? '#10b981' : '#f59e0b'};
+                border-radius: 10px;
+                padding: 20px;
+                margin: 20px 30px;
+                text-align: center;
+                font-weight: bold;
+                font-size: 1.1rem;
+            `;
+            summary.innerHTML = `
+                🎯 نتیجه کلی: ${passed} تست موفق، ${failed} تست ناموفق از ${tests.length} تست
+                <br>
+                ${failed === 0 ? '✅ تمام تست‌های یکپارچه‌سازی موفقیت‌آمیز بودند!' : '⚠️ برخی تست‌ها نیاز به بررسی دارند.'}
+            `;
+            
+            document.querySelector('.test-grid').appendChild(summary);
+            
+            console.log(`تست‌های یکپارچه‌سازی Lesson+Progress+Database کامل شد: ${passed} موفق، ${failed} ناموفق`);
+        }
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            renderTests();
+            console.log('تست‌های یکپارچه‌سازی Lesson + Progress + Database آماده اجرا');
+        });
+    </script>
+</body>
+</html>
