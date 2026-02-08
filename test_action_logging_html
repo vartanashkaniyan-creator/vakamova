@@ -1,0 +1,1018 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تست Action Logging - Vakamova</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+        
+        header {
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+        }
+        
+        .badge {
+            background: #10b981;
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: bold;
+        }
+        
+        .main-content {
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            gap: 20px;
+            padding: 30px;
+        }
+        
+        .sidebar {
+            background: #f8fafc;
+            border-radius: 15px;
+            padding: 20px;
+            border: 2px solid #e2e8f0;
+        }
+        
+        .sidebar h3 {
+            color: #4f46e5;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e2e8f0;
+        }
+        
+        .test-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .test-btn {
+            background: white;
+            border: 2px solid #4f46e5;
+            color: #4f46e5;
+            padding: 12px;
+            border-radius: 10px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .test-btn:hover {
+            background: #4f46e5;
+            color: white;
+            transform: translateY(-2px);
+        }
+        
+        .test-btn.active {
+            background: #4f46e5;
+            color: white;
+        }
+        
+        .test-results {
+            background: #f8fafc;
+            border-radius: 15px;
+            padding: 20px;
+            border: 2px solid #e2e8f0;
+        }
+        
+        .test-result {
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 10px;
+            border-left: 5px solid #f59e0b;
+        }
+        
+        .test-result.passed {
+            border-left-color: #10b981;
+            background: #f0fdf4;
+        }
+        
+        .test-result.failed {
+            border-left-color: #ef4444;
+            background: #fef2f2;
+        }
+        
+        .test-result h4 {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+        
+        .status-badge {
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+        
+        .passed .status-badge {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        
+        .failed .status-badge {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        
+        .test-output {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            margin-top: 10px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        
+        .log-viewer {
+            grid-column: 1 / -1;
+            background: #1e293b;
+            color: #e2e8f0;
+            border-radius: 15px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+        
+        .log-viewer h3 {
+            color: #94a3b8;
+            margin-bottom: 15px;
+        }
+        
+        .log-entries {
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .log-entry {
+            padding: 5px 10px;
+            border-bottom: 1px solid #334155;
+            display: flex;
+            gap: 10px;
+        }
+        
+        .log-time {
+            color: #94a3b8;
+            min-width: 80px;
+        }
+        
+        .log-level {
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 0.7rem;
+            font-weight: bold;
+        }
+        
+        .log-level.info { background: #3b82f6; color: white; }
+        .log-level.warn { background: #f59e0b; color: white; }
+        .log-level.error { background: #ef4444; color: white; }
+        .log-level.success { background: #10b981; color: white; }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .stat-box {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+        }
+        
+        .stat-value {
+            font-size: 2rem;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .stat-label {
+            font-size: 0.9rem;
+            color: #6b7280;
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #e2e8f0;
+            border-top-color: #4f46e5;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>
+                <span>📝 تست Action Logging</span>
+                <span class="badge">Vakamova</span>
+            </h1>
+            <p>سیستم ثبت و مدیریت لاگ عملیات</p>
+        </header>
+        
+        <div class="main-content">
+            <div class="sidebar">
+                <h3>🏃 تست‌ها</h3>
+                <div class="test-controls">
+                    <button class="test-btn" onclick="runTest(1)">۱. ساخت Logger</button>
+                    <button class="test-btn" onclick="runTest(2)">۲. بازیابی Logها</button>
+                    <button class="test-btn" onclick="runTest(3)">۳. فیلتر و جستجو</button>
+                    <button class="test-btn" onclick="runTest(4)">۴. پاک‌سازی Logها</button>
+                    <button class="test-btn" onclick="runTest(5)">۵. Import/Export</button>
+                    <button class="test-btn" onclick="runTest(6)">۶. Performance</button>
+                    <button class="test-btn" onclick="runTest(7)">۷. تست جامع</button>
+                    <button class="test-btn active" onclick="runAllTests()" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
+                        ▶️ اجرای همه تست‌ها
+                    </button>
+                </div>
+                
+                <div class="stats">
+                    <div class="stat-box">
+                        <div class="stat-value" id="total-tests">0</div>
+                        <div class="stat-label">کل تست‌ها</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-value" id="passed-tests">0</div>
+                        <div class="stat-label">موفق</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-value" id="failed-tests">0</div>
+                        <div class="stat-label">ناموفق</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-value" id="success-rate">0%</div>
+                        <div class="stat-label">موفقیت</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="test-results" id="test-results">
+                <!-- نتایج تست‌ها اینجا نمایش داده می‌شوند -->
+            </div>
+        </div>
+        
+        <div class="log-viewer">
+            <h3>📋 Live Log Viewer</h3>
+            <div class="log-entries" id="log-entries">
+                <!-- لاگ‌های زنده اینجا نمایش داده می‌شوند -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ==================== سیستم Action Logging ====================
+        class ActionLogger {
+            constructor(maxLogs = 1000, autoSave = true) {
+                this.maxLogs = maxLogs;
+                this.autoSave = autoSave;
+                this.logs = [];
+                this.loadFromStorage();
+                this.listeners = [];
+            }
+            
+            log(action, data = {}, level = 'info') {
+                const logEntry = {
+                    id: `log_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                    timestamp: Date.now(),
+                    action: action,
+                    data: this._sanitizeData(data),
+                    level: level,
+                    userAgent: navigator.userAgent,
+                    sessionId: this._getSessionId()
+                };
+                
+                this.logs.unshift(logEntry); // جدیدترین لاگ اول
+                
+                if (this.logs.length > this.maxLogs) {
+                    this.logs = this.logs.slice(0, this.maxLogs);
+                }
+                
+                if (this.autoSave) {
+                    this.saveToStorage();
+                }
+                
+                this._notifyListeners(logEntry);
+                this._updateLiveLog(logEntry);
+                
+                return logEntry;
+            }
+            
+            getLogs(filter = {}) {
+                let filteredLogs = [...this.logs];
+                
+                if (filter.level) {
+                    filteredLogs = filteredLogs.filter(log => log.level === filter.level);
+                }
+                
+                if (filter.startDate && filter.endDate) {
+                    filteredLogs = filteredLogs.filter(log => 
+                        log.timestamp >= filter.startDate && 
+                        log.timestamp <= filter.endDate
+                    );
+                }
+                
+                if (filter.action) {
+                    filteredLogs = filteredLogs.filter(log => 
+                        log.action.toLowerCase().includes(filter.action.toLowerCase())
+                    );
+                }
+                
+                if (filter.searchText) {
+                    filteredLogs = filteredLogs.filter(log => 
+                        JSON.stringify(log).toLowerCase().includes(filter.searchText.toLowerCase())
+                    );
+                }
+                
+                if (filter.limit) {
+                    filteredLogs = filteredLogs.slice(0, filter.limit);
+                }
+                
+                return filteredLogs;
+            }
+            
+            clearLogs(olderThan = null) {
+                if (olderThan) {
+                    const cutoffTime = Date.now() - olderThan;
+                    this.logs = this.logs.filter(log => log.timestamp > cutoffTime);
+                } else {
+                    this.logs = [];
+                }
+                
+                this.saveToStorage();
+                return this.logs.length;
+            }
+            
+            exportLogs(format = 'json') {
+                const exportData = {
+                    meta: {
+                        exportedAt: Date.now(),
+                        totalLogs: this.logs.length,
+                        format: format,
+                        version: '1.0'
+                    },
+                    logs: this.logs
+                };
+                
+                if (format === 'json') {
+                    return JSON.stringify(exportData, null, 2);
+                } else if (format === 'csv') {
+                    return this._convertToCSV(exportData.logs);
+                }
+                
+                return exportData;
+            }
+            
+            importLogs(data) {
+                try {
+                    const parsed = typeof data === 'string' ? JSON.parse(data) : data;
+                    
+                    if (!parsed.logs || !Array.isArray(parsed.logs)) {
+                        throw new Error('فرمت داده‌ها نامعتبر است');
+                    }
+                    
+                    const validLogs = parsed.logs.filter(log => 
+                        log.timestamp && log.action && log.level
+                    );
+                    
+                    this.logs = [...validLogs, ...this.logs].slice(0, this.maxLogs);
+                    this.saveToStorage();
+                    
+                    return validLogs.length;
+                } catch (error) {
+                    console.error('خطا در import لاگ‌ها:', error);
+                    return 0;
+                }
+            }
+            
+            getStatistics() {
+                const levels = {};
+                const actions = {};
+                let totalSize = 0;
+                
+                this.logs.forEach(log => {
+                    levels[log.level] = (levels[log.level] || 0) + 1;
+                    actions[log.action] = (actions[log.action] || 0) + 1;
+                    totalSize += JSON.stringify(log).length;
+                });
+                
+                return {
+                    totalLogs: this.logs.length,
+                    levels: levels,
+                    topActions: Object.entries(actions)
+                        .sort((a, b) => b[1] - a[1])
+                        .slice(0, 5),
+                    sizeKB: (totalSize / 1024).toFixed(2),
+                    oldestLog: this.logs.length > 0 ? Math.min(...this.logs.map(l => l.timestamp)) : null,
+                    newestLog: this.logs.length > 0 ? Math.max(...this.logs.map(l => l.timestamp)) : null
+                };
+            }
+            
+            saveToStorage() {
+                try {
+                    localStorage.setItem('vakamova_action_logs', JSON.stringify({
+                        logs: this.logs,
+                        lastSaved: Date.now()
+                    }));
+                } catch (e) {
+                    console.warn('ذخیره لاگ‌ها در localStorage با خطا مواجه شد:', e);
+                }
+            }
+            
+            loadFromStorage() {
+                try {
+                    const saved = localStorage.getItem('vakamova_action_logs');
+                    if (saved) {
+                        const parsed = JSON.parse(saved);
+                        this.logs = parsed.logs || [];
+                    }
+                } catch (e) {
+                    console.warn('بارگذاری لاگ‌ها از localStorage با خطا مواجه شد:', e);
+                    this.logs = [];
+                }
+            }
+            
+            addListener(callback) {
+                this.listeners.push(callback);
+            }
+            
+            removeListener(callback) {
+                this.listeners = this.listeners.filter(listener => listener !== callback);
+            }
+            
+            // ========== متدهای خصوصی ==========
+            _sanitizeData(data) {
+                // حذف داده‌های حساس
+                const sensitiveKeys = ['password', 'token', 'creditCard', 'cvv'];
+                const sanitized = {...data};
+                
+                sensitiveKeys.forEach(key => {
+                    if (sanitized[key]) {
+                        sanitized[key] = '***REMOVED***';
+                    }
+                });
+                
+                return sanitized;
+            }
+            
+            _getSessionId() {
+                let sessionId = sessionStorage.getItem('vakamova_session_id');
+                if (!sessionId) {
+                    sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+                    sessionStorage.setItem('vakamova_session_id', sessionId);
+                }
+                return sessionId;
+            }
+            
+            _notifyListeners(logEntry) {
+                this.listeners.forEach(listener => {
+                    try {
+                        listener(logEntry);
+                    } catch (e) {
+                        console.error('خطا در listener لاگ:', e);
+                    }
+                });
+            }
+            
+            _updateLiveLog(logEntry) {
+                const logEntries = document.getElementById('log-entries');
+                if (logEntries) {
+                    const time = new Date(logEntry.timestamp).toLocaleTimeString('fa-IR');
+                    const levelClass = `log-level ${logEntry.level}`;
+                    
+                    const entry = document.createElement('div');
+                    entry.className = 'log-entry';
+                    entry.innerHTML = `
+                        <span class="log-time">${time}</span>
+                        <span class="${levelClass}">${logEntry.level.toUpperCase()}</span>
+                        <span>${logEntry.action}</span>
+                        <span style="color: #94a3b8; margin-left: auto;">${JSON.stringify(logEntry.data).substring(0, 50)}...</span>
+                    `;
+                    
+                    logEntries.insertBefore(entry, logEntries.firstChild);
+                    
+                    if (logEntries.children.length > 50) {
+                        logEntries.removeChild(logEntries.lastChild);
+                    }
+                }
+            }
+            
+            _convertToCSV(logs) {
+                if (logs.length === 0) return '';
+                
+                const headers = ['timestamp', 'action', 'level', 'data', 'sessionId'];
+                const rows = logs.map(log => [
+                    new Date(log.timestamp).toISOString(),
+                    log.action,
+                    log.level,
+                    JSON.stringify(log.data),
+                    log.sessionId
+                ]);
+                
+                const csvContent = [
+                    headers.join(','),
+                    ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+                ].join('\n');
+                
+                return csvContent;
+            }
+        }
+
+        // ==================== تست‌ها ====================
+        const tests = [
+            {
+                id: 1,
+                name: 'ساخت Logger',
+                description: 'بررسی ایجاد صحیح ActionLogger با تنظیمات پیش‌فرض',
+                run: async () => {
+                    const logger = new ActionLogger();
+                    
+                    if (!logger.logs) throw new Error('فیلد logs ایجاد نشده');
+                    if (!Array.isArray(logger.logs)) throw new Error('logs باید آرایه باشد');
+                    if (logger.maxLogs !== 1000) throw new Error('maxLogs پیش‌فرض اشتباه است');
+                    
+                    return '✅ Logger با موفقیت ساخته شد';
+                }
+            },
+            {
+                id: 2,
+                name: 'بازیابی Logها',
+                description: 'بررسی ثبت و بازیابی لاگ‌ها',
+                run: async () => {
+                    const logger = new ActionLogger(50);
+                    
+                    // ثبت لاگ‌های تست
+                    const testActions = [
+                        { action: 'user_login', data: { userId: '123', method: 'email' }, level: 'info' },
+                        { action: 'payment_initiated', data: { amount: 50000, currency: 'IRR' }, level: 'success' },
+                        { action: 'lesson_completed', data: { lessonId: 'L101', score: 95 }, level: 'info' },
+                        { action: 'error_occurred', data: { code: 'NETWORK_ERROR', message: 'Timeout' }, level: 'error' },
+                        { action: 'warning_detected', data: { type: 'LOW_BATTERY', percent: 15 }, level: 'warn' }
+                    ];
+                    
+                    testActions.forEach(action => logger.log(action.action, action.data, action.level));
+                    
+                    // بررسی تعداد لاگ‌ها
+                    if (logger.logs.length !== 5) {
+                        throw new Error(`تعداد لاگ‌ها ${logger.logs.length} است (انتظار: 5)`);
+                    }
+                    
+                    // بررسی ترتیب زمانی (جدیدترین اول)
+                    const timestamps = logger.logs.map(log => log.timestamp);
+                    for (let i = 1; i < timestamps.length; i++) {
+                        if (timestamps[i] > timestamps[i-1]) {
+                            throw new Error('لاگ‌ها به ترتیب زمانی معکوس نیستند');
+                        }
+                    }
+                    
+                    // بررسی محتوا
+                    const lastLog = logger.logs[0];
+                    if (lastLog.action !== 'warning_detected') {
+                        throw new Error('آخرین لاگ اشتباه ثبت شده');
+                    }
+                    
+                    // بررسی محدودیت تعداد
+                    for (let i = 0; i < 60; i++) {
+                        logger.log(`test_action_${i}`, { index: i });
+                    }
+                    
+                    if (logger.logs.length > 50) {
+                        throw new Error(`محدودیت maxLogs رعایت نشده: ${logger.logs.length} لاگ`);
+                    }
+                    
+                    return `✅ ${logger.logs.length} لاگ با موفقیت ثبت و مدیریت شدند`;
+                }
+            },
+            {
+                id: 3,
+                name: 'فیلتر و جستجو',
+                description: 'بررسی سیستم فیلتر و جستجوی پیشرفته',
+                run: async () => {
+                    const logger = new ActionLogger();
+                    logger.clearLogs();
+                    
+                    // ایجاد لاگ‌های تستی متنوع
+                    const now = Date.now();
+                    const oneHour = 3600000;
+                    
+                    const testLogs = [
+                        { timestamp: now - oneHour*2, action: 'A', level: 'info', data: {x: 1} },
+                        { timestamp: now - oneHour, action: 'B', level: 'error', data: {x: 2} },
+                        { timestamp: now, action: 'C', level: 'success', data: {x: 3} },
+                        { timestamp: now - oneHour*3, action: 'ERROR_TEST', level: 'error', data: {message: 'خطای شبکه'} },
+                        { timestamp: now - oneHour*0.5, action: 'PAYMENT_SUCCESS', level: 'success', data: {amount: 10000} }
+                    ];
+                    
+                    testLogs.forEach(log => {
+                        logger.logs.unshift({ // شبیه‌سازی ثبت
+                            ...log,
+                            id: `test_${log.timestamp}`,
+                            sessionId: 'test_session',
+                            userAgent: 'test'
+                        });
+                    });
+                    
+                    // تست فیلتر level
+                    const errorLogs = logger.getLogs({ level: 'error' });
+                    if (errorLogs.length !== 2) {
+                        throw new Error(`فیلتر level اشتباه: ${errorLogs.length} لاگ (انتظار: 2)`);
+                    }
+                    
+                    // تست فیلتر تاریخ
+                    const recentLogs = logger.getLogs({ 
+                        startDate: now - oneHour*1.5, 
+                        endDate: now 
+                    });
+                    if (recentLogs.length !== 3) {
+                        throw new Error(`فیلتر تاریخ اشتباه: ${recentLogs.length} لاگ (انتظار: 3)`);
+                    }
+                    
+                    // تست جستجوی متن
+                    const paymentLogs = logger.getLogs({ searchText: 'payment' });
+                    if (paymentLogs.length !== 1) {
+                        throw new Error(`جستجوی متن اشتباه: ${paymentLogs.length} لاگ (انتظار: 1)`);
+                    }
+                    
+                    // تست limit
+                    const limitedLogs = logger.getLogs({ limit: 2 });
+                    if (limitedLogs.length !== 2) {
+                        throw new Error(`limit اشتباه: ${limitedLogs.length} لاگ (انتظار: 2)`);
+                    }
+                    
+                    return '✅ سیستم فیلتر و جستجو به درستی کار می‌کند';
+                }
+            },
+            {
+                id: 4,
+                name: 'پاک‌سازی Logها',
+                description: 'بررسی پاک‌سازی انتخابی و کامل لاگ‌ها',
+                run: async () => {
+                    const logger = new ActionLogger();
+                    
+                    // ایجاد لاگ‌های قدیمی و جدید
+                    const now = Date.now();
+                    const oneDay = 86400000;
+                    
+                    for (let i = 0; i < 10; i++) {
+                        logger.logs.unshift({
+                            id: `log_${i}`,
+                            timestamp: now - (oneDay * i),
+                            action: `action_${i}`,
+                            data: {},
+                            level: 'info',
+                            sessionId: 'test',
+                            userAgent: 'test'
+                        });
+                    }
+                    
+                    // پاک‌سازی لاگ‌های قدیمی‌تر از 3 روز
+                    const initialCount = logger.logs.length;
+                    const remaining = logger.clearLogs(oneDay * 3);
+                    
+                    if (remaining !== 4) { // 4 لاگ در 3 روز اخیر
+                        throw new Error(`پاک‌سازی انتخابی اشتباه: ${remaining} لاگ باقی‌مانده (انتظار: 4)`);
+                    }
+                    
+                    // پاک‌سازی کامل
+                    logger.clearLogs();
+                    if (logger.logs.length !== 0) {
+                        throw new Error(`پاک‌سازی کامل کار نکرد: ${logger.logs.length} لاگ باقی‌مانده`);
+                    }
+                    
+                    // بررسی ذخیره‌سازی
+                    logger.saveToStorage();
+                    logger.loadFromStorage();
+                    if (logger.logs.length !== 0) {
+                        throw new Error('ذخیره‌سازی پس از پاک‌سازی کار نکرد');
+                    }
+                    
+                    return '✅ پاک‌سازی لاگ‌ها به درستی انجام شد';
+                }
+            },
+            {
+                id: 5,
+                name: 'Import/Export',
+                description: 'بررسی ذخیره‌سازی و بازیابی لاگ‌ها',
+                run: async () => {
+                    const logger = new ActionLogger();
+                    logger.clearLogs();
+                    
+                    // ایجاد لاگ‌های تستی
+                    const testLogs = [
+                        { action: 'EXPORT_TEST_1', data: { test: true }, level: 'info' },
+                        { action: 'EXPORT_TEST_2', data: { number: 42 }, level: 'success' },
+                        { action: 'EXPORT_TEST_3', data: { error: 'test' }, level: 'error' }
+                    ];
+                    
+                    testLogs.forEach(log => logger.log(log.action, log.data, log.level));
+                    
+                    // Export به JSON
+                    const jsonExport = logger.exportLogs('json');
+                    if (!jsonExport.includes('EXPORT_TEST_1')) {
+                        throw new Error('خروجی JSON شامل لاگ‌ها نیست');
+                    }
+                    
+                    // Export به CSV
+                    const csvExport = logger.exportLogs('csv');
+                    if (!csvExport.includes('EXPORT_TEST_2')) {
+                        throw new Error('خروجی CSV شامل لاگ‌ها نیست');
+                    }
+                    
+                    // Import
+                    const newLogger = new ActionLogger();
+                    newLogger.clearLogs();
+                    
+                    const importedCount = newLogger.importLogs(jsonExport);
+                    if (importedCount !== 3) {
+                        throw new Error(`Import اشتباه: ${importedCount} لاگ وارد شده (انتظار: 3)`);
+                    }
+                    
+                    // بررسی یکسانی داده‌ها
+                    if (newLogger.logs[0].action !== 'EXPORT_TEST_3') {
+                        throw new Error('ترتیب لاگ‌ها در Import حفظ نشده');
+                    }
+                    
+                    // تست Import نامعتبر
+                    try {
+                        newLogger.importLogs('invalid json');
+                        throw new Error('باید برای json نامعتبر خطا می‌داد');
+                    } catch (e) {
+                        // موفق: خطا گرفتیم
+                    }
+                    
+                    return '✅ Import/Export با موفقیت انجام شد';
+                }
+            },
+            {
+                id: 6,
+                name: 'Performance',
+                description: 'بررسی عملکرد با حجم بالای داده',
+                run: async () => {
+                    const logger = new ActionLogger(10000);
+                    logger.clearLogs();
+                    
+                    // تست ثبت سریع
+                    const startTime = performance.now();
+                    const count = 500;
+                    
+                    for (let i = 0; i < count; i++) {
+                        logger.log(`perf_action_${i}`, { index: i, data: 'x'.repeat(100) });
+                    }
+                    
+                    const logTime = performance.now() - startTime;
+                    const avgTime = logTime / count;
+                    
+                    if (avgTime > 5) { // بیش از 5ms میانگین قابل قبول نیست
+                        throw new Error(`زمان ثبت لاگ بسیار بالا: ${avgTime.toFixed(2)}ms متوسط`);
+                    }
+                    
+                    // تست جستجو با حجم بالا
+                    const searchStart = performance.now();
+                    const results = logger.getLogs({ searchText: 'perf_action_250' });
+                    const searchTime = performance.now() - searchStart;
+                    
+                    if (searchTime > 100) { // بیش از 100ms برای جستجو قابل قبول نیست
+                        throw new Error(`زمان جستجو بسیار بالا: ${searchTime.toFixed(2)}ms`);
+                    }
+                    
+                    // تست آمارگیری
+                    const statsStart = performance.now();
+                    const stats = logger.getStatistics();
+                    const statsTime = performance.now() - statsStart;
+                    
+                    if (statsTime > 50) {
+                        throw new Error(`زمان محاسبه آمار بسیار بالا: ${statsTime.toFixed(2)}ms`);
+                    }
+                    
+                    return `✅ Performance عالی - ثبت: ${avgTime.toFixed(2)}ms, جستجو: ${searchTime.toFixed(2)}ms, آمار: ${statsTime.toFixed(2)}ms`;
+                }
+            },
+            {
+                id: 7,
+                name: 'تست جامع',
+                description: 'بررسی تمام قابلیت‌ها در یک سناریو واقعی',
+                run: async () => {
+                    const logger = new ActionLogger(100);
+                    
+                    // شبیه‌سازی یک سناریو کاربری واقعی
+                    logger.log('app_started', { version: '1.0.0', platform: 'web' });
+                    logger.log('user_login', { userId: 'u123', method: 'email' }, 'success');
+                    logger.log('lesson_started', { lessonId: 'L101', level: 'beginner' });
+                    
+                    // لاگ حاوی داده حساس
+                    logger.log('payment_attempt', { 
+                        userId: 'u123', 
+                        amount: 50000,
+                        cardNumber: '1234567812345678', // باید پاک شود
+                        cvv: '123' // باید پاک شود
+                    });
+                    
+                    // بررسی پاک شدن داده‌های حساس
+                    const paymentLog = logger.logs.find(l => l.action === 'payment_attempt');
+                    if (paymentLog.data.cardNumber !== '***REMOVED***' || paymentLog.data.cvv !== '***REMOVED***') {
+                        throw new Error('داده‌های حساس پاک نشده‌اند');
+                    }
+                    
+                    // ادامه سناریو
+                    logger.log('lesson_completed', { lessonId: 'L101', score: 92, timeSpent: 1800 }, 'success');
+                    logger.log('error_occurred', { code: 'AUDIO_ERROR', message: 'Could not play sound' }, 'error');
+                    logger.log('app_background', { reason: 'user_switch' }, 'info');
+                    
+                    // بررسی آمار
+                    const stats = logger.getStatistics();
+                    if (stats.totalLogs !== 6) {
+                        throw new Error(`آمار تعداد اشتباه: ${stats.totalLogs} لاگ (انتظار: 6)`);
+                    }
+                    
+                    // بررسی listenerها
+                    let listenerCalled = false;
+                    logger.addListener((logEntry) => {
+                        listenerCalled = true;
+                    });
+                    
+                    logger.log('test_listener', { test: true });
+                    
+                    if (!listenerCalled) {
+                        throw new Error('Listener لاگ فراخوانی نشد');
+                    }
+                    
+                    // بررسی Live Log
+                    const liveLogs = document.getElementById('log-entries').children;
+                    if (liveLogs.length === 0) {
+                        throw new Error('Live Log Viewer کار نمی‌کند');
+                    }
+                    
+                    return `✅ تست جامع موفق - ${stats.totalLogs} لاگ، ${Object.keys(stats.levels).length} سطح مختلف`;
+                }
+            }
+        ];
+
+        // ==================== مدیریت تست‌ها ====================
+        const TestManager = {
+            currentTest: null,
+            results: [],
+            
+            displayResult(testId, success, message, details = '') {
+                const resultsDiv = document.getElementById('test-results');
+                const resultDiv = document.createElement('div');
+                
+                resultDiv.className = `test-result ${success ? 'passed' : 'failed'}`;
+                resultDiv.id = `test-result-${testId}`;
+                resultDiv.innerHTML = `
+                    <h4>
+                        <span>${testId}. ${tests.find(t => t.id === testId).name}</span>
+                        <span class="status-badge">${success ? '✅ موفق' : '❌ ناموفق'}</span>
+                    </h4>
+                    <p>${tests.find(t => t.id === testId).description}</p>
+                    <div class="test-output">${message}${details ? `<br><small>${details}</small>` : ''}</div>
+                `;
+                
+                // اضافه کردن به ابتدای لیست
+                if (resultsDiv.firstChild) {
+                    resultsDiv.insertBefore(resultDiv, resultsDiv.firstChild);
+                } else {
+                    resultsDiv.appendChild(resultDiv);
+                }
+                
+                // ذخیره نتیجه
+                this.results[testId] = { success, message };
+                this.updateStats();
+            },
+            
+            async runTest(testId) {
+                const test = tests.find(t => t.id === testId);
+                if (!test) return;
+                
+                this.currentTest = testId;
+                
+                try {
+                    const result = await test.run();
+                    this.displayResult(testId, true, result);
+                    
+                    // ثبت لاگ موفقیت
+                    window.logger?.log('test_passed', { testId, testName: test.name }, 'success');
+                    
+                } catch (error) {
+                    this.displayResult(testId, false, error.message, error.stack);
+                    
+                    // ثبت لاگ خطا
+                    window.logger?.log('test_failed', { 
+                        testId, 
+                        testName: test.name,
+                        error: error.message 
+                    }, 'error');
+                }
+            },
+            
+            async runAllTests() {
+                // پاک کردن نتایج قبلی
+                document.getElementById('test-results').innerHTML = '';
+                this.results = [];
+                
+                // اجرای همه تست‌ها
+                for (const test of tests) {
+                    await this.runTest(test.id);
+                    await new Promise(resolve => setTimeout(resolve, 300)); // وقفه برای نمایش
+                }
+                
+                // ثبت لاگ تکمیل
+                const passed = this.results.filter(r => r?.success).length;
+                window.logger?.log('tests_completed', { 
+                    total: tests.length, 
+                    passed: passed,
+                    failed: tests.length - passed
+                }, passed === tests.length ? 'success' : 'warn');
+            },
+            
+            updateStats() {
+                const total = tests.length;
+                const passed = this.results.filter(r => r?.success).length;
+                const failed = total - passed;
+                const rate = total > 0 ? Math.round((passed / total) * 100) : 0;
+                
+                document.getElementById('total-tests').textContent = total;
+                document.getElementById('passed-tests').textContent = passed;
+                document.getElementById('failed-tests').textContent = failed;
+                document.getElementById('success-rate').textContent = `${rate}%`;
+            }
+        };
+
+        // ==================== راه‌اندازی ====================
+        document.addEventListener('DOMContentLoaded', () => {
+            // ایجاد logger جهانی
+            window.logger = new ActionLogger();
+            
+            // ثبت رویداد شروع
+            logger.log('test_suite_started', { 
+                suite: 'Action Logging',
+                time: new Date().toISOString()
+            }, 'info');
+            
+            // به‌روزرسانی آمار اولیه
+            TestManager.updateStats();
+            
+            // نمایش لاگ‌های خوش‌آمدگویی
+            logger.log('system', { message: 'تست Action Logging آماده است' }, 'info');
+            logger.log('instruction', { message: 'روی دکمه تست‌ها کلیک کنید' }, 'info');
+            
+            console.log('🚀 تست Action Logging آماده اجرا است');
+        });
+
+        // ==================== توابع عمومی ====================
+        function runTest(testId) {
+            TestManager.runTest(testId);
+        }
+        
+        function runAllTests() {
+            TestManager.runAllTests();
+        }
+    </script>
+</body>
+</html>
