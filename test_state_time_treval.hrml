@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تست Time Travel - Vakamova</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #333; padding: 20px; min-height: 100vh; }
+        .container { max-width: 1200px; margin: 0 auto; background: rgba(255,255,255,0.95); border-radius: 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); overflow: hidden; }
+        header { background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); color: white; padding: 30px; text-align: center; }
+        header h1 { font-size: 2rem; margin-bottom: 10px; display: flex; align-items: center; justify-content: center; gap: 15px; }
+        .badge { background: #10b981; color: white; padding: 5px 15px; border-radius: 20px; font-size: 0.9rem; font-weight: bold; }
+        .test-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; padding: 30px; }
+        .test-card { background: white; border-radius: 15px; padding: 25px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); border: 2px solid transparent; transition: all 0.3s ease; }
+        .test-card:hover { transform: translateY(-5px); border-color: #4f46e5; box-shadow: 0 15px 40px rgba(79,70,229,0.15); }
+        .test-card.passed { border-left: 5px solid #10b981; }
+        .test-card.failed { border-left: 5px solid #ef4444; }
+        .test-card.pending { border-left: 5px solid #f59e0b; }
+        .test-title { font-size: 1.2rem; font-weight: bold; margin-bottom: 15px; color: #1f2937; display: flex; justify-content: space-between; align-items: center; }
+        .test-result { padding: 5px 15px; border-radius: 20px; font-size: 0.85rem; font-weight: bold; }
+        .passed .test-result { background: #d1fae5; color: #065f46; }
+        .failed .test-result { background: #fee2e2; color: #991b1b; }
+        .pending .test-result { background: #fef3c7; color: #92400e; }
+        .test-desc { color: #6b7280; margin-bottom: 20px; font-size: 0.9rem; }
+        .test-output { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 15px; font-family: 'Courier New', monospace; font-size: 0.85rem; margin-top: 15px; max-height: 200px; overflow-y: auto; direction: ltr; }
+        .test-output.success { background: #f0fdf4; border-color: #bbf7d0; }
+        .test-output.error { background: #fef2f2; border-color: #fecaca; }
+        .time-travel-ui { background: #f1f5f9; padding: 20px; margin: 20px 30px; border-radius: 15px; border: 2px dashed #cbd5e1; }
+        .timeline { display: flex; overflow-x: auto; gap: 10px; padding: 15px; background: white; border-radius: 10px; }
+        .snapshot { background: #e0e7ff; padding: 10px 15px; border-radius: 8px; min-width: 100px; text-align: center; cursor: pointer; transition: all 0.2s; border: 2px solid transparent; }
+        .snapshot:hover { background: #c7d2fe; }
+        .snapshot.active { background: #4f46e5; color: white; border-color: #3730a3; }
+        .action-buttons { display: flex; gap: 10px; margin-top: 15px; }
+        button { background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); color: white; border: none; padding: 10px 20px; border-radius: 8px; font-size: 0.9rem; cursor: pointer; transition: all 0.3s; }
+        button:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(79,70,229,0.4); }
+        button:disabled { background: #9ca3af; cursor: not-allowed; transform: none; }
+        #state-view { background: #0f172a; color: #e2e8f0; padding: 15px; margin: 20px 30px; border-radius: 10px; font-family: 'Courier New', monospace; font-size: 0.9rem; max-height: 200px; overflow-y: auto; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1><span>⏱️ تست Time Travel State</span><span class="badge">Vakamova</span></h1>
+            <p>سیستم پرش بین Snapshotها + مدیریت تاریخچه کامل</p>
+        </header>
+
+        <div class="time-travel-ui">
+            <h3>📅 Timeline - تاریخچه Snapshotها</h3>
+            <div class="timeline" id="timeline"></div>
+            <div class="action-buttons">
+                <button id="btn-snapshot">📸 ایجاد Snapshot جدید</button>
+                <button id="btn-jump-back">⏪ پرش به عقب</button>
+                <button id="btn-jump-forward">⏩ پرش به جلو</button>
+                <button id="btn-clear-history">🗑️ پاک کردن تاریخچه</button>
+            </div>
+            <div style="margin-top: 15px;">
+                <input type="range" id="time-slider" min="0" max="10" value="0" style="width: 100%;">
+                <div style="display: flex; justify-content: space-between; font-size: 0.8rem; color: #64748b;">
+                    <span>گذشته</span>
+                    <span id="slider-value">Snapshot 0</span>
+                    <span>حال</span>
+                </div>
+            </div>
+        </div>
+
+        <div id="state-view">
+            <div>> وضعیت فعلی:</div>
+            <pre id="current-state">{}</pre>
+        </div>
+
+        <div class="test-grid" id="test-grid">
+            <!-- تست‌ها اینجا لود می‌شوند -->
+        </div>
+    </div>
+
+    <script>
+        // ========== Time Travel State Manager ==========
+        class TimeTravelStateManager {
+            constructor(initialState = {}) {
+                this.currentState = { ...initialState };
+                this.snapshots = [{ id: 0, state: { ...initialState }, timestamp: Date.now(), label: 'Initial' }];
+                this.currentSnapshotIndex = 0;
+                this.maxSnapshots = 20;
+            }
+
+            // ایجاد Snapshot
+            createSnapshot(label = '') {
+                if (this.snapshots.length >= this.maxSnapshots) {
+                    this.snapshots.shift(); // حذف قدیمی‌ترین
+                }
+                
+                const snapshot = {
+                    id: this.snapshots.length,
+                    state: JSON.parse(JSON.stringify(this.currentState)),
+                    timestamp: Date.now(),
+                    label: label || `Snapshot ${this.snapshots.length}`
+                };
+                
+                this.snapshots.push(snapshot);
+                this.currentSnapshotIndex = this.snapshots.length - 1;
+                return snapshot;
+            }
+
+            // پرش به Snapshot خاص
+            jumpToSnapshot(snapshotId) {
+                const snapshot = this.snapshots.find(s => s.id === snapshotId);
+                if (!snapshot) {
+                    throw new Error(`Snapshot ${snapshotId} not found`);
+                }
+                
+                this.currentState = JSON.parse(JSON.stringify(snapshot.state));
+                this.currentSnapshotIndex = this.snapshots.findIndex(s => s.id === snapshotId);
+                return { success: true, snapshot };
+            }
+
+            // پرش به عقب
+            jumpBack(steps = 1) {
+                const targetIndex = Math.max(0, this.currentSnapshotIndex - steps);
+                return this.jumpToSnapshot(this.snapshots[targetIndex].id);
+            }
+
+            // پرش به جلو
+            jumpForward(steps = 1) {
+                const targetIndex = Math.min(this.snapshots.length - 1, this.currentSnapshotIndex + steps);
+                return this.jumpToSnapshot(this.snapshots[targetIndex].id);
+            }
+
+            // به‌روزرسانی State
+            updateState(updater) {
+                if (typeof updater === 'function') {
+                    this.currentState = updater(this.currentState);
+                } else {
+                    this.currentState = { ...this.currentState, ...updater };
+                }
+                return this.currentState;
+            }
+
+            // دریافت لیست Snapshots
+            getSnapshotList() {
+                return this.snapshots.map(s => ({
+                    id: s.id,
+                    label: s.label,
+                    timestamp: new Date(s.timestamp).toLocaleTimeString('fa-IR'),
+                    stateSummary: this._getStateSummary(s.state)
+                }));
+            }
+
+            // خلاصه State
+            _getStateSummary(state) {
+                const keys = Object.keys(state);
+                return `${keys.length} key(s): ${keys.slice(0, 3).join(', ')}${keys.length > 3 ? '...' : ''}`;
+            }
+
+            // پاک کردن تاریخچه
+            clearHistory(keepCurrent = true) {
+                const currentSnapshot = this.snapshots[this.currentSnapshotIndex];
+                this.snapshots = keepCurrent ? [currentSnapshot] : [];
+                this.currentSnapshotIndex = 0;
+                if (keepCurrent) {
+                    this.snapshots[0].id = 0;
+                    this.snapshots[0].label = 'Initial (after clear)';
+                }
+            }
+
+            // Export/Import
+            exportSnapshots() {
+                return JSON.stringify({
+                    snapshots: this.snapshots,
+                    currentIndex: this.currentSnapshotIndex,
+                    version: '1.0'
+                }, null, 2);
+            }
+
+            importSnapshots(data) {
+                const parsed = JSON.parse(data);
+                this.snapshots = parsed.snapshots;
+                this.currentSnapshotIndex = parsed.currentIndex;
+                this.currentState = JSON.parse(JSON.stringify(this.snapshots[this.currentSnapshotIndex].state));
+                return true;
+            }
+        }
+
+        // ========== تست‌ها ==========
+        const tests = [
+            {
+                id: 'test-1',
+                title: 'ایجاد و مدیریت Snapshots',
+                description: 'بررسی ایجاد صحیح Snapshot و مدیریت لیست',
+                run: async () => {
+                    const manager = new TimeTravelStateManager({ counter: 0 });
+                    
+                    // ایجاد Snapshots
+                    manager.createSnapshot('Test 1');
+                    manager.updateState(s => ({ ...s, counter: s.counter + 1 }));
+                    
+                    manager.createSnapshot('Test 2');
+                    manager.updateState(s => ({ ...s, counter: s.counter + 1, newField: 'added' }));
+                    
+                    manager.createSnapshot('Test 3');
+                    
+                    // بررسی تعداد
+                    if (manager.snapshots.length !== 4) { // + initial
+                        throw new Error(`Expected 4 snapshots, got ${manager.snapshots.length}`);
+                    }
+                    
+                    // بررسی برچسب‌ها
+                    const labels = manager.snapshots.map(s => s.label);
+                    if (!labels.includes('Test 1') || !labels.includes('Test 2')) {
+                        throw new Error('Snapshot labels incorrect');
+                    }
+                    
+                    return `✅ ${manager.snapshots.length} snapshot created successfully`;
+                }
+            },
+            {
+                id: 'test-2',
+                title: 'پرش بین Snapshots',
+                description: 'بررسی پرش صحیح به عقب و جلو',
+                run: async () => {
+                    const manager = new TimeTravelStateManager({ value: 'A' });
+                    
+                    manager.updateState(s => ({ ...s, value: 'B' }));
+                    manager.createSnapshot('Step B');
+                    
+                    manager.updateState(s => ({ ...s, value: 'C', extra: true }));
+                    manager.createSnapshot('Step C');
+                    
+                    // پرش به عقب
+                    const backResult = manager.jumpBack(1);
+                    if (manager.currentState.value !== 'B') {
+                        throw new Error(`Jump back failed. Expected 'B', got '${manager.currentState.value}'`);
+                    }
+                    
+                    // پرش به جلو
+                    const forwardResult = manager.jumpForward(1);
+                    if (manager.currentState.value !== 'C') {
+                        throw new Error(`Jump forward failed. Expected 'C', got '${manager.currentState.value}'`);
+                    }
+                    
+                    // پرش مستقیم
+                    manager.jumpToSnapshot(0);
+                    if (manager.currentState.value !== 'A') {
+                        throw new Error(`Direct jump failed. Expected 'A', got '${manager.currentState.value}'`);
+                    }
+                    
+                    return `✅ Jump operations successful (back: ${backResult.snapshot.label}, forward: ${forwardResult.snapshot.label})`;
+                }
+            },
+            {
+                id: 'test-3',
+                title: 'محدودیت تعداد Snapshots',
+                description: 'بررسی حذف خودکار Snapshots قدیمی',
+                run: async () => {
+                    const manager = new TimeTravelStateManager({ counter: 0 });
+                    const maxSnapshots = 20;
+                    
+                    // ایجاد Snapshots بیشتر از حد مجاز
+                    for (let i = 1; i <= maxSnapshots + 5; i++) {
+                        manager.updateState(s => ({ ...s, counter: i }));
+                        manager.createSnapshot(`Auto ${i}`);
+                    }
+                    
+                    // بررسی محدودیت
+                    if (manager.snapshots.length > maxSnapshots) {
+                        throw new Error(`Snapshot limit exceeded: ${manager.snapshots.length} > ${maxSnapshots}`);
+                    }
+                    
+                    // بررسی حذف قدیمی‌ترین
+                    const firstSnapshot = manager.snapshots[0];
+                    if (firstSnapshot.label === 'Initial') {
+                        throw new Error('Oldest snapshot should have been removed');
+                    }
+                    
+                    return `✅ Snapshot limit enforced (${manager.snapshots.length}/${maxSnapshots})`;
+                }
+            },
+            {
+                id: 'test-4',
+                title: 'Export/Import Snapshots',
+                description: 'برابر خروجی و ورودی داده‌های تاریخچه',
+                run: async () => {
+                    const manager1 = new TimeTravelStateManager({ data: 'original' });
+                    manager1.updateState(s => ({ ...s, modified: true }));
+                    manager1.createSnapshot('Modified');
+                    
+                    // Export
+                    const exported = manager1.exportSnapshots();
+                    if (!exported || typeof exported !== 'string') {
+                        throw new Error('Export failed');
+                    }
+                    
+                    // Import به مدیر جدید
+                    const manager2 = new TimeTravelStateManager({});
+                    manager2.importSnapshots(exported);
+                    
+                    // بررسی برابری
+                    if (manager2.snapshots.length !== manager1.snapshots.length) {
+                        throw new Error(`Import count mismatch: ${manager2.snapshots.length} vs ${manager1.snapshots.length}`);
+                    }
+                    
+                    if (JSON.stringify(manager2.currentState) !== JSON.stringify(manager1.currentState)) {
+                        throw new Error('Current state mismatch after import');
+                    }
+                    
+                    return `✅ Export/Import successful (${manager2.snapshots.length} snapshots transferred)`;
+                }
+            },
+            {
+                id: 'test-5',
+                title: 'پاک کردن تاریخچه',
+                description: 'بررسی پاک‌سازی انتخابی Snapshots',
+                run: async () => {
+                    const manager = new TimeTravelStateManager({ base: true });
+                    
+                    for (let i = 1; i <= 5; i++) {
+                        manager.updateState(s => ({ ...s, step: i }));
+                        manager.createSnapshot(`Step ${i}`);
+                    }
+                    
+                    const beforeCount = manager.snapshots.length;
+                    manager.clearHistory(true); // نگه‌داری حالت فعلی
+                    
+                    if (manager.snapshots.length !== 1) {
+                        throw new Error(`Expected 1 snapshot after clear, got ${manager.snapshots.length}`);
+                    }
+                    
+                    if (manager.currentState.step !== 5) {
+                        throw new Error('Current state not preserved after clear');
+                    }
+                    
+                    // پاک‌سازی کامل
+                    manager.clearHistory(false);
+                    if (manager.snapshots.length !== 0) {
+                        throw new Error(`Expected 0 snapshots after full clear, got ${manager.snapshots.length}`);
+                    }
+                    
+                    return `✅ History clearing successful (${beforeCount} → ${manager.snapshots.length} snapshots)`;
+                }
+            },
+            {
+                id: 'test-6',
+                title: 'عملکرد با داده‌های پیچیده',
+                description: 'بررسی Time Travel با Objectهای تودرتو و آرایه',
+                run: async () => {
+                    const complexState = {
+                        user: { id: 1, name: 'Ali', preferences: { theme: 'dark', language: 'fa' } },
+                        lessons: [
+                            { id: 1, title: 'مقدمه', completed: true },
+                            { id: 2, title: 'گرامر', completed: false }
+                        ],
+                        progress: { total: 10, completed: 3 }
+                    };
+                    
+                    const manager = new TimeTravelStateManager(complexState);
+                    
+                    // ایجاد تغییرات
+                    manager.updateState(s => ({
+                        ...s,
+                        user: { ...s.user, name: 'Reza' },
+                        lessons: [...s.lessons, { id: 3, title: 'مکالمه', completed: false }]
+                    }));
+                    manager.createSnapshot('Modified');
+                    
+                    // پرش و بررسی
+                    manager.jumpToSnapshot(0);
+                    if (manager.currentState.user.name !== 'Ali') {
+                        throw new Error('Complex state not restored correctly');
+                    }
+                    
+                    manager.jumpToSnapshot(1);
+                    if (manager.currentState.lessons.length !== 3) {
+                        throw new Error('Array modifications not preserved');
+                    }
+                    
+                    return `✅ Complex state handling successful (user: ${manager.currentState.user.name}, lessons: ${manager.currentState.lessons.length})`;
+                }
+            },
+            {
+                id: 'test-7',
+                title: 'عملکرد Real-time Timeline',
+                description: 'بررسی UI Timeline و تعامل زنده',
+                run: async () => {
+                    const manager = new TimeTravelStateManager({ live: false });
+                    
+                    // شبیه‌سازی تغییرات Real-time
+                    const changes = ['Login', 'Start Lesson', 'Complete Exercise', 'Receive Reward'];
+                    for (const change of changes) {
+                        manager.updateState(s => ({ ...s, lastAction: change, timestamp: Date.now() }));
+                        manager.createSnapshot(change);
+                        await new Promise(resolve => setTimeout(resolve, 100));
+                    }
+                    
+                    // بررسی Timeline
+                    const timeline = manager.getSnapshotList();
+                    if (timeline.length !== changes.length + 1) {
+                        throw new Error(`Timeline length incorrect: ${timeline.length}`);
+                    }
+                    
+                    // بررسی قابلیت پرش زنده
+                    for (let i = 0; i < timeline.length; i++) {
+                        manager.jumpToSnapshot(i);
+                        if (manager.currentSnapshotIndex !== i) {
+                            throw new Error(`Live jump to snapshot ${i} failed`);
+                        }
+                    }
+                    
+                    return `✅ Real-time timeline working (${timeline.length} points, ${changes.length} changes)`;
+                }
+            }
+        ];
+
+        // ========== UI Manager ==========
+        const TestManager = {
+            manager: null,
+            tests: tests,
+            results: {},
+            
+            init() {
+                this.manager = new TimeTravelStateManager({ 
+                    app: 'Vakamova',
+                    version: '1.0',
+                    timestamp: Date.now(),
+                    counter: 0
+                });
+                
+                this.renderTests();
+                this.setupUI();
+                this.updateUI();
+                
+                console.log('🚀 Time Travel Test Manager initialized');
+            },
+            
+            renderTests() {
+                const grid = document.getElementById('test-grid');
+                grid.innerHTML = '';
+                
+                this.tests.forEach(test => {
+                    const card = document.createElement('div');
+                    card.className = 'test-card pending';
+                    card.id = `card-${test.id}`;
+                    card.innerHTML = `
+                        <div class="test-title">
+                            <span>${test.title}</span>
+                            <span class="test-result" id="result-${test.id}">در انتظار</span>
+                        </div>
+                        <div class="test-desc">${test.description}</div>
+                        <div class="test-output" id="output-${test.id}"></div>
+                    `;
+                    grid.appendChild(card);
+                });
+            },
+            
+            setupUI() {
+                // دکمه‌های اصلی
+                document.getElementById('btn-snapshot').addEventListener('click', () => {
+                    this.manager.createSnapshot(`Snapshot ${this.manager.snapshots.length}`);
+                    this.updateUI();
+                    console.log('📸 Snapshot created');
+                });
+                
+                document.getElementById('btn-jump-back').addEventListener('click', () => {
+                    if (this.manager.currentSnapshotIndex > 0) {
+                        this.manager.jumpBack(1);
+                        this.updateUI();
+                        console.log('⏪ Jumped back');
+                    }
+                });
+                
+                document.getElementById('btn-jump-forward').addEventListener('click', () => {
+                    if (this.manager.currentSnapshotIndex < this.manager.snapshots.length - 1) {
+                        this.manager.jumpForward(1);
+                        this.updateUI();
+                        console.log('⏩ Jumped forward');
+                    }
+                });
+                
+                document.getElementById('btn-clear-history').addEventListener('click', () => {
+                    this.manager.clearHistory(true);
+                    this.updateUI();
+                    console.log('🗑️ History cleared');
+                });
+                
+                // Slider
+                document.getElementById('time-slider').addEventListener('input', (e) => {
+                    const index = parseInt(e.target.value);
+                    if (index !== this.manager.currentSnapshotIndex) {
+                        this.manager.jumpToSnapshot(index);
+                        this.updateUI();
+                    }
+                });
+            },
+            
+            updateUI() {
+                // Timeline
+                const timeline = document.getElementById('timeline');
+                timeline.innerHTML = '';
+                
+                this.manager.snapshots.forEach((snapshot, index) => {
+                    const element = document.createElement('div');
+                    element.className = `snapshot ${index === this.manager.currentSnapshotIndex ? 'active' : ''}`;
+                    element.innerHTML = `
+                        <div style="font-weight: bold;">${snapshot.label}</div>
+                        <div style="font-size: 0.7rem; margin-top: 3px;">${new Date(snapshot.timestamp).toLocaleTimeString('fa-IR')}</div>
+                    `;
+                    element.addEventListener('click', () => {
+                        this.manager.jumpToSnapshot(snapshot.id);
+                        this.updateUI();
+                    });
+                    timeline.appendChild(element);
+                });
+                
+                // State نمایش
+                document.getElementById('current-state').textContent = 
+                    JSON.stringify(this.manager.currentState, null, 2);
+                
+                // Slider
+                const slider = document.getElementById('time-slider');
+                slider.max = Math.max(0, this.manager.snapshots.length - 1);
+                slider.value = this.manager.currentSnapshotIndex;
+                document.getElementById('slider-value').textContent = 
+                    this.manager.snapshots[this.manager.currentSnapshotIndex].label;
+                
+                // دکمه‌ها
+                document.getElementById('btn-jump-back').disabled = this.manager.currentSnapshotIndex === 0;
+                document.getElementById('btn-jump-forward').disabled = 
+                    this.manager.currentSnapshotIndex === this.manager.snapshots.length - 1;
+            },
+            
+            async runTest(test) {
+                const card = document.getElementById(`card-${test.id}`);
+                const output = document.getElementById(`output-${test.id}`);
+                const resultSpan = document.getElementById(`result-${test.id}`);
+                
+                card.className = 'test-card pending';
+                resultSpan.textContent = 'در حال اجرا...';
+                output.className = 'test-output';
+                output.innerHTML = 'در حال اجرای تست...';
+                
+                try {
+                    const result = await test.run();
+                    card.className = 'test-card passed';
+                    resultSpan.textContent = 'موفق';
+                    output.className = 'test-output success';
+                    output.innerHTML = `<strong>✅ نتیجه:</strong> ${result}`;
+                    this.results[test.id] = { success: true, result };
+                    console.log(`✅ Test "${test.title}" passed`);
+                    return true;
+                } catch (error) {
+                    card.className = 'test-card failed';
+                    resultSpan.textContent = 'ناموفق';
+                    output.className = 'test-output error';
+                    output.innerHTML = `<strong>❌ خطا:</strong> ${error.message}`;
+                    this.results[test.id] = { success: false, error: error.message };
+                    console.error(`❌ Test "${test.title}" failed:`, error);
+                    return false;
+                }
+            },
+            
+            async runAllTests() {
+                console.log('🚀 Starting all tests...');
+                let passed = 0;
+                
+                for (const test of this.tests) {
+                    const success = await this.runTest(test);
+                    if (success) passed++;
+                    await new Promise(resolve => setTimeout(resolve, 300));
+                }
+                
+                console.log(`🎯 Tests complete: ${passed}/${this.tests.length} passed`);
+                alert(`تست‌ها کامل شد! ${passed} از ${this.tests.length} موفق`);
+            },
+            
+            clearResults() {
+                this.tests.forEach(test => {
+                    const card = document.getElementById(`card-${test.id}`);
+                    const output = document.getElementById(`output-${test.id}`);
+                    const resultSpan = document.getElementById(`result-${test.id}`);
+                    
+                    card.className = 'test-card pending';
+                    resultSpan.textContent = 'در انتظار';
+                    output.className = 'test-output';
+                    output.innerHTML = '';
+                });
+                
+                this.results = {};
+                console.log('🧹 Test results cleared');
+            }
+        };
+
+        // راه‌اندازی
+        document.addEventListener('DOMContentLoaded', () => {
+            TestManager.init();
+            
+            // دکمه اجرای تست‌ها (مخفی)
+            const runBtn = document.createElement('button');
+            runBtn.textContent = '🧪 اجرای تمام تست‌ها';
+            runBtn.style = 'position: fixed; bottom: 20px; right: 20px; background: #10b981;';
+            runBtn.addEventListener('click', () => TestManager.runAllTests());
+            document.body.appendChild(runBtn);
+            
+            console.log('⏱️ Time Travel Test System Ready');
+        });
+    </script>
+</body>
+</html>
