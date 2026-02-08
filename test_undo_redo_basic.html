@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تست Undo/Redo پایه - Vakamova</title>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}body{font-family:tahoma;background:#006064;color:#333;padding:20px}.container{max-width:800px;margin:auto;background:#fff;border-radius:10px;overflow:hidden}header{background:#00838f;color:#fff;padding:20px;text-align:center}h1{font-size:1.5rem}.test-section{padding:20px}.test-item{background:#f5f5f5;border-radius:8px;padding:15px;margin-bottom:15px;border-right:5px solid#4db6ac}.passed{border-right-color:#43a047;background:#e8f5e9}.failed{border-right-color:#e53935;background:#ffebee}.running{border-right-color:#fb8c00;background:#fff3e0}.test-header{display:flex;justify-content:space-between;margin-bottom:10px}.test-name{font-weight:bold}.test-status{padding:3px 10px;border-radius:12px;font-size:.8rem}.status-pending{background:#fff9c4;color:#f57c00}.status-running{background:#bbdefb;color:#1565c0}.status-passed{background:#c8e6c9;color:#2e7d32}.status-failed{background:#ffcdd2;color:#c62828}button{background:#00838f;color:#fff;border:none;padding:12px 25px;border-radius:8px;font-size:1rem;cursor:pointer;width:100%;margin-top:15px}button:hover{background:#006064}.console{background:#263238;color:#80cbc4;padding:15px;margin-top:20px;border-radius:8px;font-family:monospace;font-size:.9rem;max-height:200px;overflow-y:auto}.log{padding:5px 0;border-bottom:1px solid #37474f}.history-view{background:#e0f7fa;padding:10px;border-radius:6px;margin:10px 0;font-family:monospace;font-size:.85rem;max-height:150px;overflow-y:auto}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header><h1>↩️ تست Undo/Redo پایه</h1></header>
+        <div class="test-section">
+            <div class="history-view" id="history-view">
+                <strong>📜 تاریخچه:</strong> آماده
+            </div>
+            
+            <div class="test-item" id="test1">
+                <div class="test-header"><div class="test-name">۱. محدودیت عمق تاریخچه (max:5)</div><div class="test-status status-pending" id="status1">در انتظار</div></div>
+                <div id="output1"></div>
+            </div>
+            <div class="test-item" id="test2">
+                <div class="test-header"><div class="test-name">۲. Undo/Redo چند مرحله‌ای</div><div class="test-status status-pending" id="status2">در انتظار</div></div>
+                <div id="output2"></div>
+            </div>
+            <div class="test-item" id="test3">
+                <div class="test-header"><div class="test-name">۳. صحت مقادیر پس از بازگشت</div><div class="test-status status-pending" id="status3">در انتظار</div></div>
+                <div id="output3"></div>
+            </div>
+            <div class="test-item" id="test4">
+                <div class="test-header"><div class="test-name">۴. شمارش دقیق actions</div><div class="test-status status-pending" id="status4">در انتظار</div></div>
+                <div id="output4"></div>
+            </div>
+            
+            <button id="run-btn">▶️ اجرای تمام تست‌ها</button>
+            
+            <div class="console" id="console">
+                <div class="log">[سیستم] تست Undo/Redo پایه آماده است</div>
+            </div>
+        </div>
+    </div>
+
+<script>
+// ========== State Manager با Undo/Redo ==========
+const UndoRedoManager = {
+    state: { user: { coins: 100, level: 1 }, cart: [], lastAction: null },
+    history: [],
+    future: [], // برای Redo
+    maxHistorySize: 5,
+    isInTransaction: false,
+    transactionActions: [],
+    
+    // ========== Core Methods ==========
+    setState(key, value, actionName = 'SET') {
+        const oldValue = this._getNested(this.state, key);
+        const newState = this._setNested({...this.state}, key, value);
+        
+        // فقط اگر مقدار تغییر کرده باشد، به تاریخچه اضافه کن
+        if (JSON.stringify(oldValue) !== JSON.stringify(value)) {
+            const historyEntry = {
+                id: Date.now() + Math.random(),
+                timestamp: Date.now(),
+                action: actionName,
+                key,
+                oldValue,
+                newValue: value,
+                stateSnapshot: {...this.state} // ذخیره کامل state فعلی
+            };
+            
+            if (this.isInTransaction) {
+                this.transactionActions.push(historyEntry);
+            } else {
+                this._addToHistory(historyEntry);
+            }
+        }
+        
+        this.state = newState;
+        this.log(`State "${key}" = ${JSON.stringify(value).substring(0, 50)}...`);
+        this._updateHistoryView();
+        return true;
+    },
+    
+    // ========== Undo/Redo Methods ==========
+    undo() {
+        if (this.history.length === 0) {
+            this.log("هیچ عملیاتی برای Undo وجود ندارد", 'warning');
+            return false;
+        }
+        
+        const lastAction = this.history.pop();
+        
+        // بازگرداندن مقدار قبلی
+        this.state = this._setNested({...this.state}, lastAction.key, lastAction.oldValue);
+        
+        // ذخیره در future برای Redo
+        this.future.push(lastAction);
+        
+        this.log(`↩️ Undo: ${lastAction.action} "${lastAction.key}"`);
+        this._updateHistoryView();
+        return lastAction;
+    },
+    
+    redo() {
+        if (this.future.length === 0) {
+            this.log("هیچ عملیاتی برای Redo وجود ندارد", 'warning');
+            return false;
+        }
+        
+        const nextAction = this.future.pop();
+        
+        // اعمال مجدد مقدار
+        this.state = this._setNested({...this.state}, nextAction.key, nextAction.newValue);
+        
+        // بازگشت به history
+        this.history.push(nextAction);
+        
+        this.log(`↪️ Redo: ${nextAction.action} "${nextAction.key}"`);
+        this._updateHistoryView();
+        return nextAction;
+    },
+    
+    // ========== History Management ==========
+    _addToHistory(entry) {
+        // اضافه کردن به تاریخچه
+        this.history.push(entry);
+        
+        // پاک کردن future (وقتی عمل جدیدی انجام می‌شود)
+        this.future = [];
+        
+        // محدود کردن سایز تاریخچه (قدیمی‌ترین‌ها حذف شوند)
+        if (this.history.length > this.maxHistorySize) {
+            const removed = this.history.shift();
+            this.log(`حذف قدیمی‌ترین action از تاریخچه: ${removed.action} "${removed.key}"`, 'warning');
+        }
+        
+        this.log(`Action اضافه شد: ${entry.action} "${entry.key}" (تاریخچه: ${this.history.length})`);
+    },
+    
+    getHistoryStats() {
+        return {
+            totalActions: this.history.length + this.future.length,
+            undoable: this.history.length,
+            redoable: this.future.length,
+            historySize: this.history.length,
+            futureSize: this.future.length
+        };
+    },
+    
+    clearHistory() {
+        const count = this.history.length + this.future.length;
+        this.history = [];
+        this.future = [];
+        this.log(`تاریخچه پاک شد (${count} action)`);
+        this._updateHistoryView();
+    },
+    
+    // ========== Utility Methods ==========
+    _getNested(obj, path) {
+        return path.split('.').reduce((o, p) => o && o[p], obj);
+    },
+    
+    _setNested(obj, path, value) {
+        const keys = path.split('.');
+        const lastKey = keys.pop();
+        const target = keys.reduce((o, p) => o[p] = o[p] || {}, obj);
+        target[lastKey] = value;
+        return obj;
+    },
+    
+    _updateHistoryView() {
+        const view = document.getElementById('history-view');
+        const stats = this.getHistoryStats();
+        
+        let historyText = `<strong>📜 تاریخچه (حداکثر ${this.maxHistorySize}):</strong><br>`;
+        historyText += `• Undoable: ${stats.undoable} | Redoable: ${stats.redoable}<br>`;
+        historyText += `• State: coins=${this.state.user?.coins}, level=${this.state.user?.level}<br>`;
+        
+        // نمایش آخرین ۳ action
+        if (this.history.length > 0) {
+            historyText += `<br><strong>آخرین actions:</strong><br>`;
+            const recent = this.history.slice(-3).reverse();
+            recent.forEach((action, i) => {
+                historyText += `${this.history.length - i}. ${action.action} "${action.key}"<br>`;
+            });
+        }
+        
+        view.innerHTML = historyText;
+    },
+    
+    log(message, type = 'info') {
+        const consoleEl = document.getElementById('console');
+        const logEntry = document.createElement('div');
+        logEntry.className = 'log';
+        
+        const prefix = type === 'error' ? '[خطا] ' : 
+                      type === 'warning' ? '[هشدار] ' : 
+                      type === 'success' ? '[موفق] ' : '';
+        
+        logEntry.textContent = `${prefix}${message}`;
+        
+        if (type === 'error') logEntry.style.color = '#ef9a9a';
+        if (type === 'warning') logEntry.style.color = '#fff59d';
+        if (type === 'success') logEntry.style.color = '#c5e1a5';
+        
+        consoleEl.appendChild(logEntry);
+        consoleEl.scrollTop = consoleEl.scrollHeight;
+        console.log(`[UndoRedo] ${message}`);
+    },
+    
+    clear() {
+        this.state = { user: { coins: 100, level: 1 }, cart: [], lastAction: null };
+        this.history = [];
+        this.future = [];
+        this.isInTransaction = false;
+        this.transactionActions = [];
+        this.log("State و تاریخچه پاک شدند");
+        this._updateHistoryView();
+    }
+};
+
+// ========== تست‌های Undo/Redo ==========
+const undoRedoTests = [
+    {
+        id: 'test1',
+        name: 'محدودیت عمق تاریخچه',
+        run: async () => {
+            UndoRedoManager.log("=== شروع تست محدودیت عمق ===");
+            UndoRedoManager.clear();
+            UndoRedoManager.maxHistorySize = 5;
+            
+            // ایجاد ۷ action (بیشتر از حد مجاز)
+            const actions = [];
+            for (let i = 1; i <= 7; i++) {
+                UndoRedoManager.setState(`key${i}`, `value${i}`, `SET_${i}`);
+                actions.push(`key${i}`);
+            }
+            
+            const stats = UndoRedoManager.getHistoryStats();
+            
+            // بررسی: باید فقط ۵ action در تاریخچه باشد
+            if (stats.historySize !== 5) {
+                throw new Error(`محدودیت عمق رعایت نشد. انتظار: 5 action، واقعی: ${stats.historySize}`);
+            }
+            
+            // بررسی: قدیمی‌ترین actionها حذف شده باشند
+            if (UndoRedoManager.history[0].key !== 'key3') { // key1 و key2 باید حذف شده باشند
+                throw new Error(`قدیمی‌ترین actions حذف نشدند. اولین action: ${UndoRedoManager.history[0].key}`);
+            }
+            
+            // بررسی: جدیدترین actionها موجود باشند
+            const lastAction = UndoRedoManager.history[UndoRedoManager.history.length - 1];
+            if (lastAction.key !== 'key7') {
+                throw new Error(`جدیدترین action ذخیره نشد. آخرین action: ${lastAction.key}`);
+            }
+            
+            UndoRedoManager.log(`محدودیت عمق ۵ رعایت شد. actions: ${stats.historySize}`, 'success');
+            return `✅ محدودیت عمق ${UndoRedoManager.maxHistorySize} رعایت شد (۷ action ایجاد شد، ${stats.historySize} ذخیره شد)`;
+        }
+    },
+    {
+        id: 'test2',
+        name: 'Undo/Redo چند مرحله‌ای',
+        run: async () => {
+            UndoRedoManager.log("=== شروع تست Undo/Redo چند مرحله‌ای ===");
+            UndoRedoManager.clear();
+            
+            // وضعیت اولیه
+            UndoRedoManager.setState('user.coins', 100, 'INIT');
+            UndoRedoManager.setState('user.level', 1, 'INIT');
+            
+            // ایجاد ۳ تغییر
+            UndoRedoManager.setState('user.coins', 80, 'BUY_ITEM');
+            UndoRedoManager.setState('user.level', 2, 'LEVEL_UP');
+            UndoRedoManager.setState('user.coins', 70, 'BUY_ITEM_2');
+            
+            const initialStats = UndoRedoManager.getHistoryStats();
+            if (initialStats.undoable !== 3) {
+                throw new Error(`تعداد actions اولیه اشتباه. انتظار: 3، واقعی: ${initialStats.undoable}`);
+            }
+            
+            // تست Undo سه مرحله‌ای
+            UndoRedoManager.undo(); // coins باید 80 شود
+            if (UndoRedoManager.state.user.coins !== 80) {
+                throw new Error(`Undo مرحله ۱ اشتباه. coins باید 80 باشد، اما ${UndoRedoManager.state.user.coins} است`);
+            }
+            
+            UndoRedoManager.undo(); // level باید 1 شود
+            if (UndoRedoManager.state.user.level !== 1) {
+                throw new Error(`Undo مرحله ۲ اشتباه. level باید 1 باشد، اما ${UndoRedoManager.state.user.level} است`);
+            }
+            
+            UndoRedoManager.undo(); // coins باید 100 شود
+            if (UndoRedoManager.state.user.coins !== 100) {
+                throw new Error(`Undo مرحله ۳ اشتباه. coins باید 100 باشد، اما ${UndoRedoManager.state.user.coins} است`);
+            }
+            
+            // بررسی future stack
+            const midStats = UndoRedoManager.getHistoryStats();
+            if (midStats.redoable !== 3) {
+                throw new Error(`Future stack پس از Undo اشتباه. انتظار: 3، واقعی: ${midStats.redoable}`);
+            }
+            
+            // تست Redo سه مرحله‌ای
+            UndoRedoManager.redo(); // coins باید 80 شود
+            if (UndoRedoManager.state.user.coins !== 80) {
+                throw new Error(`Redo مرحله ۱ اشتباه. coins باید 80 باشد، اما ${UndoRedoManager.state.user.coins} است`);
+            }
+            
+            UndoRedoManager.redo(); // level باید 2 شود
+            if (UndoRedoManager.state.user.level !== 2) {
+                throw new Error(`Redo مرحله ۲ اشتباه. level باید 2 باشد، اما ${UndoRedoManager.state.user.level} است`);
+            }
+            
+            UndoRedoManager.redo(); // coins باید 70 شود
+            if (UndoRedoManager.state.user.coins !== 70) {
+                throw new Error(`Redo مرحله ۳ اشتباه. coins باید 70 باشد، اما ${UndoRedoManager.state.user.coins} است`);
+            }
+            
+            // بررسی بازگشت به حالت نهایی
+            const finalStats = UndoRedoManager.getHistoryStats();
+            if (finalStats.undoable !== 3 || finalStats.redoable !== 0) {
+                throw new Error(`وضعیت نهایی stack اشتباه. undoable: ${finalStats.undoable}, redoable: ${finalStats.redoable}`);
+            }
+            
+            UndoRedoManager.log("Undo/Redo سه مرحله‌ای موفقیت‌آمیز بود", 'success');
+            return `✅ Undo/Redo چند مرحله‌ای صحیح کار می‌کند (۳ مرحله کامل)`;
+        }
+    },
+    {
+        id: 'test3',
+        name: 'صحت مقادیر پس از بازگشت',
+        run: async () => {
+            UndoRedoManager.log("=== شروع تست صحت مقادیر ===");
+            UndoRedoManager.clear();
+            
+            // ایجاد state پیچیده
+            const complexState = {
+                cart: [
+                    { id: 1, name: 'کتاب', price: 50, quantity: 2 },
+                    { id: 2, name: 'دفتر', price: 20, quantity: 1 }
+                ],
+                user: {
+                    profile: {
+                        name: 'کاربر تست',
+                        email: 'test@vakamova.com',
+                        settings: { theme: 'dark', notifications: true }
+                    }
+                }
+            };
+            
+            // ذخیره state اولیه
+            UndoRedoManager.state = complexState;
+            const initialState = JSON.stringify(complexState);
+            
+            // ایجاد تغییرات
+            UndoRedoManager.setState('cart.0.quantity', 3, 'UPDATE_QTY');
+            UndoRedoManager.setState('user.profile.settings.theme', 'light', 'CHANGE_THEME');
+            UndoRedoManager.setState('user.profile.email', 'updated@test.com', 'UPDATE_EMAIL');
+            
+            // ذخیره state پس از تغییرات
+            const afterChangesState = JSON.stringify(UndoRedoManager.state);
+            
+            // Undo همه تغییرات
+            UndoRedoManager.undo(); // email
+            UndoRedoManager.undo(); // theme
+            UndoRedoManager.undo(); // quantity
+            
+            // بررسی بازگشت دقیق به state اولیه
+            const afterUndoState = JSON.stringify(UndoRedoManager.state);
+            
+            if (afterUndoState !== initialState) {
+                // پیدا کردن تفاوت
+                const initialObj = JSON.parse(initialState);
+                const undoObj = UndoRedoManager.state;
+                
+                const differences = [];
+                if (JSON.stringify(initialObj.cart) !== JSON.stringify(undoObj.cart)) {
+                    differences.push('cart متفاوت است');
+                }
+                if (JSON.stringify(initialObj.user) !== JSON.stringify(undoObj.user)) {
+                    differences.push('user متفاوت است');
+                }
+                
+                throw new Error(`بازگشت به state اولیه دقیق نیست. تفاوتها: ${differences.join(', ')}`);
+            }
+            
+            // Redo همه تغییرات
+            UndoRedoManager.redo(); // quantity
+            UndoRedoManager.redo(); // theme
+            UndoRedoManager.redo(); // email
+            
+            // بررسی بازگشت دقیق به state پس از تغییرات
+            const afterRedoState = JSON.stringify(UndoRedoManager.state);
+            
+            if (afterRedoState !== afterChangesState) {
+                throw new Error('Redo دقیقاً به state پس از تغییرات بازنگشت');
+            }
+            
+            // تست مقادیر خاص
+            if (UndoRedoManager.state.cart[0].quantity !== 3) {
+                throw new Error('مقدار quantity پس از Redo اشتباه است');
+            }
+            
+            if (UndoRedoManager.state.user.profile.settings.theme !== 'light') {
+                throw new Error('مقدار theme پس از Redo اشتباه است');
+            }
+            
+            if (UndoRedoManager.state.user.profile.email !== 'updated@test.com') {
+                throw new Error('مقدار email پس از Redo اشتباه است');
+            }
+            
+            UndoRedoManager.log("صحت مقادیر در Undo/Redo تأیید شد", 'success');
+            return `✅ صحت مقادیر تضمین شده است (داده‌های پیچیده + مقایسه عمیق)`;
+        }
+    },
+    {
+        id: 'test4',
+        name: 'شمارش دقیق actions',
+        run: async () => {
+            UndoRedoManager.log("=== شروع تست شمارش actions ===");
+            UndoRedoManager.clear();
+            
+            // شمارنده‌ها
+            let expectedTotal = 0;
+            let expectedHistory = 0;
+            
+            // ۱. ایجاد ۴ action معمولی
+            for (let i = 1; i <= 4; i++) {
+                UndoRedoManager.setState(`test${i}`, i, `ACTION_${i}`);
+                expectedTotal++;
+                expectedHistory++;
+            }
+            
+            let stats = UndoRedoManager.getHistoryStats();
+            if (stats.undoable !== 4) {
+                throw new Error(`پس از ۴ action: undoable باید 4 باشد، اما ${stats.undoable} است`);
+            }
+            
+            // ۲. Undo دو action
+            UndoRedoManager.undo();
+            UndoRedoManager.undo();
+            
+            stats = UndoRedoManager.getHistoryStats();
+            if (stats.undoable !== 2) {
+                throw new Error(`پس از ۲ Undo: undoable باید 2 باشد، اما ${stats.undoable} است`);
+            }
+            if (stats.redoable !== 2) {
+                throw new Error(`پس از ۲ Undo: redoable باید 2 باشد، اما ${stats.redoable} است`);
+            }
+            
+            // ۳. ایجاد action جدید (باید future را پاک کند)
+            UndoRedoManager.setState('newAction', 'value', 'NEW_ACTION');
+            expectedTotal++;
+            expectedHistory = 3; // ۲ undoable باقیمانده + ۱ action جدید
+            
+            stats = UndoRedoManager.getHistoryStats();
+            if (stats.redoable !== 0) {
+                throw new Error(`پس از action جدید: future باید پاک شود، اما redoable=${stats.redoable}`);
+            }
+            if (stats.undoable !== 3) {
+                throw new Error(`پس از action جدید: undoable باید 3 باشد، اما ${stats.undoable} است`);
+            }
+            
+            // ۴. تست setState با مقدار تکراری (نباید به تاریخچه اضافه شود)
+            const beforeDuplicate = stats.undoable;
+            UndoRedoManager.setState('test1', 1, 'DUPLICATE'); // مقدار مشابه
+            stats = UndoRedoManager.getHistoryStats();
+            
+            if (stats.undoable !== beforeDuplicate) {
+                throw new Error(`setState تکراری نباید به تاریخچه اضافه شود. قبل: ${beforeDuplicate}, بعد: ${stats.undoable}`);
+            }
+            
+            // ۵. تست clearHistory
+            UndoRedoManager.clearHistory();
+            stats = UndoRedoManager.getHistoryStats();
+            
+            if (stats.undoable !== 0 || stats.redoable !== 0) {
+                throw new Error(`پس از clearHistory: همه actions باید پاک شوند. undoable=${stats.undoable}, redoable=${stats.redoable}`);
+            }
+            
+            // ۶. تست Undo/Redo روی تاریخچه خالی
+            const undoResult = UndoRedoManager.undo();
+            if (undoResult !== false) {
+                throw new Error('Undo روی تاریخچه خالی باید false برگرداند');
+            }
+            
+            const redoResult = UndoRedoManager.redo();
+            if (redoResult !== false) {
+                throw new Error('Redo روی future خالی باید false برگرداند');
+            }
+            
+            UndoRedoManager.log("شمارش دقیق actions تأیید شد", 'success');
+            return `✅ شمارش actions دقیق است (duplicate detection + future clearing)`;
+        }
+    }
+];
+
+// ========== اجرای تست‌ها ==========
+async function runAllUndoRedoTests() {
+    const runBtn = document.getElementById('run-btn');
+    runBtn.disabled = true;
+    runBtn.textContent = '⏳ در حال اجرای تست‌های Undo/Redo...';
+    
+    // پاکسازی کنسول
+    document.getElementById('console').innerHTML = '<div class="log">[سیستم] تست Undo/Redo پایه آماده است</div>';
+    
+    UndoRedoManager.log("=== شروع اجرای تمام تست‌های Undo/Redo پایه ===");
+    
+    let passed = 0;
+    
+    for (let i = 0; i < undoRedoTests.length; i++) {
+        const test = undoRedoTests[i];
+        const testElement = document.getElementById(test.id);
+        const statusElement = document.getElementById(`status${i+1}`);
+        const outputElement = document.getElementById(`output${i+1}`);
+        
+        // تغییر وضعیت به در حال اجرا
+        testElement.className = 'test-item running';
+        statusElement.textContent = 'در حال اجرا';
+        statusElement.className = 'test-status status-running';
+        outputElement.innerHTML = '<span style="color:#666">آماده‌سازی...</span>';
+        
+        try {
+            UndoRedoManager.log(`شروع تست: ${test.name}`);
+            
+            // پاکسازی قبل از هر تست
+            UndoRedoManager.clear();
+            
+            const result = await test.run();
+            
+            // تست موفق
+            testElement.className = 'test-item passed';
+            statusElement.textContent = 'موفق';
+            statusElement.className = 'test-status status-passed';
+            outputElement.innerHTML = `<div style="color:#2e7d32">${result}</div>`;
+            passed++;
+            
+            UndoRedoManager.log(`تست "${test.name}" موفق`, 'success');
+            
+        } catch (error) {
+            // تست ناموفق
+            testElement.className = 'test-item failed';
+            statusElement.textContent = 'ناموفق';
+            statusElement.className = 'test-status status-failed';
+            outputElement.innerHTML = `<div style="color:#c62828"><strong>❌ خطا:</strong> ${error.message}</div>`;
+            
+            UndoRedoManager.log(`تست "${test.name}" ناموفق: ${error.message}`, 'error');
+        }
+        
+        // تاخیر کوتاه بین تست‌ها
+        await new Promise(resolve => setTimeout(resolve, 500));
+    }
+    
+    runBtn.disabled = false;
+    runBtn.textContent = `🔄 اجرای مجدد (${passed}/${undoRedoTests.length} موفق)`;
+    
+    // نمایش نتیجه نهایی
+    if (passed === undoRedoTests.length) {
+        UndoRedoManager.log("🎉 تمام تست‌های Undo/Redo پایه با موفقیت پشت سر گذاشته شدند!", 'success');
+        UndoRedoManager.log("✅ سیستم Undo/Redo برای استفاده آماده است.", 'success');
+    } else {
+        UndoRedoManager.log(`تست‌ها کامل شدند: ${passed} از ${undoRedoTests.length} موفق`, 
+                          passed >= 3 ? 'success' : 'warning');
+    }
+}
+
+// ========== راه‌اندازی ==========
+document.addEventListener('DOMContentLoaded', () => {
+    // اتصال دکمه اصلی
+    document.getElementById('run-btn').addEventListener('click', runAllUndoRedoTests);
+    
+    UndoRedoManager.log("سیستم تست Undo/Redo پایه آماده است.");
+    UndoRedoManager.log("روی دکمه 'اجرای تمام تست‌ها' کلیک کنید.");
+    UndoRedoManager._updateHistoryView();
+});
+</script>
+</body>
+</html>
