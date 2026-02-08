@@ -3,181 +3,902 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>تست یکپارچه‌سازی Payment + State</title>
+    <title>تست یکپارچه‌سازی Payment + State Management</title>
     <style>
-        /* استایل مشابه تست‌های قبلی */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
             padding: 20px;
-            background: #f5f5f5;
+            min-height: 100vh;
         }
-        .test-card { background: white; padding: 20px; margin: 10px; border-radius: 10px; }
-        .success { border-right: 5px solid #10b981; }
-        .failed { border-right: 5px solid #ef4444; }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+        
+        header {
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+        }
+        
+        .badge {
+            background: #10b981;
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: bold;
+        }
+        
+        .test-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            padding: 30px;
+        }
+        
+        .test-card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+            border: 2px solid transparent;
+            transition: all 0.3s ease;
+        }
+        
+        .test-card:hover {
+            transform: translateY(-5px);
+            border-color: #4f46e5;
+            box-shadow: 0 15px 40px rgba(79, 70, 229, 0.15);
+        }
+        
+        .test-card.passed {
+            border-left: 5px solid #10b981;
+        }
+        
+        .test-card.failed {
+            border-left: 5px solid #ef4444;
+        }
+        
+        .test-card.pending {
+            border-left: 5px solid #f59e0b;
+        }
+        
+        .test-title {
+            font-size: 1.3rem;
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: #1f2937;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .test-result {
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: bold;
+        }
+        
+        .passed .test-result {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        
+        .failed .test-result {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        
+        .pending .test-result {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        
+        .test-desc {
+            color: #6b7280;
+            margin-bottom: 20px;
+            font-size: 0.95rem;
+        }
+        
+        .test-output {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            margin-top: 15px;
+            max-height: 200px;
+            overflow-y: auto;
+            direction: ltr;
+        }
+        
+        .test-output.success {
+            background: #f0fdf4;
+            border-color: #bbf7d0;
+        }
+        
+        .test-output.error {
+            background: #fef2f2;
+            border-color: #fecaca;
+        }
+        
+        .test-stats {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 30px;
+            background: #f8fafc;
+            border-top: 2px solid #e2e8f0;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        
+        .stat {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 15px;
+            background: white;
+            border-radius: 10px;
+            min-width: 120px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+        }
+        
+        .stat-value {
+            font-size: 2rem;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .stat-label {
+            font-size: 0.9rem;
+            color: #6b7280;
+        }
+        
+        .passed .stat-value { color: #10b981; }
+        .failed .stat-value { color: #ef4444; }
+        .pending .stat-value { color: #f59e0b; }
+        
+        button {
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(79, 70, 229, 0.4);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        .action-bar {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            padding: 30px;
+            border-top: 2px solid #e2e8f0;
+        }
+        
+        @media (max-width: 768px) {
+            .test-grid {
+                grid-template-columns: 1fr;
+                padding: 20px;
+            }
+            
+            header h1 {
+                font-size: 1.8rem;
+                flex-direction: column;
+                gap: 10px;
+            }
+            
+            .test-stats {
+                flex-direction: column;
+                align-items: stretch;
+            }
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #e2e8f0;
+            border-top-color: #4f46e5;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        #console-log {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 15px;
+            margin: 0 30px 30px;
+            border-radius: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            max-height: 150px;
+            overflow-y: auto;
+            direction: ltr;
+            text-align: left;
+        }
     </style>
 </head>
 <body>
-    <h1>🧪 تست یکپارچه‌سازی Payment + State Management</h1>
-    <div id="test-results"></div>
+    <div class="container">
+        <header>
+            <h1>
+                <span>🧪 تست یکپارچه‌سازی Payment + State</span>
+                <span class="badge">Vakamova</span>
+            </h1>
+            <p>بررسی تعامل ماژول پرداخت و مدیریت وضعیت</p>
+        </header>
+        
+        <div class="test-stats">
+            <div class="stat passed">
+                <span class="stat-value" id="passed-count">0</span>
+                <span class="stat-label">موفق</span>
+            </div>
+            <div class="stat failed">
+                <span class="stat-value" id="failed-count">0</span>
+                <span class="stat-label">ناموفق</span>
+            </div>
+            <div class="stat pending">
+                <span class="stat-value" id="pending-count">4</span>
+                <span class="stat-label">در انتظار</span>
+            </div>
+            <div class="stat">
+                <span class="stat-value" id="coverage">0%</span>
+                <span class="stat-label">پوشش تست</span>
+            </div>
+        </div>
+        
+        <div class="test-grid" id="test-grid">
+            <!-- تست‌ها اینجا لود می‌شوند -->
+        </div>
+        
+        <div id="console-log">
+            <div>> کنسول تست:</div>
+            <div id="console-output"></div>
+        </div>
+        
+        <div class="action-bar">
+            <button id="run-all-btn">
+                <span>▶️</span>
+                اجرای تمام تست‌ها
+            </button>
+            <button id="clear-btn" style="background: linear-gradient(135deg, #6b7280 0%, #9ca3af 100%);">
+                <span>🔄</span>
+                پاک کردن نتایج
+            </button>
+        </div>
+    </div>
 
-    <script type="module">
-        import { PaymentManager } from './core/payment-manager.js';
-        import { StateManager } from './core/state-manager.js';
-        import { MockPaymentAdapter } from './core/zarinpal-adapter.js';
+    <script>
+        // ========== سیستم لاگ ==========
+        const logger = {
+            log: (message, data = {}) => {
+                const time = new Date().toLocaleTimeString('fa-IR');
+                const output = document.getElementById('console-output');
+                const logEntry = document.createElement('div');
+                logEntry.innerHTML = `<span style="color: #94a3b8">[${time}]</span> ${message}`;
+                output.appendChild(logEntry);
+                output.scrollTop = output.scrollHeight;
+                console.log(message, data);
+            },
+            error: (message, error) => {
+                logger.log(`<span style="color: #ef4444">❌ ${message}: ${error}</span>`);
+            },
+            success: (message) => {
+                logger.log(`<span style="color: #10b981">✅ ${message}</span>`);
+            }
+        };
 
-        const tests = [
-            {
-                name: "پرداخت موفق + به‌روزرسانی State",
-                run: async () => {
-                    const stateManager = new StateManager();
-                    const paymentAdapter = new MockPaymentAdapter();
-                    const paymentManager = new PaymentManager(paymentAdapter, stateManager);
+        // ========== Mock EventBus ==========
+        class MockEventBus {
+            constructor() {
+                this.events = new Map();
+            }
+            
+            emit(event, data) {
+                logger.log(`📡 Event: ${event}`, data);
+            }
+        }
+
+        // ========== Mock Payment Adapter ==========
+        class MockPaymentAdapter {
+            constructor() {
+                this.successRate = 0.9; // 90% موفقیت
+            }
+            
+            async processPayment(request) {
+                await new Promise(resolve => setTimeout(resolve, 300));
+                
+                if (Math.random() > this.successRate) {
+                    throw new Error("پرداخت ناموفق - موجودی کافی نیست");
+                }
+                
+                return {
+                    transactionId: `TXN_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                    gatewayReference: `REF_${Math.random().toString(36).substr(2, 12)}`,
+                    success: true,
+                    amount: request.amount,
+                    currency: request.currency || 'IRR'
+                };
+            }
+            
+            async verifyPayment(transactionId) {
+                await new Promise(resolve => setTimeout(resolve, 200));
+                return {
+                    success: true,
+                    transactionId,
+                    verificationCode: `VER_${Math.random().toString(36).substr(2, 8)}`
+                };
+            }
+            
+            async refundPayment(transactionId) {
+                await new Promise(resolve => setTimeout(resolve, 400));
+                return {
+                    success: true,
+                    transactionId,
+                    refundId: `REFUND_${Date.now()}`
+                };
+            }
+            
+            async isAvailable() {
+                return true;
+            }
+        }
+
+        // ========== State Manager ==========
+        class StateManager {
+            constructor() {
+                this.state = {
+                    payments: {},
+                    userBalance: 0,
+                    transactions: [],
+                    subscription: null,
+                    lastUpdated: Date.now()
+                };
+                
+                this.listeners = new Set();
+            }
+            
+            getState() {
+                return { ...this.state };
+            }
+            
+            updateState(updater) {
+                const oldState = this.state;
+                const newState = typeof updater === 'function' 
+                    ? updater(oldState) 
+                    : { ...oldState, ...updater };
+                
+                this.state = newState;
+                this.state.lastUpdated = Date.now();
+                
+                // اطلاع‌رسانی به listeners
+                this.listeners.forEach(listener => listener(newState, oldState));
+                
+                return this.state;
+            }
+            
+            subscribe(listener) {
+                this.listeners.add(listener);
+                return () => this.listeners.delete(listener);
+            }
+            
+            reset() {
+                this.state = {
+                    payments: {},
+                    userBalance: 0,
+                    transactions: [],
+                    subscription: null,
+                    lastUpdated: Date.now()
+                };
+            }
+        }
+
+        // ========== Payment Manager ==========
+        class PaymentManager {
+            constructor(paymentAdapter, stateManager, eventBus) {
+                this._adapter = paymentAdapter;
+                this._state = stateManager;
+                this._eventBus = eventBus;
+                this._pendingPayments = new Map();
+            }
+            
+            async initiatePayment(request) {
+                logger.log(`💰 شروع پرداخت: ${request.amount} ریال`);
+                
+                // به‌روزرسانی state قبل از پرداخت
+                this._state.updateState(state => ({
+                    ...state,
+                    payments: {
+                        ...state.payments,
+                        [request.id]: {
+                            ...request,
+                            status: 'processing',
+                            startedAt: Date.now()
+                        }
+                    }
+                }));
+                
+                try {
+                    const result = await this._adapter.processPayment(request);
                     
-                    // 1. شروع پرداخت
-                    const result = await paymentManager.initiatePayment({
-                        userId: "user_123",
-                        amount: 49000,
-                        productId: "premium_monthly"
+                    // به‌روزرسانی state پس از موفقیت
+                    this._state.updateState(state => ({
+                        ...state,
+                        payments: {
+                            ...state.payments,
+                            [request.id]: {
+                                ...state.payments[request.id],
+                                status: 'completed',
+                                completedAt: Date.now(),
+                                transactionId: result.transactionId
+                            }
+                        },
+                        userBalance: state.userBalance - request.amount,
+                        transactions: [
+                            ...state.transactions,
+                            {
+                                type: 'payment',
+                                amount: request.amount,
+                                transactionId: result.transactionId,
+                                timestamp: Date.now(),
+                                productId: request.productId
+                            }
+                        ]
+                    }));
+                    
+                    this._eventBus.emit('payment:completed', {
+                        requestId: request.id,
+                        transactionId: result.transactionId,
+                        amount: request.amount
                     });
                     
-                    // 2. بررسی به‌روزرسانی State
-                    const state = stateManager.getState();
-                    if (!state.payments[result.transactionId]) {
-                        throw new Error("State به‌روزرسانی نشد");
-                    }
+                    logger.success(`پرداخت موفق: ${result.transactionId}`);
+                    return { ...result, requestId: request.id };
                     
-                    return "✅ پرداخت و State هماهنگ به‌روزرسانی شدند";
+                } catch (error) {
+                    // به‌روزرسانی state پس از خطا
+                    this._state.updateState(state => ({
+                        ...state,
+                        payments: {
+                            ...state.payments,
+                            [request.id]: {
+                                ...state.payments[request.id],
+                                status: 'failed',
+                                failedAt: Date.now(),
+                                error: error.message
+                            }
+                        }
+                    }));
+                    
+                    throw error;
+                }
+            }
+            
+            async refundPayment(transactionId) {
+                logger.log(`💸 شروع بازگشت وجه: ${transactionId}`);
+                
+                const result = await this._adapter.refundPayment(transactionId);
+                
+                // به‌روزرسانی state پس از بازگشت وجه
+                this._state.updateState(state => {
+                    // پیدا کردن پرداخت مربوطه
+                    const paymentEntry = Object.entries(state.payments)
+                        .find(([_, payment]) => payment.transactionId === transactionId);
+                    
+                    if (!paymentEntry) return state;
+                    
+                    const [requestId, payment] = paymentEntry;
+                    
+                    return {
+                        ...state,
+                        payments: {
+                            ...state.payments,
+                            [requestId]: {
+                                ...payment,
+                                status: 'refunded',
+                                refundedAt: Date.now(),
+                                refundId: result.refundId
+                            }
+                        },
+                        userBalance: state.userBalance + payment.amount,
+                        transactions: [
+                            ...state.transactions,
+                            {
+                                type: 'refund',
+                                amount: payment.amount,
+                                transactionId: result.refundId,
+                                originalTransactionId: transactionId,
+                                timestamp: Date.now()
+                            }
+                        ]
+                    };
+                });
+                
+                logger.success(`بازگشت وجه موفق: ${result.refundId}`);
+                return result;
+            }
+            
+            getPaymentStatus(requestId) {
+                const state = this._state.getState();
+                return state.payments[requestId] || null;
+            }
+            
+            getUserBalance() {
+                return this._state.getState().userBalance;
+            }
+        }
+
+        // ========== تعریف تست‌ها ==========
+        const tests = [
+            {
+                id: 'test-1',
+                title: 'پرداخت موفق + به‌روزرسانی State',
+                description: 'بررسی هماهنگی پرداخت موفق و به‌روزرسانی State',
+                run: async () => {
+                    const stateManager = new StateManager();
+                    const eventBus = new MockEventBus();
+                    const adapter = new MockPaymentAdapter();
+                    adapter.successRate = 1.0; // تضمین موفقیت
+                    
+                    const paymentManager = new PaymentManager(adapter, stateManager, eventBus);
+                    
+                    const paymentRequest = {
+                        id: `PAY_${Date.now()}`,
+                        amount: 49000,
+                        productId: 'premium_monthly',
+                        userId: 'user_123',
+                        currency: 'IRR'
+                    };
+                    
+                    const result = await paymentManager.initiatePayment(paymentRequest);
+                    
+                    // بررسی State
+                    const state = stateManager.getState();
+                    const paymentInState = state.payments[paymentRequest.id];
+                    
+                    if (!paymentInState) throw new Error('پرداخت در State ذخیره نشد');
+                    if (paymentInState.status !== 'completed') throw new Error('وضعیت پرداخت در State نادرست است');
+                    if (paymentInState.transactionId !== result.transactionId) throw new Error('شناسه تراکنش در State نادرست است');
+                    
+                    // بررسی موجودی کاربر
+                    if (state.userBalance !== -49000) throw new Error('موجودی کاربر به‌درستی به‌روزرسانی نشد');
+                    
+                    // بررسی تاریخچه تراکنش‌ها
+                    const transaction = state.transactions.find(t => t.transactionId === result.transactionId);
+                    if (!transaction) throw new Error('تراکنش در تاریخچه ثبت نشد');
+                    
+                    return `✅ پرداخت موفق. موجودی کاربر: ${state.userBalance.toLocaleString()} ریال`;
                 }
             },
             {
-                name: "پرداخت ناموفق + حفظ State قبلی",
+                id: 'test-2',
+                title: 'پرداخت ناموفق + حفظ State قبلی',
+                description: 'بررسی حفظ State پس از پرداخت ناموفق',
                 run: async () => {
                     const stateManager = new StateManager();
-                    const failingAdapter = {
-                        async processPayment() {
-                            throw new Error("کمبود موجودی");
-                        }
-                    };
-                    const paymentManager = new PaymentManager(failingAdapter, stateManager);
+                    const eventBus = new MockEventBus();
+                    const adapter = new MockPaymentAdapter();
+                    adapter.successRate = 0.0; // تضمین شکست
+                    
+                    const paymentManager = new PaymentManager(adapter, stateManager, eventBus);
                     
                     const initialState = stateManager.getState();
+                    const initialBalance = initialState.userBalance;
+                    
+                    const paymentRequest = {
+                        id: `FAIL_PAY_${Date.now()}`,
+                        amount: 99000,
+                        productId: 'yearly_subscription',
+                        userId: 'user_456'
+                    };
                     
                     try {
-                        await paymentManager.initiatePayment({
-                            userId: "user_456",
-                            amount: 99000,
-                            productId: "yearly_subscription"
-                        });
+                        await paymentManager.initiatePayment(paymentRequest);
+                        throw new Error('باید خطا می‌داد اما نداد!');
                     } catch (error) {
                         // انتظار داریم خطا دهد
                     }
                     
-                    // State نباید تغییر کند
+                    // بررسی State پس از خطا
                     const finalState = stateManager.getState();
-                    if (JSON.stringify(initialState) !== JSON.stringify(finalState)) {
-                        throw new Error("State پس از پرداخت ناموفق تغییر کرد");
+                    const paymentInState = finalState.payments[paymentRequest.id];
+                    
+                    if (!paymentInState) throw new Error('اطلاعات پرداخت ناموفق در State ذخیره نشد');
+                    if (paymentInState.status !== 'failed') throw new Error('وضعیت پرداخت در State نادرست است');
+                    
+                    // موجودی کاربر نباید تغییر کند
+                    if (finalState.userBalance !== initialBalance) {
+                        throw new Error(`موجودی کاربر تغییر کرد: ${initialBalance} → ${finalState.userBalance}`);
                     }
                     
-                    return "✅ State پس از خطا حفظ شد";
+                    return `✅ State پس از خطا حفظ شد. موجودی کاربر: ${finalState.userBalance.toLocaleString()} ریال`;
                 }
             },
             {
-                name: "بازگشت وجه + Rollback State",
+                id: 'test-3',
+                title: 'بازگشت وجه + Rollback State',
+                description: 'بررسی بازگشت وجه و بازیابی State قبلی',
                 run: async () => {
                     const stateManager = new StateManager();
+                    const eventBus = new MockEventBus();
                     const adapter = new MockPaymentAdapter();
-                    const paymentManager = new PaymentManager(adapter, stateManager);
+                    adapter.successRate = 1.0;
+                    
+                    const paymentManager = new PaymentManager(adapter, stateManager, eventBus);
                     
                     // پرداخت اولیه
-                    const payment = await paymentManager.initiatePayment({
-                        userId: "user_789",
+                    const paymentRequest = {
+                        id: `REFUND_PAY_${Date.now()}`,
                         amount: 25000,
-                        productId: "course_access"
-                    });
+                        productId: 'course_access',
+                        userId: 'user_789'
+                    };
                     
+                    const paymentResult = await paymentManager.initiatePayment(paymentRequest);
                     const stateAfterPayment = stateManager.getState();
                     
                     // بازگشت وجه
-                    await paymentManager.refundPayment(payment.transactionId);
+                    await paymentManager.refundPayment(paymentResult.transactionId);
                     
                     const stateAfterRefund = stateManager.getState();
+                    const paymentInState = stateAfterRefund.payments[paymentRequest.id];
                     
-                    // بررسی Rollback State
-                    if (stateAfterRefund.userBalance === stateAfterPayment.userBalance) {
-                        throw new Error("موجودی کاربر پس از بازگشت وجه به‌روزرسانی نشد");
+                    // بررسی وضعیت بازگشت وجه
+                    if (paymentInState.status !== 'refunded') throw new Error('وضعیت پرداخت پس از بازگشت وجه نادرست است');
+                    
+                    // موجودی کاربر باید به حالت اول برگردد
+                    if (stateAfterRefund.userBalance !== 0) {
+                        throw new Error(`موجودی کاربر پس از بازگشت وجه نادرست است: ${stateAfterRefund.userBalance}`);
                     }
                     
-                    return "✅ بازگشت وجه و Rollback State موفق";
+                    // بررسی وجود تراکنش بازگشت وجه در تاریخچه
+                    const refundTransaction = stateAfterRefund.transactions.find(t => t.type === 'refund');
+                    if (!refundTransaction) throw new Error('تراکنش بازگشت وجه در تاریخچه ثبت نشد');
+                    
+                    return `✅ بازگشت وجه موفق. موجودی نهایی: ${stateAfterRefund.userBalance.toLocaleString()} ریال`;
                 }
             },
             {
-                name: "همگام‌سازی State چندین پرداخت",
+                id: 'test-4',
+                title: 'همگام‌سازی State چندین پرداخت',
+                description: 'بررسی هماهنگی State در پرداخت‌های همزمان',
                 run: async () => {
                     const stateManager = new StateManager();
+                    const eventBus = new MockEventBus();
                     const adapter = new MockPaymentAdapter();
-                    const paymentManager = new PaymentManager(adapter, stateManager);
+                    adapter.successRate = 1.0;
                     
-                    // 3 پرداخت همزمان
-                    const payments = await Promise.all([
-                        paymentManager.initiatePayment({ userId: "user_1", amount: 10000, productId: "item_1" }),
-                        paymentManager.initiatePayment({ userId: "user_1", amount: 20000, productId: "item_2" }),
-                        paymentManager.initiatePayment({ userId: "user_1", amount: 15000, productId: "item_3" })
-                    ]);
+                    const paymentManager = new PaymentManager(adapter, stateManager, eventBus);
                     
-                    const state = stateManager.getState();
+                    // 3 پرداخت پشت سر هم
+                    const payments = [
+                        {
+                            id: `PARALLEL_1_${Date.now()}`,
+                            amount: 10000,
+                            productId: 'item_1',
+                            userId: 'user_999'
+                        },
+                        {
+                            id: `PARALLEL_2_${Date.now() + 1}`,
+                            amount: 20000,
+                            productId: 'item_2',
+                            userId: 'user_999'
+                        },
+                        {
+                            id: `PARALLEL_3_${Date.now() + 2}`,
+                            amount: 15000,
+                            productId: 'item_3',
+                            userId: 'user_999'
+                        }
+                    ];
                     
-                    // بررسی صحت State نهایی
-                    const totalInState = Object.values(state.payments)
-                        .reduce((sum, p) => sum + p.amount, 0);
-                    
-                    const expectedTotal = 10000 + 20000 + 15000;
-                    
-                    if (totalInState !== expectedTotal) {
-                        throw new Error(`مجموع مبالغ در State نادرست است: ${totalInState} ≠ ${expectedTotal}`);
+                    // اجرای پرداخت‌ها
+                    const results = [];
+                    for (const payment of payments) {
+                        results.push(await paymentManager.initiatePayment(payment));
                     }
                     
-                    return "✅ همگام‌سازی State پرداخت‌های موازی موفق";
+                    // بررسی State نهایی
+                    const finalState = stateManager.getState();
+                    
+                    // بررسی تعداد پرداخت‌ها در State
+                    const paymentCount = Object.keys(finalState.payments).length;
+                    if (paymentCount !== 3) throw new Error(`تعداد پرداخت‌ها در State نادرست است: ${paymentCount}`);
+                    
+                    // بررسی مجموع مبالغ کسر شده
+                    const expectedBalance = -(10000 + 20000 + 15000);
+                    if (finalState.userBalance !== expectedBalance) {
+                        throw new Error(`موجودی کاربر نادرست است: ${finalState.userBalance} (انتظار: ${expectedBalance})`);
+                    }
+                    
+                    // بررسی وضعیت تمام پرداخت‌ها
+                    for (const payment of payments) {
+                        if (finalState.payments[payment.id].status !== 'completed') {
+                            throw new Error(`پرداخت ${payment.id} تکمیل نشده`);
+                        }
+                    }
+                    
+                    return `✅ همگام‌سازی موفق. مجموع کسری: ${Math.abs(finalState.userBalance).toLocaleString()} ریال`;
                 }
             }
         ];
 
-        // اجرای تست‌ها
-        async function runTests() {
-            const resultsDiv = document.getElementById('test-results');
-            let passed = 0;
+        // ========== سیستم مدیریت تست ==========
+        const TestManager = {
+            tests: tests,
+            results: {},
             
-            for (const test of tests) {
-                const card = document.createElement('div');
-                card.className = 'test-card';
-                card.innerHTML = `<h3>${test.name}</h3><p>در حال اجرا...</p>`;
-                resultsDiv.appendChild(card);
+            renderTests() {
+                const testGrid = document.getElementById('test-grid');
+                testGrid.innerHTML = '';
+                
+                this.tests.forEach(test => {
+                    const card = document.createElement('div');
+                    card.className = 'test-card pending';
+                    card.id = `card-${test.id}`;
+                    card.innerHTML = `
+                        <div class="test-title">
+                            <span>${test.title}</span>
+                            <span class="test-result" id="result-${test.id}">در انتظار</span>
+                        </div>
+                        <div class="test-desc">${test.description}</div>
+                        <div class="test-output" id="output-${test.id}"></div>
+                    `;
+                    testGrid.appendChild(card);
+                });
+                
+                this.updateStats();
+            },
+            
+            async runTest(test) {
+                const card = document.getElementById(`card-${test.id}`);
+                const output = document.getElementById(`output-${test.id}`);
+                const resultSpan = document.getElementById(`result-${test.id}`);
+                
+                card.className = 'test-card pending';
+                resultSpan.textContent = 'در حال اجرا...';
+                output.className = 'test-output';
+                output.innerHTML = '<div class="loading"></div> در حال اجرای تست...';
+                
+                logger.log(`شروع تست: ${test.title}`);
                 
                 try {
                     const result = await test.run();
-                    card.classList.add('success');
-                    card.innerHTML = `<h3>${test.name}</h3><p>${result}</p>`;
-                    passed++;
+                    card.className = 'test-card passed';
+                    resultSpan.textContent = 'موفق';
+                    output.className = 'test-output success';
+                    output.innerHTML = `<strong>✅ نتیجه:</strong> ${result}`;
+                    this.results[test.id] = { success: true, result };
+                    logger.success(`تست "${test.title}" موفق`);
+                    return true;
                 } catch (error) {
-                    card.classList.add('failed');
-                    card.innerHTML = `<h3>${test.name}</h3><p>❌ ${error.message}</p>`;
+                    card.className = 'test-card failed';
+                    resultSpan.textContent = 'ناموفق';
+                    output.className = 'test-output error';
+                    output.innerHTML = `<strong>❌ خطا:</strong> ${error.message}`;
+                    this.results[test.id] = { success: false, error: error.message };
+                    logger.error(`تست "${test.title}" ناموفق`, error.message);
+                    return false;
+                } finally {
+                    this.updateStats();
                 }
-            }
+            },
             
-            // خلاصه نتایج
-            const summary = document.createElement('div');
-            summary.className = 'test-card';
-            summary.innerHTML = `
-                <h2>📊 خلاصه نتایج</h2>
-                <p>تعداد تست‌ها: ${tests.length}</p>
-                <p>موفق: ${passed}</p>
-                <p>ناموفق: ${tests.length - passed}</p>
-                <p>نرخ موفقیت: ${Math.round((passed / tests.length) * 100)}%</p>
-            `;
-            resultsDiv.appendChild(summary);
-        }
+            async runAllTests() {
+                const runBtn = document.getElementById('run-all-btn');
+                runBtn.disabled = true;
+                runBtn.innerHTML = '<span class="loading"></span> در حال اجرای تست‌ها...';
+                
+                let passed = 0;
+                
+                logger.log('🚀 شروع اجرای تست‌های یکپارچه‌سازی Payment + State...');
+                
+                for (const test of this.tests) {
+                    const success = await this.runTest(test);
+                    if (success) passed++;
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                }
+                
+                runBtn.disabled = false;
+                runBtn.innerHTML = '<span>▶️</span> اجرای مجدد تمام تست‌ها';
+                
+                logger.log(`🎯 تست‌ها کامل شد! ${passed} از ${this.tests.length} تست موفق`);
+            },
+            
+            updateStats() {
+                const passed = document.querySelectorAll('.test-card.passed').length;
+                const failed = document.querySelectorAll('.test-card.failed').length;
+                const pending = this.tests.length - passed - failed;
+                
+                document.getElementById('passed-count').textContent = passed;
+                document.getElementById('failed-count').textContent = failed;
+                document.getElementById('pending-count').textContent = pending;
+                
+                const coverage = Math.round((passed / this.tests.length) * 100);
+                document.getElementById('coverage').textContent = `${coverage}%`;
+            },
+            
+            clearTests() {
+                this.tests.forEach(test => {
+                    const card = document.getElementById(`card-${test.id}`);
+                    const output = document.getElementById(`output-${test.id}`);
+                    const resultSpan = document.getElementById(`result-${test.id}`);
+                    
+                    card.className = 'test-card pending';
+                    resultSpan.textContent = 'در انتظار';
+                    output.className = 'test-output';
+                    output.innerHTML = '';
+                });
+                
+                this.results = {};
+                this.updateStats();
+                document.getElementById('console-output').innerHTML = '';
+                logger.log('🧹 نتایج تست‌ها پاک شد');
+            }
+        };
 
-        // اجرا هنگام بارگذاری صفحه
-        document.addEventListener('DOMContentLoaded', runTests);
+        // ========== راه‌اندازی ==========
+        document.addEventListener('DOMContentLoaded', () => {
+            TestManager.renderTests();
+            
+            document.getElementById('run-all-btn').addEventListener('click', () => {
+                TestManager.runAllTests();
+            });
+            
+            document.getElementById('clear-btn').addEventListener('click', () => {
+                TestManager.clearTests();
+            });
+            
+            logger.log('🚀 تست‌های یکپارچه‌سازی Payment + State آماده اجرا هستند');
+        });
     </script>
 </body>
 </html>
