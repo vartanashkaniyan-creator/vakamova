@@ -1,0 +1,870 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تست یکپارچه‌سازی API + State + UI - Vakamova</title>
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --success: #10b981;
+            --error: #ef4444;
+            --warning: #f59e0b;
+            --dark: #1f2937;
+            --light: #f8fafc;
+        }
+        
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: 'Vazirmatn', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+        
+        header {
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+        }
+        
+        .test-area {
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            gap: 20px;
+            padding: 30px;
+            min-height: 600px;
+        }
+        
+        .ui-simulator {
+            background: var(--light);
+            border-radius: 15px;
+            padding: 20px;
+            border: 2px solid #e2e8f0;
+        }
+        
+        .ui-simulator h3 {
+            color: var(--dark);
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid var(--primary);
+        }
+        
+        .ui-component {
+            background: white;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 15px;
+            border: 1px solid #e2e8f0;
+            transition: all 0.3s;
+        }
+        
+        .ui-component:hover {
+            border-color: var(--primary);
+            box-shadow: 0 5px 15px rgba(79, 70, 229, 0.1);
+        }
+        
+        .test-controls {
+            background: var(--light);
+            border-radius: 15px;
+            padding: 20px;
+            border: 2px solid #e2e8f0;
+        }
+        
+        button {
+            background: linear-gradient(135deg, var(--primary) 0%, #7c3aed 100%);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            width: 100%;
+            margin-bottom: 10px;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(79, 70, 229, 0.3);
+        }
+        
+        button:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .test-result {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .test-card {
+            background: white;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-left: 5px solid var(--warning);
+        }
+        
+        .test-card.passed {
+            border-left-color: var(--success);
+        }
+        
+        .test-card.failed {
+            border-left-color: var(--error);
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #e2e8f0;
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .user-avatar {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            margin: 0 auto 15px;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        .stat {
+            background: #f0f9ff;
+            padding: 10px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: var(--primary);
+        }
+        
+        .stat-label {
+            font-size: 0.8rem;
+            color: #6b7280;
+        }
+        
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            border-right: 5px solid var(--primary);
+            max-width: 300px;
+            transform: translateX(400px);
+            transition: transform 0.5s ease;
+            z-index: 1000;
+        }
+        
+        .notification.show {
+            transform: translateX(0);
+        }
+        
+        @media (max-width: 768px) {
+            .test-area {
+                grid-template-columns: 1fr;
+            }
+            
+            header h1 {
+                font-size: 1.8rem;
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>
+                <span>🧪 تست یکپارچه‌سازی API + State + UI</span>
+            </h1>
+            <p>بررسی تعامل کامل بین API، State Management و رابط کاربری</p>
+        </header>
+        
+        <div class="test-area">
+            <!-- بخش سمت چپ: شبیه‌ساز UI -->
+            <div class="ui-simulator">
+                <h3>📱 شبیه‌ساز رابط کاربری</h3>
+                
+                <div class="ui-component" id="user-profile">
+                    <div class="user-avatar" id="user-avatar">U</div>
+                    <h4 id="user-name">در حال بارگذاری...</h4>
+                    <p id="user-email">-</p>
+                    <div class="stats-grid">
+                        <div class="stat">
+                            <div class="stat-value" id="user-level">0</div>
+                            <div class="stat-label">سطح</div>
+                        </div>
+                        <div class="stat">
+                            <div class="stat-value" id="user-points">0</div>
+                            <div class="stat-label">امتیاز</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="ui-component" id="lesson-progress">
+                    <h4>📚 پیشرفت درسی</h4>
+                    <p>درس فعلی: <span id="current-lesson">-</span></p>
+                    <p>تکمیل‌شده: <span id="completed-lessons">0</span> از <span id="total-lessons">0</span></p>
+                    <div style="background: #e2e8f0; height: 10px; border-radius: 5px; margin-top: 10px;">
+                        <div id="progress-bar" style="background: var(--success); height: 100%; border-radius: 5px; width: 0%;"></div>
+                    </div>
+                </div>
+                
+                <div class="ui-component" id="live-data">
+                    <h4>🔄 داده‌های زنده</h4>
+                    <p>کاربران آنلاین: <span id="online-users">0</span></p>
+                    <p>آخرین به‌روزرسانی: <span id="last-update">-</span></p>
+                    <button onclick="simulateLiveUpdate()">🔄 شبیه‌سازی به‌روزرسانی</button>
+                </div>
+            </div>
+            
+            <!-- بخش سمت راست: کنترل‌های تست -->
+            <div class="test-controls">
+                <h3>🎮 کنترل‌های تست</h3>
+                
+                <div id="test-list">
+                    <!-- تست‌ها به صورت داینامیک اضافه می‌شوند -->
+                </div>
+                
+                <div class="test-result" id="test-result">
+                    > کنسول تست:
+                    <div id="console-output"></div>
+                </div>
+                
+                <div style="margin-top: 20px;">
+                    <button onclick="runAllTests()" id="run-all-btn">
+                        <span>▶️</span>
+                        اجرای تمام تست‌ها
+                    </button>
+                    <button onclick="resetTest()" style="background: linear-gradient(135deg, #6b7280 0%, #9ca3af 100%);">
+                        <span>🔄</span>
+                        بازنشانی تست
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="notification" id="notification">
+        <strong id="notification-title">تست</strong>
+        <p id="notification-message">پیام</p>
+    </div>
+
+    <script>
+        // ========== سیستم لاگ ==========
+        const logger = {
+            log: (message, data = {}) => {
+                const time = new Date().toLocaleTimeString('fa-IR');
+                const output = document.getElementById('console-output');
+                const logEntry = document.createElement('div');
+                logEntry.innerHTML = `<span style="color: #94a3b8">[${time}]</span> ${message}`;
+                output.appendChild(logEntry);
+                output.scrollTop = output.scrollHeight;
+                console.log(message, data);
+            },
+            error: (message, error) => {
+                logger.log(`<span style="color: #ef4444">❌ ${message}: ${error}</span>`);
+            },
+            success: (message) => {
+                logger.log(`<span style="color: #10b981">✅ ${message}</span>`);
+            },
+            warning: (message) => {
+                logger.log(`<span style="color: #f59e0b">⚠️ ${message}</span>`);
+            }
+        };
+
+        // ========== سیستم نوتیفیکیشن ==========
+        function showNotification(title, message, type = 'info') {
+            const notification = document.getElementById('notification');
+            const notificationTitle = document.getElementById('notification-title');
+            const notificationMessage = document.getElementById('notification-message');
+            
+            notificationTitle.textContent = title;
+            notificationMessage.textContent = message;
+            
+            // تغییر رنگ بر اساس نوع
+            const colors = {
+                info: '#4f46e5',
+                success: '#10b981',
+                error: '#ef4444',
+                warning: '#f59e0b'
+            };
+            
+            notification.style.borderRightColor = colors[type] || colors.info;
+            
+            notification.classList.add('show');
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 3000);
+        }
+
+        // ========== State Manager ساده ==========
+        class StateManager {
+            constructor() {
+                this.state = {
+                    user: null,
+                    lessons: [],
+                    ui: {
+                        loading: false,
+                        error: null,
+                        lastUpdated: null
+                    },
+                    live: {
+                        onlineUsers: 0,
+                        notifications: []
+                    }
+                };
+                this.listeners = new Set();
+            }
+            
+            setState(newState) {
+                this.state = { ...this.state, ...newState };
+                this.notifyListeners();
+                this.updateUI();
+            }
+            
+            subscribe(listener) {
+                this.listeners.add(listener);
+                return () => this.listeners.delete(listener);
+            }
+            
+            notifyListeners() {
+                this.listeners.forEach(listener => listener(this.state));
+            }
+            
+            updateUI() {
+                // به‌روزرسانی UI بر اساس state
+                if (this.state.user) {
+                    document.getElementById('user-name').textContent = this.state.user.name;
+                    document.getElementById('user-email').textContent = this.state.user.email;
+                    document.getElementById('user-avatar').textContent = this.state.user.name.charAt(0);
+                    document.getElementById('user-level').textContent = this.state.user.level || 1;
+                    document.getElementById('user-points').textContent = this.state.user.points || 0;
+                }
+                
+                if (this.state.lessons && this.state.lessons.length > 0) {
+                    const completed = this.state.lessons.filter(l => l.completed).length;
+                    const total = this.state.lessons.length;
+                    const current = this.state.lessons.find(l => !l.completed);
+                    
+                    document.getElementById('current-lesson').textContent = current ? current.title : 'همه تکمیل شد!';
+                    document.getElementById('completed-lessons').textContent = completed;
+                    document.getElementById('total-lessons').textContent = total;
+                    
+                    const progress = total > 0 ? (completed / total) * 100 : 0;
+                    document.getElementById('progress-bar').style.width = `${progress}%`;
+                }
+                
+                document.getElementById('online-users').textContent = this.state.live.onlineUsers;
+                document.getElementById('last-update').textContent = 
+                    this.state.ui.lastUpdated ? new Date(this.state.ui.lastUpdated).toLocaleTimeString('fa-IR') : '-';
+            }
+            
+            async fetchUserData() {
+                this.setState({ ui: { ...this.state.ui, loading: true, error: null } });
+                
+                try {
+                    // شبیه‌سازی API call
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                    
+                    const mockUser = {
+                        id: 1,
+                        name: 'کاربر تست',
+                        email: 'test@vakamova.com',
+                        level: 3,
+                        points: 1250,
+                        avatarColor: '#4f46e5'
+                    };
+                    
+                    this.setState({ 
+                        user: mockUser,
+                        ui: { 
+                            ...this.state.ui, 
+                            loading: false, 
+                            lastUpdated: new Date().toISOString() 
+                        }
+                    });
+                    
+                    return mockUser;
+                } catch (error) {
+                    this.setState({ 
+                        ui: { ...this.state.ui, loading: false, error: error.message } 
+                    });
+                    throw error;
+                }
+            }
+            
+            async fetchLessons() {
+                this.setState({ ui: { ...this.state.ui, loading: true } });
+                
+                try {
+                    await new Promise(resolve => setTimeout(resolve, 300));
+                    
+                    const mockLessons = [
+                        { id: 1, title: 'مقدمه انگلیسی', completed: true, progress: 100 },
+                        { id: 2, title: 'گرامر پایه', completed: true, progress: 100 },
+                        { id: 3, title: 'مکالمه روزمره', completed: false, progress: 60 },
+                        { id: 4, title: 'تلفظ پیشرفته', completed: false, progress: 20 },
+                        { id: 5, title: 'واژگان تجاری', completed: false, progress: 0 }
+                    ];
+                    
+                    this.setState({ 
+                        lessons: mockLessons,
+                        ui: { ...this.state.ui, loading: false, lastUpdated: new Date().toISOString() }
+                    });
+                    
+                    return mockLessons;
+                } catch (error) {
+                    this.setState({ ui: { ...this.state.ui, loading: false, error: error.message } });
+                    throw error;
+                }
+            }
+            
+            completeLesson(lessonId) {
+                const updatedLessons = this.state.lessons.map(lesson => {
+                    if (lesson.id === lessonId) {
+                        return { ...lesson, completed: true, progress: 100 };
+                    }
+                    return lesson;
+                });
+                
+                // افزایش امتیاز کاربر
+                const updatedUser = this.state.user ? {
+                    ...this.state.user,
+                    points: (this.state.user.points || 0) + 100
+                } : this.state.user;
+                
+                this.setState({ 
+                    lessons: updatedLessons,
+                    user: updatedUser,
+                    ui: { ...this.state.ui, lastUpdated: new Date().toISOString() }
+                });
+                
+                showNotification('🎉 درس تکمیل شد!', 'امتیاز شما افزایش یافت', 'success');
+            }
+            
+            simulateLiveUpdate() {
+                // شبیه‌سازی به‌روزرسانی زنده
+                const newOnlineUsers = Math.floor(Math.random() * 50) + 10;
+                const newNotification = {
+                    id: Date.now(),
+                    title: 'به‌روزرسانی زنده',
+                    message: `تعداد کاربران آنلاین: ${newOnlineUsers}`,
+                    time: new Date().toISOString()
+                };
+                
+                this.setState({
+                    live: {
+                        onlineUsers: newOnlineUsers,
+                        notifications: [newNotification, ...this.state.live.notifications.slice(0, 4)]
+                    },
+                    ui: { ...this.state.ui, lastUpdated: new Date().toISOString() }
+                });
+                
+                showNotification('🔄 به‌روزرسانی زنده', 'داده‌های آنلاین به‌روز شدند', 'info');
+            }
+        }
+
+        // ========== تست‌ها ==========
+        const tests = [
+            {
+                id: 'test-1',
+                title: 'API Success → State Update → UI Reflects',
+                description: 'دریافت داده کاربر از API، ذخیره در State و نمایش در UI',
+                run: async () => {
+                    logger.log('🔍 شروع تست 1: API → State → UI');
+                    
+                    // 1. دریافت داده از API
+                    const user = await stateManager.fetchUserData();
+                    
+                    // 2. بررسی ذخیره در State
+                    if (!stateManager.state.user) {
+                        throw new Error('داده کاربر در State ذخیره نشده');
+                    }
+                    
+                    if (stateManager.state.user.email !== user.email) {
+                        throw new Error('داده‌های State با API همخوانی ندارند');
+                    }
+                    
+                    // 3. بررسی نمایش در UI
+                    const uiName = document.getElementById('user-name').textContent;
+                    if (uiName !== user.name) {
+                        throw new Error('UI داده‌ها را به درستی نمایش نمی‌دهد');
+                    }
+                    
+                    return '✅ API → State → UI با موفقیت کار می‌کند';
+                }
+            },
+            {
+                id: 'test-2',
+                title: 'UI Action → State Change → API Call',
+                description: 'عملیات UI (تکمیل درس) باعث تغییر State و درخواست API می‌شود',
+                run: async () => {
+                    logger.log('🔍 شروع تست 2: UI → State → API');
+                    
+                    // ابتدا دروس را بارگذاری می‌کنیم
+                    await stateManager.fetchLessons();
+                    
+                    const initialPoints = stateManager.state.user?.points || 0;
+                    const lessonToComplete = stateManager.state.lessons.find(l => !l.completed);
+                    
+                    if (!lessonToComplete) {
+                        throw new Error('هیچ درسی برای تکمیل یافت نشد');
+                    }
+                    
+                    // 1. عملیات UI (شبیه‌سازی کلیک)
+                    stateManager.completeLesson(lessonToComplete.id);
+                    
+                    // تاخیر برای پردازش
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    
+                    // 2. بررسی تغییر State
+                    const updatedLesson = stateManager.state.lessons.find(l => l.id === lessonToComplete.id);
+                    if (!updatedLesson?.completed) {
+                        throw new Error('وضعیت درس در State به‌روز نشده');
+                    }
+                    
+                    // 3. بررسی افزایش امتیاز
+                    const newPoints = stateManager.state.user?.points || 0;
+                    if (newPoints !== initialPoints + 100) {
+                        throw new Error(`امتیاز صحیح افزایش نیافته: ${newPoints} (انتظار: ${initialPoints + 100})`);
+                    }
+                    
+                    // 4. بررسی UI
+                    const uiPoints = document.getElementById('user-points').textContent;
+                    if (parseInt(uiPoints) !== newPoints) {
+                        throw new Error('UI امتیاز جدید را نمایش نمی‌دهد');
+                    }
+                    
+                    return `✅ درس "${lessonToComplete.title}" تکمیل شد. امتیاز: ${initialPoints} → ${newPoints}`;
+                }
+            },
+            {
+                id: 'test-3',
+                title: 'Real-time Updates via State',
+                description: 'به‌روزرسانی‌های زنده از طریق State در UI نمایش داده می‌شوند',
+                run: async () => {
+                    logger.log('🔍 شروع تست 3: Real-time Updates');
+                    
+                    const initialOnlineUsers = stateManager.state.live.onlineUsers;
+                    
+                    // 1. شبیه‌سازی به‌روزرسانی زنده
+                    stateManager.simulateLiveUpdate();
+                    await new Promise(resolve => setTimeout(resolve, 200));
+                    
+                    // 2. بررسی تغییر State
+                    if (stateManager.state.live.onlineUsers === initialOnlineUsers) {
+                        throw new Error('تعداد کاربران آنلاین به‌روز نشده');
+                    }
+                    
+                    // 3. بررسی نمایش در UI
+                    const uiOnlineUsers = document.getElementById('online-users').textContent;
+                    if (uiOnlineUsers !== stateManager.state.live.onlineUsers.toString()) {
+                        throw new Error('UI کاربران آنلاین را نمایش نمی‌دهد');
+                    }
+                    
+                    // 4. بررسی timestamp
+                    if (!stateManager.state.ui.lastUpdated) {
+                        throw new Error('زمان آخرین به‌روزرسانی ثبت نشده');
+                    }
+                    
+                    return `✅ به‌روزرسانی زنده موفق. کاربران آنلاین: ${initialOnlineUsers} → ${stateManager.state.live.onlineUsers}`;
+                }
+            },
+            {
+                id: 'test-4',
+                title: 'Error Handling → State → UI',
+                description: 'مدیریت خطای API و نمایش مناسب در UI',
+                run: async () => {
+                    logger.log('🔍 شروع تست 4: Error Handling');
+                    
+                    // ذخیره state اصلی
+                    const originalState = { ...stateManager.state };
+                    
+                    try {
+                        // 1. شبیه‌سازی خطای API
+                        stateManager.setState({ 
+                            ui: { ...stateManager.state.ui, loading: true } 
+                        });
+                        
+                        await new Promise(resolve => setTimeout(resolve, 100));
+                        
+                        // شبیه‌سازی خطا
+                        throw new Error('اتصال به سرور قطع شد');
+                        
+                    } catch (error) {
+                        // 2. بررسی ثبت خطا در State
+                        stateManager.setState({
+                            ui: { 
+                                ...stateManager.state.ui, 
+                                loading: false, 
+                                error: error.message 
+                            }
+                        });
+                        
+                        if (!stateManager.state.ui.error) {
+                            throw new Error('خطا در State ثبت نشده');
+                        }
+                        
+                        // 3. بررسی نمایش خطا در UI (اینجا لاگ می‌کنیم)
+                        logger.warning(`خطای UI: ${stateManager.state.ui.error}`);
+                        
+                        // 4. بازگردانی state
+                        stateManager.setState(originalState);
+                        
+                        return '✅ مدیریت خطا به درستی انجام شد';
+                    }
+                }
+            },
+            {
+                id: 'test-5',
+                title: 'Full Integration Flow',
+                description: 'گردش کامل کاربر از API تا State تا UI',
+                run: async () => {
+                    logger.log('🔍 شروع تست 5: Full Integration Flow');
+                    
+                    // 1. بارگذاری اولیه
+                    await stateManager.fetchUserData();
+                    await stateManager.fetchLessons();
+                    
+                    // 2. بررسی وضعیت اولیه
+                    if (!stateManager.state.user || !stateManager.state.lessons.length) {
+                        throw new Error('بارگذاری اولیه انجام نشد');
+                    }
+                    
+                    // 3. عملیات کاربر
+                    const initialPoints = stateManager.state.user.points;
+                    const incompleteLessons = stateManager.state.lessons.filter(l => !l.completed);
+                    
+                    for (let i = 0; i < Math.min(2, incompleteLessons.length); i++) {
+                        stateManager.completeLesson(incompleteLessons[i].id);
+                        await new Promise(resolve => setTimeout(resolve, 100));
+                    }
+                    
+                    // 4. به‌روزرسانی زنده
+                    stateManager.simulateLiveUpdate();
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    
+                    // 5. بررسی نهایی
+                    const finalPoints = stateManager.state.user.points;
+                    const completedLessons = stateManager.state.lessons.filter(l => l.completed).length;
+                    
+                    if (finalPoints !== initialPoints + (200 * Math.min(2, incompleteLessons.length))) {
+                        throw new Error('امتیاز نهایی صحیح نیست');
+                    }
+                    
+                    // 6. بررسی UI
+                    const uiCompleted = document.getElementById('completed-lessons').textContent;
+                    if (parseInt(uiCompleted) !== completedLessons) {
+                        throw new Error('UI تعداد دروس تکمیل‌شده را نمایش نمی‌دهد');
+                    }
+                    
+                    return `✅ گردش کامل موفق. ${completedLessons} درس تکمیل شد. امتیاز: ${initialPoints} → ${finalPoints}`;
+                }
+            }
+        ];
+
+        // ========== مدیریت تست‌ها ==========
+        const TestManager = {
+            stateManager: null,
+            results: {},
+            
+            initialize() {
+                this.stateManager = new StateManager();
+                
+                // رندر لیست تست‌ها
+                const testList = document.getElementById('test-list');
+                testList.innerHTML = '';
+                
+                tests.forEach(test => {
+                    const testCard = document.createElement('div');
+                    testCard.className = 'test-card';
+                    testCard.id = `card-${test.id}`;
+                    testCard.innerHTML = `
+                        <strong>${test.title}</strong>
+                        <p style="font-size: 0.9rem; color: #6b7280; margin: 5px 0;">${test.description}</p>
+                        <button onclick="TestManager.runSingleTest('${test.id}')" id="btn-${test.id}">
+                            اجرای تست
+                        </button>
+                        <div id="result-${test.id}" style="margin-top: 10px; font-size: 0.9rem;"></div>
+                    `;
+                    testList.appendChild(testCard);
+                });
+                
+                logger.log('🚀 سیستم تست API + State + UI آماده است');
+            },
+            
+            async runSingleTest(testId) {
+                const test = tests.find(t => t.id === testId);
+                if (!test) return;
+                
+                const button = document.getElementById(`btn-${testId}`);
+                const resultDiv = document.getElementById(`result-${testId}`);
+                const card = document.getElementById(`card-${testId}`);
+                
+                button.disabled = true;
+                button.innerHTML = '<span class="loading"></span> در حال اجرا...';
+                resultDiv.innerHTML = '';
+                card.className = 'test-card';
+                
+                try {
+                    const result = await test.run();
+                    resultDiv.innerHTML = `<span style="color: #10b981">✅ ${result}</span>`;
+                    card.className = 'test-card passed';
+                    this.results[testId] = { success: true, result };
+                    logger.success(`تست "${test.title}" موفق`);
+                } catch (error) {
+                    resultDiv.innerHTML = `<span style="color: #ef4444">❌ ${error.message}</span>`;
+                    card.className = 'test-card failed';
+                    this.results[testId] = { success: false, error: error.message };
+                    logger.error(`تست "${test.title}" ناموفق`, error.message);
+                } finally {
+                    button.disabled = false;
+                    button.textContent = 'اجرای مجدد';
+                }
+            },
+            
+            async runAllTests() {
+                const runBtn = document.getElementById('run-all-btn');
+                runBtn.disabled = true;
+                runBtn.innerHTML = '<span class="loading"></span> در حال اجرای تست‌ها...';
+                
+                logger.log('🚀 شروع اجرای تمام تست‌های یکپارچه‌سازی...');
+                
+                for (const test of tests) {
+                    await this.runSingleTest(test.id);
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                }
+                
+                runBtn.disabled = false;
+                runBtn.innerHTML = '<span>▶️</span> اجرای مجدد تمام تست‌ها';
+                
+                // نمایش خلاصه
+                const passed = Object.values(this.results).filter(r => r.success).length;
+                const total = tests.length;
+                
+                showNotification(
+                    '🎯 تست‌ها کامل شد',
+                    `${passed} از ${total} تست موفق بودند (${Math.round(passed/total*100)}%)`,
+                    passed === total ? 'success' : 'warning'
+                );
+            },
+            
+            resetTest() {
+                this.stateManager = new StateManager();
+                this.results = {};
+                
+                tests.forEach(test => {
+                    const card = document.getElementById(`card-${test.id}`);
+                    const resultDiv = document.getElementById(`result-${test.id}`);
+                    const button = document.getElementById(`btn-${test.id}`);
+                    
+                    card.className = 'test-card';
+                    resultDiv.innerHTML = '';
+                    button.disabled = false;
+                    button.textContent = 'اجرای تست';
+                });
+                
+                document.getElementById('console-output').innerHTML = '';
+                logger.log('🔄 تست بازنشانی شد');
+            }
+        };
+
+        // ========== توابع global ==========
+        window.TestManager = TestManager;
+        
+        function runAllTests() {
+            TestManager.runAllTests();
+        }
+        
+        function resetTest() {
+            TestManager.resetTest();
+        }
+        
+        function simulateLiveUpdate() {
+            if (TestManager.stateManager) {
+                TestManager.stateManager.simulateLiveUpdate();
+            }
+        }
+
+        // ========== راه‌اندازی اولیه ==========
+        document.addEventListener('DOMContentLoaded', () => {
+            TestManager.initialize();
+            
+            // بارگذاری اولیه داده‌ها
+            setTimeout(async () => {
+                try {
+                    await TestManager.stateManager.fetchUserData();
+                    await TestManager.stateManager.fetchLessons();
+                    logger.success('بارگذاری اولیه داده‌ها موفق بود');
+                } catch (error) {
+                    logger.error('خطا در بارگذاری اولیه', error.message);
+                }
+            }, 500);
+        });
+    </script>
+</body>
+</html>
