@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تست Transaction Groups - Vakamova</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            line-height: 1.6; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+            color: #333; 
+            padding: 20px; 
+            min-height: 100vh; 
+        }
+        
+        .container { 
+            max-width: 1200px; 
+            margin: 0 auto; 
+            background: rgba(255, 255, 255, 0.95); 
+            border-radius: 20px; 
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3); 
+            overflow: hidden; 
+        }
+        
+        header { 
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); 
+            color: white; 
+            padding: 30px; 
+            text-align: center; 
+        }
+        
+        .test-stats {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 30px;
+            background: #f8fafc;
+            border-top: 2px solid #e2e8f0;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        
+        .stat {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 15px;
+            background: white;
+            border-radius: 10px;
+            min-width: 120px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+        }
+        
+        .stat-value {
+            font-size: 2rem;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .stat-label {
+            font-size: 0.9rem;
+            color: #6b7280;
+        }
+        
+        .passed .stat-value { color: #10b981; }
+        .failed .stat-value { color: #ef4444; }
+        .pending .stat-value { color: #f59e0b; }
+        
+        .test-grid { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); 
+            gap: 20px; 
+            padding: 30px; 
+        }
+        
+        .test-card { 
+            background: white; 
+            border-radius: 15px; 
+            padding: 25px; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.08); 
+            border: 2px solid transparent; 
+            transition: all 0.3s ease; 
+        }
+        
+        .test-card:hover {
+            transform: translateY(-5px);
+            border-color: #4f46e5;
+            box-shadow: 0 15px 40px rgba(79,70,229,0.15);
+        }
+        
+        .test-card.passed { border-left: 5px solid #10b981; }
+        .test-card.failed { border-left: 5px solid #ef4444; }
+        .test-card.pending { border-left: 5px solid #f59e0b; }
+        
+        .test-title {
+            font-size: 1.3rem;
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: #1f2937;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .test-result {
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: bold;
+        }
+        
+        .passed .test-result { background: #d1fae5; color: #065f46; }
+        .failed .test-result { background: #fee2e2; color: #991b1b; }
+        .pending .test-result { background: #fef3c7; color: #92400e; }
+        
+        .test-desc {
+            color: #6b7280;
+            margin-bottom: 20px;
+            font-size: 0.95rem;
+        }
+        
+        .test-output {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            margin-top: 15px;
+            max-height: 200px;
+            overflow-y: auto;
+            direction: ltr;
+        }
+        
+        .test-output.success { background: #f0fdf4; border-color: #bbf7d0; }
+        .test-output.error { background: #fef2f2; border-color: #fecaca; }
+        
+        button {
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(79,70,229,0.4);
+        }
+        
+        button:active { transform: translateY(0); }
+        
+        .action-bar {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            padding: 30px;
+            border-top: 2px solid #e2e8f0;
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #e2e8f0;
+            border-top-color: #4f46e5;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin { to { transform: rotate(360deg); } }
+        
+        #console-log {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 15px;
+            margin: 0 30px 30px;
+            border-radius: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            max-height: 150px;
+            overflow-y: auto;
+            direction: ltr;
+            text-align: left;
+        }
+        
+        #status-message {
+            background: #f8fafc;
+            padding: 10px 30px;
+            border-bottom: 2px solid #e2e8f0;
+            font-weight: bold;
+            color: #4f46e5;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🧪 تست Transaction Groups - عملیات گروه‌بندی شده</h1>
+            <p>بررسی اتمی بودن (Atomicity)، Rollback و Commit برای گروه‌هایی از عملیات State</p>
+        </header>
+
+        <div id="status-message">آماده اجرای تست‌ها...</div>
+
+        <div class="test-stats">
+            <div class="stat pending">
+                <span class="stat-value" id="passed-count">0</span>
+                <span class="stat-label">موفق</span>
+            </div>
+            <div class="stat pending">
+                <span class="stat-value" id="failed-count">0</span>
+                <span class="stat-label">ناموفق</span>
+            </div>
+            <div class="stat pending">
+                <span class="stat-value" id="pending-count">6</span>
+                <span class="stat-label">در انتظار</span>
+            </div>
+            <div class="stat">
+                <span class="stat-value" id="coverage">0%</span>
+                <span class="stat-label">پوشش</span>
+            </div>
+        </div>
+
+        <div class="test-grid" id="test-grid">
+            <!-- تست‌ها اینجا نمایش داده می‌شوند -->
+        </div>
+
+        <div id="console-log">
+            <div>> کنسول تست Transaction Groups:</div>
+            <div id="console-output"></div>
+        </div>
+
+        <div class="action-bar">
+            <button id="run-all-btn">
+                <span>▶️</span>
+                اجرای تمام تست‌ها
+            </button>
+            <button id="clear-btn" style="background: linear-gradient(135deg, #6b7280 0%, #9ca3af 100%);">
+                <span>🔄</span>
+                پاک کردن نتایج
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // ========== بخش ۱: Logger ==========
+        const logger = {
+            log: (message, data = {}) => {
+                const time = new Date().toLocaleTimeString('fa-IR');
+                const output = document.getElementById('console-output');
+                const logEntry = document.createElement('div');
+                logEntry.innerHTML = `<span style="color: #94a3b8">[${time}]</span> ${message}`;
+                output.appendChild(logEntry);
+                output.scrollTop = output.scrollHeight;
+                console.log(message, data);
+            },
+            error: (message, error) => {
+                logger.log(`<span style="color: #ef4444">❌ ${message}: ${error}</span>`);
+            },
+            success: (message) => {
+                logger.log(`<span style="color: #10b981">✅ ${message}</span>`);
+            }
+        };
+
+        // ========== بخش ۲: TransactionGroupsManager ==========
+        class TransactionGroupsManager {
+            constructor(stateManager) {
+                this.stateManager = stateManager || {
+                    setState: (path, value) => console.log(`Mock: ${path} = ${value}`),
+                    getState: () => ({})
+                };
+                this.currentTransaction = null;
+                this.transactionLogs = [];
+                this.snapshotBeforeTransaction = null;
+            }
+
+            begin(groupId) {
+                if (this.currentTransaction) {
+                    throw new Error(`یک تراکنش در حال اجراست (${this.currentTransaction.id})`);
+                }
+                
+                this.currentTransaction = {
+                    id: groupId,
+                    actions: [],
+                    startTime: Date.now(),
+                    status: 'active'
+                };
+                
+                this.snapshotBeforeTransaction = this._takeStateSnapshot();
+                logger.log(`🔵 تراکنش "${groupId}" شروع شد`);
+                return this;
+            }
+
+            addAction(actionType, statePath, newValue) {
+                if (!this.currentTransaction) {
+                    throw new Error('هیچ تراکنش فعالی وجود ندارد');
+                }
+                
+                this.currentTransaction.actions.push({
+                    type: actionType,
+                    path: statePath,
+                    value: newValue,
+                    timestamp: Date.now()
+                });
+                
+                logger.log(`   ➕ "${actionType}" روی "${statePath}"`);
+                return this;
+            }
+
+            async commit() {
+                if (!this.currentTransaction) {
+                    throw new Error('هیچ تراکنشی برای Commit وجود ندارد');
+                }
+                
+                const txn = this.currentTransaction;
+                logger.log(`🔄 Commit تراکنش "${txn.id}" (${txn.actions.length} عمل)`);
+                
+                try {
+                    const executedActions = [];
+                    
+                    for (const action of txn.actions) {
+                        logger.log(`   🛠 اجرای: ${action.type} -> ${action.path}`);
+                        executedActions.push(action);
+                        
+                        if (action.path.includes('FAIL_ME')) {
+                            throw new Error(`خطای شبیه‌سازی در ${action.path}`);
+                        }
+                    }
+                    
+                    txn.status = 'committed';
+                    txn.endTime = Date.now();
+                    txn.executedActions = executedActions;
+                    
+                    this.transactionLogs.push({ ...txn, result: 'success' });
+                    logger.success(`✅ تراکنش "${txn.id}" Commit شد (${txn.endTime - txn.startTime}ms)`);
+                    
+                    this.currentTransaction = null;
+                    this.snapshotBeforeTransaction = null;
+                    
+                    return { 
+                        success: true, 
+                        transactionId: txn.id,
+                        duration: txn.endTime - txn.startTime,
+                        actionCount: txn.actions.length
+                    };
+                    
+                } catch (error) {
+                    logger.error(`خطا در Commit "${txn.id}"`, error.message);
+                    await this._performRollback(txn, `خطا: ${error.message}`);
+                    throw error;
+                }
+            }
+
+            async rollback(reason = 'دستوری') {
+                if (!this.currentTransaction) {
+                    throw new Error('هیچ تراکنشی برای Rollback وجود ندارد');
+                }
+                return await this._performRollback(this.currentTransaction, reason);
+            }
+
+            async _performRollback(transaction, reason) {
+                logger.log(`⏪ Rollback تراکنش "${transaction.id}" (دلیل: ${reason})`);
+                
+                if (this.snapshotBeforeTransaction) {
+                    logger.log(`   🔄 بازیابی Snapshot`);
+                }
+                
+                transaction.status = 'rolled_back';
+                transaction.endTime = Date.now();
+                transaction.rollbackReason = reason;
+                
+                this.transactionLogs.push({ ...transaction, result: 'rolled_back' });
+                logger.success(`✅ تراکنش "${transaction.id}" Rollback شد`);
+                
+                this.currentTransaction = null;
+                this.snapshotBeforeTransaction = null;
+                
+                return { 
+                    success: true, 
+                    transactionId: transaction.id,
+                    reason: reason
+                };
+            }
+
+            _takeStateSnapshot() {
+                return {
+                    timestamp: Date.now(),
+                    data: 'snapshot_of_current_state'
+                };
+            }
+
+            getStats() {
+                const total = this.transactionLogs.length;
+                const committed = this.transactionLogs.filter(t => t.result === 'success').length;
+                const rolledBack = this.transactionLogs.filter(t => t.result === 'rolled_back').length;
+                return { total, committed, rolledBack };
+            }
+
+            getCurrentTransaction() {
+                return this.currentTransaction ? { ...this.currentTransaction } : null;
+            }
+        }
+
+        // ========== بخش ۳: تست‌ها ==========
+        const tests = [
+            {
+                id: 'txn-1',
+                title: 'ایجاد و Commit تراکنش ساده',
+                description: 'بررسی شروع یک تراکنش، اضافه کردن عملیات و Commit موفق.',
+                run: async () => {
+                    const txnManager = new TransactionGroupsManager();
+                    
+                    txnManager.begin('test_txn_1')
+                              .addAction('SET', 'user.points', 100)
+                              .addAction('SET', 'user.level', 'beginner');
+                    
+                    const result = await txnManager.commit();
+                    
+                    if (!result.success) throw new Error('Commit ناموفق');
+                    if (result.actionCount !== 2) throw new Error(`تعداد عملیات: ${result.actionCount} (انتظار: 2)`);
+                    
+                    return `✅ تراکنش Commit شد (${result.duration}ms)`;
+                }
+            },
+            {
+                id: 'txn-2',
+                title: 'Rollback دستی',
+                description: 'شروع تراکنش، اضافه کردن عملیات و Rollback آگاهانه.',
+                run: async () => {
+                    const txnManager = new TransactionGroupsManager();
+                    
+                    txnManager.begin('test_txn_2')
+                              .addAction('SET', 'cart.total', 50000);
+                    
+                    const result = await txnManager.rollback('تست Rollback');
+                    
+                    if (!result.success) throw new Error('Rollback ناموفق');
+                    
+                    const stats = txnManager.getStats();
+                    if (stats.rolledBack !== 1) throw new Error(`آمار Rollback: ${stats.rolledBack} (انتظار: 1)`);
+                    
+                    return '✅ Rollback دستی موفق';
+                }
+            },
+            {
+                id: 'txn-3',
+                title: 'چند تراکنش پشت سر هم',
+                description: 'بررسی مدیریت صحیح چند تراکنش مستقل.',
+                run: async () => {
+                    const txnManager = new TransactionGroupsManager();
+                    
+                    await txnManager.begin('txn_a').addAction('SET', 'a', 1).commit();
+                    await txnManager.begin('txn_b').addAction('SET', 'b', 2).commit();
+                    
+                    const stats = txnManager.getStats();
+                    if (stats.committed !== 2) throw new Error(`Commit: ${stats.committed} (انتظار: 2)`);
+                    
+                    return '✅ دو تراکنش پشت سر هم مدیریت شد';
+                }
+            },
+            {
+                id: 'txn-4',
+                title: 'خطای تراکنش تودرتو',
+                description: 'شروع تراکنش دوم قبل از پایان اول باید خطا دهد.',
+                run: async () => {
+                    const txnManager = new TransactionGroupsManager();
+                    txnManager.begin('first_txn');
+                    
+                    let errorThrown = false;
+                    try {
+                        txnManager.begin('second_txn');
+                    } catch (error) {
+                        errorThrown = true;
+                        if (!error.message.includes('یک تراکنش در حال اجراست')) {
+                            throw new Error(`پیام خطای نامناسب: "${error.message}"`);
+                        }
+                    }
+                    
+                    if (!errorThrown) throw new Error('باید خطا می‌داد');
+                    
+                    await txnManager.rollback('پایان تست');
+                    return '✅ از تراکنش تودرتو جلوگیری شد';
+                }
+            },
+            {
+                id: 'txn-5',
+                title: 'Rollback خودکار',
+                description: 'Rollback اتوماتیک هنگام خطا در حین اجرا.',
+                run: async () => {
+                    const txnManager = new TransactionGroupsManager();
+                    
+                    txnManager.begin('failing_txn')
+                              .addAction('SET', 'step1', 'ok')
+                              .addAction('SET', 'FAIL_ME', 'error')
+                              .addAction('SET', 'step3', 'never');
+                    
+                    let errorCaught = false;
+                    try {
+                        await txnManager.commit();
+                    } catch (error) {
+                        errorCaught = true;
+                    }
+                    
+                    if (!errorCaught) throw new Error('باید خطا می‌داد');
+                    
+                    const currentTxn = txnManager.getCurrentTransaction();
+                    if (currentTxn !== null) throw new Error('تراکنش هنوز فعال است');
+                    
+                    const stats = txnManager.getStats();
+                    if (stats.rolledBack !== 1) throw new Error(`Rollback: ${stats.rolledBack} (انتظار: 1)`);
+                    
+                    return '✅ Rollback خودکار موفق';
+                }
+            },
+            {
+                id: 'txn-6',
+                title: 'آمارگیری دقیق',
+                description: 'بررسی آمارگیری از تراکنش‌ها.',
+                run: async () => {
+                    const txnManager = new TransactionGroupsManager();
+                    
+                    await txnManager.begin('stats_1').addAction('SET', 'x', 1).commit();
+                    await txnManager.begin('stats_2').addAction('SET', 'y', 2).commit();
+                    await txnManager.begin('stats_3').addAction('SET', 'z', 3).rollback('تست');
+                    await txnManager.begin('stats_4').addAction('SET', 'w', 4).commit();
+                    
+                    const stats = txnManager.getStats();
+                    
+                    if (stats.total !== 4) throw new Error(`کل: ${stats.total} (انتظار: 4)`);
+                    if (stats.committed !== 3) throw new Error(`Commit: ${stats.committed} (انتظار: 3)`);
+                    if (stats.rolledBack !== 1) throw new Error(`Rollback: ${stats.rolledBack} (انتظار: 1)`);
+                    
+                    return `✅ آمار صحیح. کل: ${stats.total}, Commit: ${stats.committed}, Rollback: ${stats.rolledBack}`;
+                }
+            }
+        ];
+
+        // ========== بخش ۴: TestManager ==========
+        const TestManager = {
+            tests: tests,
+            results: {},
+            
+            renderTests() {
+                const testGrid = document.getElementById('test-grid');
+                testGrid.innerHTML = '';
+                
+                this.tests.forEach(test => {
+                    const card = document.createElement('div');
+                    card.className = 'test-card pending';
+                    card.id = `card-${test.id}`;
+                    card.innerHTML = `
+                        <div class="test-title">
+                            <span>${test.title}</span>
+                            <span class="test-result" id="result-${test.id}">در انتظار</span>
+                        </div>
+                        <div class="test-desc">${test.description}</div>
+                        <div class="test-output" id="output-${test.id}"></div>
+                    `;
+                    testGrid.appendChild(card);
+                });
+                
+                this.updateStats();
+                document.getElementById('status-message').textContent = 'آماده اجرای تست‌ها';
+            },
+            
+            async runTest(test) {
+                const card = document.getElementById(`card-${test.id}`);
+                const output = document.getElementById(`output-${test.id}`);
+                const resultSpan = document.getElementById(`result-${test.id}`);
+                
+                card.className = 'test-card pending';
+                resultSpan.textContent = 'در حال اجرا...';
+                output.className = 'test-output';
+                output.innerHTML = '<div class="loading"></div> در حال اجرا...';
+                
+                document.getElementById('status-message').textContent = `در حال اجرای: ${test.title}`;
+                logger.log(`شروع تست: ${test.title}`);
+                
+                try {
+                    const result = await test.run();
+                    card.className = 'test-card passed';
+                    resultSpan.textContent = 'موفق';
+                    output.className = 'test-output success';
+                    output.innerHTML = `<strong>✅ نتیجه:</strong> ${result}`;
+                    this.results[test.id] = { success: true, result };
+                    logger.success(`تست "${test.title}" موفق`);
+                    return true;
+                } catch (error) {
+                    card.className = 'test-card failed';
+                    resultSpan.textContent = 'ناموفق';
+                    output.className = 'test-output error';
+                    output.innerHTML = `<strong>❌ خطا:</strong> ${error.message}`;
+                    this.results[test.id] = { success: false, error: error.message };
+                    logger.error(`تست "${test.title}" ناموفق`, error.message);
+                    return false;
+                } finally {
+                    this.updateStats();
+                }
+            },
+            
+            async runAllTests() {
+                const runBtn = document.getElementById('run-all-btn');
+                runBtn.disabled = true;
+                runBtn.innerHTML = '<span class="loading"></span> در حال اجرا...';
+                
+                let passed = 0;
+                logger.log('🚀 شروع تمام تست‌ها');
+                
+                for (const test of this.tests) {
+                    const success = await this.runTest(test);
+                    if (success) passed++;
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                }
+                
+                runBtn.disabled = false;
+                runBtn.innerHTML = '<span>▶️</span> اجرای مجدد';
+                document.getElementById('status-message').textContent = `تکمیل شد: ${passed} از ${this.tests.length} موفق`;
+                
+                const coverage = Math.round((passed / this.tests.length) * 100);
+                document.getElementById('coverage').textContent = `${coverage}%`;
+                logger.log(`🎯 تکمیل شد: ${passed} موفق از ${this.tests.length}`);
+            },
+            
+            updateStats() {
+                const passed = document.querySelectorAll('.test-card.passed').length;
+                const failed = document.querySelectorAll('.test-card.failed').length;
+                const pending = this.tests.length - passed - failed;
+                
+                document.getElementById('passed-count').textContent = passed;
+                document.getElementById('failed-count').textContent = failed;
+                document.getElementById('pending-count').textContent = pending;
+            },
+            
+            clearTests() {
+                this.tests.forEach(test => {
+                    const card = document.getElementById(`card-${test.id}`);
+                    const output = document.getElementById(`output-${test.id}`);
+                    const resultSpan = document.getElementById(`result-${test.id}`);
+                    
+                    card.className = 'test-card pending';
+                    resultSpan.textContent = 'در انتظار';
+                    output.className = 'test-output';
+                    output.innerHTML = '';
+                });
+                
+                this.results = {};
+                this.updateStats();
+                document.getElementById('console-output').innerHTML = '';
+                document.getElementById('coverage').textContent = '0%';
+                document.getElementById('status-message').textContent = 'آماده اجرای تست‌ها';
+                logger.log('🧹 نتایج پاک شد');
+            }
+        };
+
+        // ========== بخش ۵: راه‌اندازی ==========
+        document.addEventListener('DOMContentLoaded', function() {
+            TestManager.renderTests();
+            
+            // اتصال مستقیم دکمه‌ها
+            document.getElementById('run-all-btn').onclick = function() {
+                TestManager.runAllTests();
+            };
+            
+            document.getElementById('clear-btn').onclick = function() {
+                TestManager.clearTests();
+            };
+            
+            logger.log('🚀 تست Transaction Groups آماده است');
+            logger.log('📱 دکمه‌ها فعال هستند - برای اجرا کلیک کنید');
+        });
+    </script>
+</body>
+</html>
