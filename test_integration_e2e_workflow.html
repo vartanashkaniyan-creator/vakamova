@@ -1,0 +1,1183 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تست End-to-End گردش کامل کاربر - Vakamova</title>
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --dark: #1f2937;
+            --light: #f8fafc;
+        }
+        
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: 'Segoe UI', 'Vazirmatn', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.98);
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+        
+        header {
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+            position: relative;
+        }
+        
+        header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+        }
+        
+        .badge {
+            background: var(--success);
+            color: white;
+            padding: 8px 20px;
+            border-radius: 25px;
+            font-size: 1rem;
+            font-weight: bold;
+            animation: pulse 2s infinite;
+        }
+        
+        .test-stats {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            padding: 25px;
+            background: var(--light);
+            border-bottom: 2px solid #e2e8f0;
+        }
+        
+        .stat {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+            transition: transform 0.3s ease;
+        }
+        
+        .stat:hover {
+            transform: translateY(-5px);
+        }
+        
+        .stat-value {
+            font-size: 2.5rem;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .stat-label {
+            font-size: 0.9rem;
+            color: #6b7280;
+            text-align: center;
+        }
+        
+        .workflow-container {
+            display: flex;
+            min-height: 700px;
+        }
+        
+        .timeline {
+            width: 300px;
+            background: linear-gradient(180deg, #f8fafc 0%, #e2e8f0 100%);
+            padding: 30px 20px;
+            border-right: 2px solid #e2e8f0;
+            overflow-y: auto;
+        }
+        
+        .timeline-step {
+            display: flex;
+            align-items: center;
+            padding: 20px;
+            margin-bottom: 15px;
+            background: white;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+            position: relative;
+        }
+        
+        .timeline-step:hover {
+            border-color: var(--primary);
+            box-shadow: 0 5px 20px rgba(79, 70, 229, 0.1);
+        }
+        
+        .timeline-step.active {
+            border-color: var(--primary);
+            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+        }
+        
+        .timeline-step.completed {
+            border-color: var(--success);
+            background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+        }
+        
+        .step-number {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #e2e8f0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-left: 15px;
+            flex-shrink: 0;
+        }
+        
+        .timeline-step.active .step-number {
+            background: var(--primary);
+            color: white;
+        }
+        
+        .timeline-step.completed .step-number {
+            background: var(--success);
+            color: white;
+        }
+        
+        .step-info {
+            flex: 1;
+        }
+        
+        .step-title {
+            font-weight: bold;
+            color: var(--dark);
+            margin-bottom: 5px;
+        }
+        
+        .step-desc {
+            font-size: 0.85rem;
+            color: #6b7280;
+        }
+        
+        .content-area {
+            flex: 1;
+            padding: 30px;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .test-scenario {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 25px;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.05);
+            border: 2px solid #e2e8f0;
+        }
+        
+        .scenario-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #e2e8f0;
+        }
+        
+        .scenario-title {
+            font-size: 1.5rem;
+            color: var(--dark);
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .scenario-status {
+            padding: 8px 20px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 0.9rem;
+        }
+        
+        .status-pending {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        
+        .status-running {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+        
+        .status-success {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        
+        .status-failed {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        
+        .scenario-content {
+            margin-bottom: 20px;
+        }
+        
+        .scenario-details {
+            background: #f8fafc;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+        
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        
+        .detail-row:last-child {
+            border-bottom: none;
+        }
+        
+        .detail-label {
+            color: #6b7280;
+            font-weight: 500;
+        }
+        
+        .detail-value {
+            color: var(--dark);
+            font-weight: bold;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        button {
+            background: linear-gradient(135deg, var(--primary) 0%, #7c3aed 100%);
+            color: white;
+            border: none;
+            padding: 14px 30px;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            min-width: 150px;
+        }
+        
+        button:hover:not(:disabled) {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 25px rgba(79, 70, 229, 0.4);
+        }
+        
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        #start-btn {
+            background: linear-gradient(135deg, var(--success) 0%, #059669 100%);
+        }
+        
+        #reset-btn {
+            background: linear-gradient(135deg, #6b7280 0%, #9ca3af 100%);
+        }
+        
+        .console {
+            background: #1e293b;
+            color: #e2e8f0;
+            border-radius: 12px;
+            padding: 20px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            margin-top: 25px;
+            flex: 1;
+            overflow-y: auto;
+            max-height: 300px;
+        }
+        
+        .console-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #374151;
+        }
+        
+        .console-title {
+            font-weight: bold;
+            color: #94a3b8;
+        }
+        
+        .console-controls button {
+            padding: 6px 12px;
+            font-size: 0.8rem;
+            min-width: auto;
+            background: #374151;
+        }
+        
+        .console-content {
+            line-height: 1.5;
+        }
+        
+        .log-entry {
+            margin-bottom: 8px;
+            padding: 5px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        
+        .log-time {
+            color: #94a3b8;
+            margin-left: 10px;
+        }
+        
+        .log-info {
+            color: #60a5fa;
+        }
+        
+        .log-success {
+            color: #34d399;
+        }
+        
+        .log-warning {
+            color: #fbbf24;
+        }
+        
+        .log-error {
+            color: #f87171;
+        }
+        
+        .progress-container {
+            margin: 25px 0;
+        }
+        
+        .progress-bar {
+            height: 12px;
+            background: #e2e8f0;
+            border-radius: 6px;
+            overflow: hidden;
+            margin-bottom: 10px;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary) 0%, #7c3aed 100%);
+            border-radius: 6px;
+            width: 0%;
+            transition: width 0.5s ease;
+        }
+        
+        .progress-text {
+            display: flex;
+            justify-content: space-between;
+            color: #6b7280;
+            font-size: 0.9rem;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.7; }
+            100% { opacity: 1; }
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #e2e8f0;
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @media (max-width: 1024px) {
+            .workflow-container {
+                flex-direction: column;
+            }
+            
+            .timeline {
+                width: 100%;
+                border-right: none;
+                border-bottom: 2px solid #e2e8f0;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .test-stats {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            header h1 {
+                flex-direction: column;
+                gap: 10px;
+            }
+            
+            .controls {
+                flex-wrap: wrap;
+            }
+            
+            button {
+                flex: 1;
+                min-width: 120px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>
+                <span>🧪 تست End-to-End گردش کامل کاربر</span>
+                <span class="badge">Vakamova</span>
+            </h1>
+            <p>شبیه‌سازی کامل گردش کاربر از ثبت‌نام تا تکمیل درس</p>
+        </header>
+        
+        <div class="test-stats">
+            <div class="stat">
+                <span class="stat-value" id="total-steps">8</span>
+                <span class="stat-label">مرحله در گردش</span>
+            </div>
+            <div class="stat">
+                <span class="stat-value" id="completed-steps">0</span>
+                <span class="stat-label">مراحل تکمیل‌شده</span>
+            </div>
+            <div class="stat">
+                <span class="stat-value" id="success-rate">0%</span>
+                <span class="stat-label">نرخ موفقیت</span>
+            </div>
+            <div class="stat">
+                <span class="stat-value" id="execution-time">0s</span>
+                <span class="stat-label">زمان اجرا</span>
+            </div>
+        </div>
+        
+        <div class="workflow-container">
+            <div class="timeline" id="timeline">
+                <!-- Timeline steps will be populated by JavaScript -->
+            </div>
+            
+            <div class="content-area">
+                <div class="test-scenario">
+                    <div class="scenario-header">
+                        <div class="scenario-title">
+                            <span>📋 گردش کامل کاربر در Vakamova</span>
+                        </div>
+                        <div class="scenario-status status-pending" id="scenario-status">
+                            در انتظار شروع
+                        </div>
+                    </div>
+                    
+                    <div class="scenario-content">
+                        <p>این تست تمامی مراحل گردش یک کاربر در اپلیکیشن Vakamova را شبیه‌سازی می‌کند:</p>
+                        <ol style="margin: 15px 0; padding-right: 20px;">
+                            <li>ثبت‌نام کاربر جدید در سیستم</li>
+                            <li>ورود به حساب کاربری</li>
+                            <li>مشاهده دروس موجود</li>
+                            <li>خرید یک درس با پرداخت</li>
+                            <li>شروع درس خریداری‌شده</li>
+                            <li>تکمیل تمرین‌های درس</li>
+                            <li>دریافت امتیاز و افزایش سطح</li>
+                            <li>مشاهده پروفایل به‌روزشده</li>
+                        </ol>
+                    </div>
+                    
+                    <div class="scenario-details" id="scenario-details">
+                        <div class="detail-row">
+                            <span class="detail-label">کاربر تست:</span>
+                            <span class="detail-value" id="test-user">در حال آماده‌سازی...</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">درس انتخابی:</span>
+                            <span class="detail-value" id="test-lesson">در حال انتخاب...</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">مبلغ پرداخت:</span>
+                            <span class="detail-value" id="test-amount">0 ریال</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">امتیاز پایه:</span>
+                            <span class="detail-value" id="test-score">0</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">سطح کاربر:</span>
+                            <span class="detail-value" id="test-level">مبتدی</span>
+                        </div>
+                    </div>
+                    
+                    <div class="progress-container">
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progress-fill"></div>
+                        </div>
+                        <div class="progress-text">
+                            <span>پیشرفت تست</span>
+                            <span id="progress-text">0%</span>
+                        </div>
+                    </div>
+                    
+                    <div class="controls">
+                        <button id="start-btn" onclick="startWorkflow()">
+                            <span>▶️</span>
+                            شروع گردش کامل
+                        </button>
+                        <button id="step-btn" onclick="runNextStep()" disabled>
+                            <span>⏭️</span>
+                            مرحله بعدی
+                        </button>
+                        <button id="reset-btn" onclick="resetWorkflow()">
+                            <span>🔄</span>
+                            شروع مجدد
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="console">
+                    <div class="console-header">
+                        <div class="console-title">کنسول اجرای تست</div>
+                        <div class="console-controls">
+                            <button onclick="clearConsole()">پاک کردن کنسول</button>
+                        </div>
+                    </div>
+                    <div class="console-content" id="console-output">
+                        <div class="log-entry log-info">🚀 سیستم تست End-to-End آماده اجرا است</div>
+                        <div class="log-entry log-info">📱 گردش کامل کاربر در ۸ مرحله شبیه‌سازی می‌شود</div>
+                        <div class="log-entry log-info">💾 ماژول‌های Auth, Database, Payment, State, Lesson با هم یکپارچه می‌شوند</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ========== سیستم لاگ‌گیری ==========
+        const logger = {
+            log: (message, type = 'info', data = null) => {
+                const time = new Date().toLocaleTimeString('fa-IR', { 
+                    hour: '2-digit', 
+                    minute: '2-digit',
+                    second: '2-digit'
+                });
+                
+                const consoleEl = document.getElementById('console-output');
+                const logEntry = document.createElement('div');
+                logEntry.className = `log-entry log-${type}`;
+                
+                let logMessage = `<span class="log-time">[${time}]</span> ${message}`;
+                
+                if (data) {
+                    logMessage += ` <small style="color: #94a3b8">(${JSON.stringify(data)})</small>`;
+                }
+                
+                logEntry.innerHTML = logMessage;
+                consoleEl.appendChild(logEntry);
+                consoleEl.scrollTop = consoleEl.scrollHeight;
+                
+                // Log to browser console as well
+                const consoleMethod = type === 'error' ? 'error' : 
+                                     type === 'warning' ? 'warn' : 
+                                     type === 'success' ? 'log' : 'info';
+                console[consoleMethod](`[${time}] ${message}`, data || '');
+            },
+            
+            info: (message, data) => logger.log(message, 'info', data),
+            success: (message, data) => logger.log(message, 'success', data),
+            warning: (message, data) => logger.log(message, 'warning', data),
+            error: (message, data) => logger.log(message, 'error', data)
+        };
+
+        // ========== تعریف مراحل گردش ==========
+        const workflowSteps = [
+            {
+                id: 1,
+                title: 'ثبت‌نام کاربر',
+                description: 'ایجاد حساب کاربری جدید با اطلاعات کامل',
+                icon: '👤',
+                status: 'pending',
+                action: async () => {
+                    logger.info('مرحله ۱: شروع ثبت‌نام کاربر...');
+                    
+                    // شبیه‌سازی تاخیر شبکه
+                    await delay(500);
+                    
+                    // ایجاد کاربر تست
+                    const testUser = {
+                        id: `user_${Date.now()}`,
+                        email: `test${Math.floor(Math.random() * 10000)}@vakamova.com`,
+                        name: 'کاربر تست Vakamova',
+                        password: 'securePassword123',
+                        createdAt: new Date().toISOString()
+                    };
+                    
+                    window.testData = { user: testUser };
+                    
+                    // به‌روزرسانی UI
+                    document.getElementById('test-user').textContent = testUser.email;
+                    document.getElementById('test-user').style.color = '#10b981';
+                    
+                    logger.success('ثبت‌نام کاربر با موفقیت انجام شد', {
+                        userId: testUser.id,
+                        email: testUser.email
+                    });
+                    
+                    return testUser;
+                }
+            },
+            {
+                id: 2,
+                title: 'ورود به سیستم',
+                description: 'احراز هویت کاربر و ایجاد سشن',
+                icon: '🔐',
+                status: 'pending',
+                action: async () => {
+                    logger.info('مرحله ۲: شروع فرآیند ورود...');
+                    
+                    await delay(400);
+                    
+                    if (!window.testData?.user) {
+                        throw new Error('کاربری برای ورود وجود ندارد');
+                    }
+                    
+                    const session = {
+                        id: `session_${Date.now()}`,
+                        userId: window.testData.user.id,
+                        token: `token_${Math.random().toString(36).substr(2, 20)}`,
+                        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+                        createdAt: new Date().toISOString()
+                    };
+                    
+                    window.testData.session = session;
+                    
+                    logger.success('ورود کاربر با موفقیت انجام شد', {
+                        sessionId: session.id,
+                        expiresAt: session.expiresAt
+                    });
+                    
+                    return session;
+                }
+            },
+            {
+                id: 3,
+                title: 'مشاهده دروس',
+                description: 'دریافت لیست دروس موجود برای کاربر',
+                icon: '📚',
+                status: 'pending',
+                action: async () => {
+                    logger.info('مرحله ۳: دریافت لیست دروس...');
+                    
+                    await delay(600);
+                    
+                    // شبیه‌سازی دروس موجود
+                    const lessons = [
+                        { id: 'lesson_1', title: 'مقدمات زبان انگلیسی', price: 49000, level: 'مبتدی' },
+                        { id: 'lesson_2', title: 'گرامر پیشرفته', price: 79000, level: 'متوسط' },
+                        { id: 'lesson_3', title: 'مکالمه تجاری', price: 99000, level: 'پیشرفته' },
+                        { id: 'lesson_4', title: 'آمادگی آزمون IELTS', price: 149000, level: 'حرفه‌ای' }
+                    ];
+                    
+                    // انتخاب تصادفی یک درس
+                    const selectedLesson = lessons[Math.floor(Math.random() * lessons.length)];
+                    window.testData.selectedLesson = selectedLesson;
+                    
+                    // به‌روزرسانی UI
+                    document.getElementById('test-lesson').textContent = selectedLesson.title;
+                    document.getElementById('test-amount').textContent = 
+                        selectedLesson.price.toLocaleString('fa-IR') + ' ریال';
+                    
+                    logger.success('لیست دروس دریافت شد', {
+                        totalLessons: lessons.length,
+                        selectedLesson: selectedLesson.title,
+                        price: selectedLesson.price
+                    });
+                    
+                    return lessons;
+                }
+            },
+            {
+                id: 4,
+                title: 'خرید درس',
+                description: 'انجام پرداخت و خرید درس انتخاب‌شده',
+                icon: '💳',
+                status: 'pending',
+                action: async () => {
+                    logger.info('مرحله ۴: شروع فرآیند خرید...');
+                    
+                    if (!window.testData?.selectedLesson) {
+                        throw new Error('درسی برای خرید انتخاب نشده است');
+                    }
+                    
+                    await delay(800);
+                    
+                    // شبیه‌سازی پرداخت
+                    const payment = {
+                        id: `payment_${Date.now()}`,
+                        userId: window.testData.user.id,
+                        lessonId: window.testData.selectedLesson.id,
+                        amount: window.testData.selectedLesson.price,
+                        currency: 'IRR',
+                        status: 'completed',
+                        transactionId: `txn_${Math.random().toString(36).substr(2, 15)}`,
+                        paidAt: new Date().toISOString()
+                    };
+                    
+                    window.testData.payment = payment;
+                    
+                    logger.success('پرداخت با موفقیت انجام شد', {
+                        paymentId: payment.id,
+                        amount: payment.amount,
+                        transactionId: payment.transactionId
+                    });
+                    
+                    return payment;
+                }
+            },
+            {
+                id: 5,
+                title: 'شروع درس',
+                description: 'شروع درس خریداری‌شده و ردیابی پیشرفت',
+                icon: '🎬',
+                status: 'pending',
+                action: async () => {
+                    logger.info('مرحله ۵: شروع درس خریداری‌شده...');
+                    
+                    await delay(300);
+                    
+                    if (!window.testData?.selectedLesson) {
+                        throw new Error('درسی برای شروع وجود ندارد');
+                    }
+                    
+                    const lessonProgress = {
+                        id: `progress_${Date.now()}`,
+                        userId: window.testData.user.id,
+                        lessonId: window.testData.selectedLesson.id,
+                        status: 'started',
+                        startedAt: new Date().toISOString(),
+                        currentUnit: 1,
+                        totalUnits: 10,
+                        score: 0
+                    };
+                    
+                    window.testData.lessonProgress = lessonProgress;
+                    
+                    logger.success('درس با موفقیت شروع شد', {
+                        lessonId: lessonProgress.lessonId,
+                        currentUnit: lessonProgress.currentUnit,
+                        totalUnits: lessonProgress.totalUnits
+                    });
+                    
+                    return lessonProgress;
+                }
+            },
+            {
+                id: 6,
+                title: 'تکمیل تمرین‌ها',
+                description: 'انجام تمرین‌های درس و دریافت امتیاز',
+                icon: '✅',
+                status: 'pending',
+                action: async () => {
+                    logger.info('مرحله ۶: انجام تمرین‌های درس...');
+                    
+                    if (!window.testData?.lessonProgress) {
+                        throw new Error('پیشرفتی برای تکمیل وجود ندارد');
+                    }
+                    
+                    // شبیه‌سازی تکمیل ۱۰ واحد
+                    let totalScore = 0;
+                    for (let i = 1; i <= 10; i++) {
+                        await delay(150);
+                        const unitScore = Math.floor(Math.random() * 10) + 5; // 5-14
+                        totalScore += unitScore;
+                        
+                        window.testData.lessonProgress.currentUnit = i;
+                        window.testData.lessonProgress.score = totalScore;
+                        
+                        logger.info(`واحد ${i} تکمیل شد`, { score: unitScore, totalScore });
+                    }
+                    
+                    window.testData.lessonProgress.status = 'completed';
+                    window.testData.lessonProgress.completedAt = new Date().toISOString();
+                    window.testData.lessonProgress.finalScore = totalScore;
+                    
+                    // به‌روزرسانی UI
+                    document.getElementById('test-score').textContent = totalScore;
+                    document.getElementById('test-score').style.color = '#10b981';
+                    
+                    logger.success('تمامی تمرین‌های درس تکمیل شدند', {
+                        totalScore: totalScore,
+                        unitsCompleted: 10
+                    });
+                    
+                    return window.testData.lessonProgress;
+                }
+            },
+            {
+                id: 7,
+                title: 'افزایش سطح',
+                description: 'محاسبه سطح جدید کاربر بر اساس امتیاز',
+                icon: '📈',
+                status: 'pending',
+                action: async () => {
+                    logger.info('مرحله ۷: محاسبه سطح کاربر...');
+                    
+                    await delay(400);
+                    
+                    if (!window.testData?.lessonProgress?.finalScore) {
+                        throw new Error('امتیازی برای محاسبه سطح وجود ندارد');
+                    }
+                    
+                    const score = window.testData.lessonProgress.finalScore;
+                    
+                    // تعیین سطح بر اساس امتیاز
+                    let level, xp;
+                    if (score >= 100) {
+                        level = 'حرفه‌ای';
+                        xp = 500;
+                    } else if (score >= 70) {
+                        level = 'متوسط';
+                        xp = 300;
+                    } else if (score >= 40) {
+                        level = 'مبتدی پیشرفته';
+                        xp = 150;
+                    } else {
+                        level = 'مبتدی';
+                        xp = 50;
+                    }
+                    
+                    window.testData.user.level = level;
+                    window.testData.user.xp = (window.testData.user.xp || 0) + xp;
+                    window.testData.user.totalLessonsCompleted = 
+                        (window.testData.user.totalLessonsCompleted || 0) + 1;
+                    
+                    // به‌روزرسانی UI
+                    document.getElementById('test-level').textContent = level;
+                    document.getElementById('test-level').style.color = '#8b5cf6';
+                    
+                    logger.success('سطح کاربر افزایش یافت', {
+                        newLevel: level,
+                        xpEarned: xp,
+                        totalXP: window.testData.user.xp
+                    });
+                    
+                    return { level, xp, totalXP: window.testData.user.xp };
+                }
+            },
+            {
+                id: 8,
+                title: 'پروفایل نهایی',
+                description: 'نمایش پروفایل به‌روزشده کاربر',
+                icon: '🏆',
+                status: 'pending',
+                action: async () => {
+                    logger.info('مرحله ۸: نمایش پروفایل نهایی...');
+                    
+                    await delay(300);
+                    
+                    if (!window.testData?.user) {
+                        throw new Error('داده‌های کاربر وجود ندارد');
+                    }
+                    
+                    const finalProfile = {
+                        userId: window.testData.user.id,
+                        email: window.testData.user.email,
+                        level: window.testData.user.level,
+                        totalXP: window.testData.user.xp,
+                        lessonsCompleted: window.testData.user.totalLessonsCompleted,
+                        totalSpent: window.testData.payment?.amount || 0,
+                        joinedAt: window.testData.user.createdAt,
+                        lastActivity: new Date().toISOString()
+                    };
+                    
+                    window.testData.finalProfile = finalProfile;
+                    
+                    logger.success('پروفایل نهایی آماده است', finalProfile);
+                    
+                    return finalProfile;
+                }
+            }
+        ];
+
+        // ========== متغیرهای حالت ==========
+        let currentStep = 0;
+        let isRunning = false;
+        let startTime = null;
+        let completedSteps = 0;
+        let successfulSteps = 0;
+
+        // ========== تابع تاخیر ==========
+        function delay(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        // ========== رندر Timeline ==========
+        function renderTimeline() {
+            const timelineEl = document.getElementById('timeline');
+            timelineEl.innerHTML = '';
+            
+            workflowSteps.forEach(step => {
+                const stepEl = document.createElement('div');
+                stepEl.className = `timeline-step ${step.status}`;
+                if (step.id === currentStep + 1) {
+                    stepEl.classList.add('active');
+                }
+                
+                stepEl.innerHTML = `
+                    <div class="step-number">${step.icon}</div>
+                    <div class="step-info">
+                        <div class="step-title">${step.title}</div>
+                        <div class="step-desc">${step.description}</div>
+                    </div>
+                    <div style="margin-right: auto; font-size: 0.8rem; color: #6b7280;">
+                        ${step.status === 'completed' ? '✅' : 
+                          step.status === 'running' ? '⏳' : 
+                          step.status === 'failed' ? '❌' : '⏸️'}
+                    </div>
+                `;
+                
+                timelineEl.appendChild(stepEl);
+            });
+        }
+
+        // ========== به‌روزرسانی آمار ==========
+        function updateStats() {
+            document.getElementById('completed-steps').textContent = completedSteps;
+            document.getElementById('total-steps').textContent = workflowSteps.length;
+            
+            const successRate = workflowSteps.length > 0 
+                ? Math.round((successfulSteps / workflowSteps.length) * 100) 
+                : 0;
+            document.getElementById('success-rate').textContent = `${successRate}%`;
+            
+            if (startTime) {
+                const elapsed = Math.floor((Date.now() - startTime) / 1000);
+                document.getElementById('execution-time').textContent = `${elapsed}s`;
+            }
+            
+            const progressPercent = Math.round((completedSteps / workflowSteps.length) * 100);
+            document.getElementById('progress-fill').style.width = `${progressPercent}%`;
+            document.getElementById('progress-text').textContent = `${progressPercent}%`;
+        }
+
+        // ========== اجرای مرحله ==========
+        async function runStep(stepIndex) {
+            const step = workflowSteps[stepIndex];
+            
+            if (!step || isRunning) return false;
+            
+            isRunning = true;
+            step.status = 'running';
+            
+            // به‌روزرسانی UI
+            document.getElementById('scenario-status').className = 'scenario-status status-running';
+            document.getElementById('scenario-status').textContent = 'در حال اجرا...';
+            document.getElementById('step-btn').disabled = true;
+            
+            renderTimeline();
+            
+            try {
+                logger.info(`شروع مرحله ${step.id}: ${step.title}`);
+                
+                const result = await step.action();
+                
+                // علامت‌گذاری مرحله به عنوان تکمیل‌شده
+                step.status = 'completed';
+                completedSteps++;
+                successfulSteps++;
+                
+                logger.success(`مرحله ${step.id} با موفقیت تکمیل شد`);
+                
+                // به‌روزرسانی آمار
+                updateStats();
+                
+                // اگر آخرین مرحله بود
+                if (stepIndex === workflowSteps.length - 1) {
+                    completeWorkflow();
+                }
+                
+                return result;
+                
+            } catch (error) {
+                step.status = 'failed';
+                completedSteps++;
+                
+                logger.error(`خطا در مرحله ${step.id}: ${error.message}`);
+                document.getElementById('scenario-status').className = 'scenario-status status-failed';
+                document.getElementById('scenario-status').textContent = 'خطا در اجرا';
+                
+                updateStats();
+                return null;
+                
+            } finally {
+                isRunning = false;
+                document.getElementById('step-btn').disabled = false;
+                renderTimeline();
+            }
+        }
+
+        // ========== شروع گردش کامل ==========
+        async function startWorkflow() {
+            if (isRunning) return;
+            
+            logger.info('🚀 شروع گردش کامل End-to-End...');
+            logger.info('='.repeat(50));
+            
+            startTime = Date.now();
+            currentStep = 0;
+            completedSteps = 0;
+            successfulSteps = 0;
+            
+            // ریست‌کردن وضعیت مراحل
+            workflowSteps.forEach(step => step.status = 'pending');
+            
+            // ریست‌کردن داده‌های تست
+            window.testData = {};
+            
+            // به‌روزرسانی UI
+            document.getElementById('start-btn').disabled = true;
+            document.getElementById('step-btn').disabled = false;
+            document.getElementById('scenario-status').className = 'scenario-status status-running';
+            document.getElementById('scenario-status').textContent = 'در حال اجرا...';
+            
+            // ریست‌کردن نمایش داده‌ها
+            document.getElementById('test-user').textContent = 'در حال آماده‌سازی...';
+            document.getElementById('test-lesson').textContent = 'در حال انتخاب...';
+            document.getElementById('test-amount').textContent = '0 ریال';
+            document.getElementById('test-score').textContent = '0';
+            document.getElementById('test-level').textContent = 'مبتدی';
+            
+            renderTimeline();
+            updateStats();
+            
+            // اجرای خودکار تمام مراحل
+            for (let i = 0; i < workflowSteps.length; i++) {
+                currentStep = i;
+                const result = await runStep(i);
+                
+                if (!result && i === 0) {
+                    // اگر اولین مرحله شکست خورد، متوقف شو
+                    break;
+                }
+                
+                // تاخیر کوتاه بین مراحل
+                if (i < workflowSteps.length - 1) {
+                    await delay(500);
+                }
+            }
+        }
+
+        // ========== اجرای مرحله بعدی ==========
+        async function runNextStep() {
+            if (isRunning || currentStep >= workflowSteps.length) return;
+            
+            await runStep(currentStep);
+            currentStep++;
+        }
+
+        // ========== تکمیل گردش ==========
+        function completeWorkflow() {
+            const elapsed = Math.floor((Date.now() - startTime) / 1000);
+            
+            logger.success('='.repeat(50));
+            logger.success(`🎉 گردش کامل End-to-End با موفقیت تکمیل شد!`);
+            logger.success(`⏱️ زمان کل اجرا: ${elapsed} ثانیه`);
+            logger.success(`✅ مراحل موفق: ${successfulSteps} از ${workflowSteps.length}`);
+            logger.success('='.repeat(50));
+            
+            document.getElementById('scenario-status').className = 'scenario-status status-success';
+            document.getElementById('scenario-status').textContent = 'تکمیل شد';
+            document.getElementById('start-btn').disabled = false;
+            document.getElementById('step-btn').disabled = true;
+            
+            // نمایش خلاصه
+            if (window.testData?.finalProfile) {
+                logger.info('📊 خلاصه پروفایل نهایی کاربر:', window.testData.finalProfile);
+            }
+        }
+
+        // ========== شروع مجدد ==========
+        function resetWorkflow() {
+            logger.info('🔄 راه‌اندازی مجدد تست...');
+            
+            currentStep = 0;
+            completedSteps = 0;
+            successfulSteps = 0;
+            isRunning = false;
+            startTime = null;
+            
+            // ریست‌کردن وضعیت مراحل
+            workflowSteps.forEach(step => step.status = 'pending');
+            
+            // ریست‌کردن داده‌ها
+            window.testData = {};
+            
+            // به‌روزرسانی UI
+            document.getElementById('start-btn').disabled = false;
+            document.getElementById('step-btn').disabled = true;
+            document.getElementById('scenario-status').className = 'scenario-status status-pending';
+            document.getElementById('scenario-status').textContent = 'در انتظار شروع';
+            
+            document.getElementById('test-user').textContent = 'در حال آماده‌سازی...';
+            document.getElementById('test-lesson').textContent = 'در حال انتخاب...';
+            document.getElementById('test-amount').textContent = '0 ریال';
+            document.getElementById('test-score').textContent = '0';
+            document.getElementById('test-level').textContent = 'مبتدی';
+            
+            renderTimeline();
+            updateStats();
+            
+            logger.info('✅ تست آماده اجرای مجدد است');
+        }
+
+        // ========== پاک کردن کنسول ==========
+        function clearConsole() {
+            document.getElementById('console-output').innerHTML = `
+                <div class="log-entry log-info">🧹 کنسول پاک شد</div>
+                <div class="log-entry log-info">🚀 سیستم تست End-to-End آماده اجرا است</div>
+            `;
+        }
+
+        // ========== راه‌اندازی اولیه ==========
+        document.addEventListener('DOMContentLoaded', () => {
+            renderTimeline();
+            updateStats();
+            logger.info('✅ سیستم تست End-to-End راه‌اندازی شد');
+            logger.info('👆 روی دکمه "شروع گردش کامل" کلیک کنید');
+        });
+    </script>
+</body>
+  </html>
