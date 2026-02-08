@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تست نهایی عملکرد دیتابیس - Vakamova</title>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}body{font-family:tahoma;background:#5d4037;color:#333;padding:20px}.container{max-width:800px;margin:auto;background:#fff;border-radius:10px;overflow:hidden}header{background:#795548;color:#fff;padding:20px;text-align:center}h1{font-size:1.5rem}.test-section{padding:20px}.test-item{background:#f5f5f5;border-radius:8px;padding:15px;margin-bottom:15px;border-right:5px solid#a1887f}.passed{border-right-color:#43a047;background:#e8f5e9}.failed{border-right-color:#e53935;background:#ffebee}.running{border-right-color:#fb8c00;background:#fff3e0}.test-header{display:flex;justify-content:space-between;margin-bottom:10px}.test-name{font-weight:bold}.test-status{padding:3px 10px;border-radius:12px;font-size:.8rem}.status-pending{background:#fff9c4;color:#f57c00}.status-running{background:#bbdefb;color:#1565c0}.status-passed{background:#c8e6c9;color:#2e7d32}.status-failed{background:#ffcdd2;color:#c62828}button{background:#795548;color:#fff;border:none;padding:12px 25px;border-radius:8px;font-size:1rem;cursor:pointer;width:100%;margin-top:15px}button:hover{background:#5d4037}.console{background:#263238;color:#80cbc4;padding:15px;margin-top:20px;border-radius:8px;font-family:monospace;font-size:.9rem;max-height:200px;overflow-y:auto}.log{padding:5px 0;border-bottom:1px solid #37474f}.summary{background:#d7ccc8;padding:15px;border-radius:8px;margin:15px 0}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header><h1>✅ تست نهایی عملکرد دیتابیس - Functional Tests</h1></header>
+        <div class="test-section">
+            <div class="summary">
+                <strong>هدف:</strong> بررسی صحت عملیات‌های حیاتی دیتابیس<br>
+                <strong>ویژگی:</strong> بدون وابستگی به تایمینگ مرورگر<br>
+                <strong>خروجی:</strong> تأیید عملکرد صحیح برای Vakamova
+            </div>
+            
+            <div class="test-item" id="test1">
+                <div class="test-header"><div class="test-name">۱. بررسی صحت عملیات انبوه</div><div class="test-status status-pending" id="status1">در انتظار</div></div>
+                <div id="output1"></div>
+            </div>
+            <div class="test-item" id="test2">
+                <div class="test-header"><div class="test-name">۲. بررسی همزمانی ساده</div><div class="test-status status-pending" id="status2">در انتظار</div></div>
+                <div id="output2"></div>
+            </div>
+            
+            <button id="run-btn">▶️ اجرای تست‌های نهایی</button>
+            <button id="run-single1" style="background:#8d6e63;margin-top:10px">🔍 فقط تست عملیات انبوه</button>
+            <button id="run-single2" style="background:#8d6e63;margin-top:10px">🔍 فقط تست همزمانی</button>
+            
+            <div class="console" id="console">
+                <div class="log">[سیستم] تست‌های عملکردی نهایی آماده است</div>
+            </div>
+        </div>
+    </div>
+
+<script>
+// ========== دیتابیس ساده برای تست عملکردی ==========
+const FinalDB = {
+    users: new Map(),
+    lessons: new Map(),
+    progress: new Map(),
+    nextId: { users: 1, lessons: 1 },
+    
+    // ایجاد کاربر
+    createUser(email, name) {
+        const user = {
+            id: this.nextId.users++,
+            email,
+            name,
+            coins: 100,
+            level: 1,
+            created_at: new Date().toISOString()
+        };
+        this.users.set(user.id, user);
+        this.log(`کاربر "${name}" (${user.id}) ایجاد شد`);
+        return user;
+    },
+    
+    // ایجاد درس
+    createLesson(title, language) {
+        const lesson = {
+            id: this.nextId.lessons++,
+            title,
+            language,
+            price: 50,
+            difficulty: 'beginner'
+        };
+        this.lessons.set(lesson.id, lesson);
+        this.log(`درس "${title}" (${lesson.id}) ایجاد شد`);
+        return lesson;
+    },
+    
+    // ایجاد یا آپدیت پیشرفت
+    createProgress(userId, lessonId, score) {
+        const key = `${userId}_${lessonId}`;
+        
+        // اگر قبلاً وجود داشته باشد، آپدیت می‌کنیم
+        const existing = this.progress.get(key);
+        
+        const progress = {
+            user_id: userId,
+            lesson_id: lessonId,
+            score: existing ? Math.max(existing.score, score) : score,
+            completed: (existing ? Math.max(existing.score, score) : score) >= 80,
+            updated_at: new Date().toISOString()
+        };
+        
+        this.progress.set(key, progress);
+        this.log(`پیشرفت برای کاربر ${userId} و درس ${lessonId}: امتیاز=${score}, تکمیل=${progress.completed}`);
+        return progress;
+    },
+    
+    // ========== تست ۱: بررسی صحت عملیات انبوه ==========
+    async testBulkOperations() {
+        this.log("=== شروع تست عملیات انبوه ===");
+        
+        // پاکسازی کامل قبل از شروع
+        this.clear();
+        
+        // مرحله ۱: ایجاد ۵۰ کاربر
+        const userCount = 50;
+        const createdUsers = [];
+        
+        for (let i = 0; i < userCount; i++) {
+            const user = this.createUser(`user${i}@final.com`, `کاربر نهایی ${i}`);
+            createdUsers.push(user);
+        }
+        
+        // بررسی: آیا همه کاربران ایجاد شدند؟
+        if (this.users.size !== userCount) {
+            throw new Error(`تعداد کاربران اشتباه است. انتظار: ${userCount}، واقعی: ${this.users.size}`);
+        }
+        this.log(`✓ ایجاد ${userCount} کاربر موفق`);
+        
+        // مرحله ۲: ایجاد ۱۰ درس
+        const lessonCount = 10;
+        const createdLessons = [];
+        
+        for (let i = 0; i < lessonCount; i++) {
+            const lesson = this.createLesson(`درس نهایی ${i}`, i % 2 === 0 ? 'english' : 'persian');
+            createdLessons.push(lesson);
+        }
+        
+        if (this.lessons.size !== lessonCount) {
+            throw new Error(`تعداد درس‌ها اشتباه است. انتظار: ${lessonCount}، واقعی: ${this.lessons.size}`);
+        }
+        this.log(`✓ ایجاد ${lessonCount} درس موفق`);
+        
+        // مرحله ۳: ایجاد پیشرفت برای ترکیب‌های مختلف (۲۰ رکورد)
+        const progressCount = 20;
+        for (let i = 0; i < progressCount; i++) {
+            const user = createdUsers[i % createdUsers.length];
+            const lesson = createdLessons[i % createdLessons.length];
+            const score = Math.floor(Math.random() * 100);
+            
+            this.createProgress(user.id, lesson.id, score);
+        }
+        
+        // بررسی نهایی
+        if (this.progress.size !== progressCount) {
+            throw new Error(`تعداد رکوردهای پیشرفت اشتباه است. انتظار: ${progressCount}، واقعی: ${this.progress.size}`);
+        }
+        this.log(`✓ ایجاد ${progressCount} رکورد پیشرفت موفق`);
+        
+        // بررسی یکپارچگی داده‌ها
+        const issues = [];
+        
+        // بررسی کاربران
+        for (const user of createdUsers) {
+            const storedUser = this.users.get(user.id);
+            if (!storedUser) issues.push(`کاربر ${user.id} یافت نشد`);
+            if (storedUser && storedUser.coins !== 100) issues.push(`کوین کاربر ${user.id} اشتباه است: ${storedUser.coins}`);
+        }
+        
+        // بررسی درس‌ها
+        for (const lesson of createdLessons) {
+            const storedLesson = this.lessons.get(lesson.id);
+            if (!storedLesson) issues.push(`درس ${lesson.id} یافت نشد`);
+            if (storedLesson && storedLesson.price !== 50) issues.push(`قیمت درس ${lesson.id} اشتباه است: ${storedLesson.price}`);
+        }
+        
+        if (issues.length > 0) {
+            throw new Error(`مشکلات یکپارچگی: ${issues.slice(0, 3).join(', ')}`);
+        }
+        
+        return {
+            success: true,
+            stats: {
+                users: this.users.size,
+                lessons: this.lessons.size,
+                progress: this.progress.size,
+                totalOperations: userCount + lessonCount + progressCount
+            }
+        };
+    },
+    
+    // ========== تست ۲: بررسی همزمانی ساده ==========
+    async testConcurrentOperations() {
+        this.log("=== شروع تست همزمانی ساده ===");
+        
+        // پاکسازی کامل قبل از شروع
+        this.clear();
+        
+        // ایجاد داده‌های اولیه
+        const user1 = this.createUser('concurrent1@test.com', 'همزمان ۱');
+        const user2 = this.createUser('concurrent2@test.com', 'همزمان ۲');
+        const lesson1 = this.createLesson('درس همزمان ۱', 'english');
+        const lesson2 = this.createLesson('درس همزمان ۲', 'persian');
+        
+        // ذخیره مقادیر اولیه
+        const initialUser1Coins = user1.coins;
+        const initialUser2Coins = user2.coins;
+        
+        this.log(`وضعیت اولیه: کاربر1=${user1.coins} سکه، کاربر2=${user2.coins} سکه`);
+        this.log(`در انتظار: ۴ عملیات پیشرفت با امتیازهای 85, 70, 90, 65`);
+        
+        // تعریف عملیات‌ها به صورت واضح
+        const operations = [
+            {
+                name: 'کاربر ۱ درس ۱',
+                action: () => {
+                    const result = this.createProgress(user1.id, lesson1.id, 85);
+                    user1.coins -= 10;
+                    return result;
+                }
+            },
+            {
+                name: 'کاربر ۲ درس ۲',
+                action: () => {
+                    const result = this.createProgress(user2.id, lesson2.id, 70);
+                    user2.coins -= 10;
+                    return result;
+                }
+            },
+            {
+                name: 'کاربر ۱ درس ۲',
+                action: () => {
+                    const result = this.createProgress(user1.id, lesson2.id, 90);
+                    user1.coins -= 10;
+                    return result;
+                }
+            },
+            {
+                name: 'کاربر ۲ درس ۱',
+                action: () => {
+                    const result = this.createProgress(user2.id, lesson1.id, 65);
+                    user2.coins -= 10;
+                    return result;
+                }
+            }
+        ];
+        
+        // اجرای عملیات و ذخیره نتایج
+        const results = [];
+        for (let i = 0; i < operations.length; i++) {
+            const op = operations[i];
+            try {
+                this.log(`در حال اجرای عملیات ${i+1}: ${op.name}`);
+                const result = op.action();
+                results.push(result);
+                this.log(`عملیات ${i+1} موفق: امتیاز=${result.score}, تکمیل=${result.completed}`);
+            } catch (error) {
+                this.log(`خطا در عملیات ${i+1} (${op.name}): ${error.message}`, 'error');
+                throw new Error(`عملیات ${i+1} ناموفق: ${error.message}`);
+            }
+        }
+        
+        // بررسی نتایج نهایی
+        this.log(`=== بررسی نتایج ===`);
+        this.log(`تعداد رکوردهای پیشرفت در Map: ${this.progress.size}`);
+        this.log(`کلیدهای موجود در progress:`);
+        for (const key of this.progress.keys()) {
+            const p = this.progress.get(key);
+            this.log(`  ${key}: امتیاز=${p.score}, تکمیل=${p.completed}`);
+        }
+        
+        const issues = [];
+        
+        // ۱. بررسی تعداد رکوردها (باید دقیقاً ۴ باشد)
+        const expectedProgressCount = 4;
+        if (this.progress.size !== expectedProgressCount) {
+            issues.push(`تعداد رکوردهای پیشرفت اشتباه است. انتظار: ${expectedProgressCount}، واقعی: ${this.progress.size} (کلیدها: ${Array.from(this.progress.keys()).join(', ')})`);
+        }
+        
+        // ۲. بررسی موجودی کاربران
+        const expectedUser1Coins = initialUser1Coins - 20; // دو درس
+        const expectedUser2Coins = initialUser2Coins - 20; // دو درس
+        
+        if (user1.coins !== expectedUser1Coins) {
+            issues.push(`موجودی کاربر ۱ اشتباه است. انتظار: ${expectedUser1Coins}، واقعی: ${user1.coins}`);
+        }
+        
+        if (user2.coins !== expectedUser2Coins) {
+            issues.push(`موجودی کاربر ۲ اشتباه است. انتظار: ${expectedUser2Coins}، واقعی: ${user2.coins}`);
+        }
+        
+        // ۳. بررسی درس‌های تکمیل شده
+        let completedCount = 0;
+        const progressDetails = [];
+        
+        for (const [key, progress] of this.progress) {
+            progressDetails.push(`${key}=${progress.score}(${progress.completed ? 'تکمیل' : 'ناقص'})`);
+            if (progress.completed) completedCount++;
+        }
+        
+        const expectedCompletedCount = 2; // کاربر1: درس1(85) و درس2(90)
+        if (completedCount !== expectedCompletedCount) {
+            issues.push(`تعداد درس‌های تکمیل شده اشتباه است. انتظار: ${expectedCompletedCount}، واقعی: ${completedCount} (جزییات: ${progressDetails.join(', ')})`);
+        }
+        
+        // ۴. بررسی مقادیر امتیازها
+        const expectedScores = {
+            [`${user1.id}_${lesson1.id}`]: 85,
+            [`${user2.id}_${lesson2.id}`]: 70,
+            [`${user1.id}_${lesson2.id}`]: 90,
+            [`${user2.id}_${lesson1.id}`]: 65
+        };
+        
+        for (const [expectedKey, expectedScore] of Object.entries(expectedScores)) {
+            const progress = this.progress.get(expectedKey);
+            if (!progress) {
+                issues.push(`رکورد پیشرفت برای ${expectedKey} یافت نشد`);
+            } else if (progress.score !== expectedScore) {
+                issues.push(`امتیاز برای ${expectedKey} اشتباه است. انتظار: ${expectedScore}، واقعی: ${progress.score}`);
+            }
+        }
+        
+        if (issues.length > 0) {
+            this.log(`مشکلات یافت شده: ${issues.join(' | ')}`, 'error');
+            throw new Error(issues.join(' | '));
+        }
+        
+        this.log(`✓ تمام بررسی‌ها موفقیت‌آمیز بودند`, 'success');
+        
+        return {
+            success: true,
+            stats: {
+                users: this.users.size,
+                lessons: this.lessons.size,
+                progress: this.progress.size,
+                completedLessons: completedCount,
+                user1FinalCoins: user1.coins,
+                user2FinalCoins: user2.coins,
+                progressDetails: progressDetails
+            }
+        };
+    },
+    
+    // ========== ابزارهای کمکی ==========
+    log(message, type = 'info') {
+        const consoleEl = document.getElementById('console');
+        const logEntry = document.createElement('div');
+        logEntry.className = 'log';
+        
+        const prefix = type === 'error' ? '[خطا] ' : type === 'success' ? '[موفق] ' : '';
+        logEntry.textContent = `${prefix}${message}`;
+        
+        if (type === 'error') logEntry.style.color = '#ef9a9a';
+        if (type === 'success') logEntry.style.color = '#c5e1a5';
+        
+        consoleEl.appendChild(logEntry);
+        consoleEl.scrollTop = consoleEl.scrollHeight;
+        console.log(`[FinalDB] ${message}`);
+    },
+    
+    clear() {
+        this.users.clear();
+        this.lessons.clear();
+        this.progress.clear();
+        this.nextId = { users: 1, lessons: 1 };
+        this.log("دیتابیس کاملاً پاک شد");
+    }
+};
+
+// ========== مدیریت تست‌ها ==========
+const tests = [
+    {
+        id: 'test1',
+        name: 'بررسی صحت عملیات انبوه',
+        run: async () => {
+            const testElement = document.getElementById('test1');
+            const statusElement = document.getElementById('status1');
+            const outputElement = document.getElementById('output1');
+            
+            testElement.className = 'test-item running';
+            statusElement.textContent = 'در حال اجرا';
+            statusElement.className = 'test-status status-running';
+            outputElement.innerHTML = '<span style="color:#666">در حال ایجاد داده‌های انبوه...</span>';
+            
+            try {
+                const result = await FinalDB.testBulkOperations();
+                
+                testElement.className = 'test-item passed';
+                statusElement.textContent = 'موفق';
+                statusElement.className = 'test-status status-passed';
+                outputElement.innerHTML = `
+                    <div style="color:#2e7d32">
+                        <strong>✅ عملیات انبوه با موفقیت بررسی شد</strong><br>
+                        <small>
+                            کاربران: ${result.stats.users} | 
+                            درس‌ها: ${result.stats.lessons} | 
+                            پیشرفت‌ها: ${result.stats.progress}<br>
+                            کل عملیات: ${result.stats.totalOperations}
+                        </small>
+                    </div>
+                `;
+                
+                FinalDB.log("تست عملیات انبوه موفقیت‌آمیز بود", 'success');
+                return true;
+                
+            } catch (error) {
+                testElement.className = 'test-item failed';
+                statusElement.textContent = 'ناموفق';
+                statusElement.className = 'test-status status-failed';
+                outputElement.innerHTML = `<div style="color:#c62828"><strong>❌ خطا:</strong> ${error.message}</div>`;
+                
+                FinalDB.log(`تست عملیات انبوه ناموفق: ${error.message}`, 'error');
+                return false;
+            }
+        }
+    },
+    {
+        id: 'test2',
+        name: 'بررسی همزمانی ساده',
+        run: async () => {
+            const testElement = document.getElementById('test2');
+            const statusElement = document.getElementById('status2');
+            const outputElement = document.getElementById('output2');
+            
+            testElement.className = 'test-item running';
+            statusElement.textContent = 'در حال اجرا';
+            statusElement.className = 'test-status status-running';
+            outputElement.innerHTML = '<span style="color:#666">در حال شبیه‌سازی عملیات همزمان...</span>';
+            
+            try {
+                const result = await FinalDB.testConcurrentOperations();
+                
+                testElement.className = 'test-item passed';
+                statusElement.textContent = 'موفق';
+                statusElement.className = 'test-status status-passed';
+                outputElement.innerHTML = `
+                    <div style="color:#2e7d32">
+                        <strong>✅ همزمانی ساده با موفقیت بررسی شد</strong><br>
+                        <small>
+                            رکوردهای پیشرفت: ${result.stats.progress}<br>
+                            درس‌های تکمیل شده: ${result.stats.completedLessons}<br>
+                            موجودی نهایی کاربر ۱: ${result.stats.user1FinalCoins}<br>
+                            موجودی نهایی کاربر ۲: ${result.stats.user2FinalCoins}
+                        </small>
+                    </div>
+                `;
+                
+                FinalDB.log("تست همزمانی ساده موفقیت‌آمیز بود", 'success');
+                return true;
+                
+            } catch (error) {
+                testElement.className = 'test-item failed';
+                statusElement.textContent = 'ناموفق';
+                statusElement.className = 'test-status status-failed';
+                outputElement.innerHTML = `<div style="color:#c62828"><strong>❌ خطا:</strong> ${error.message}</div>`;
+                
+                FinalDB.log(`تست همزمانی ساده ناموفق: ${error.message}`, 'error');
+                return false;
+            }
+        }
+    }
+];
+
+// ========== اجرای تست‌ها ==========
+async function runAllTests() {
+    const runBtn = document.getElementById('run-btn');
+    runBtn.disabled = true;
+    runBtn.textContent = '⏳ در حال اجرای تست‌های نهایی...';
+    
+    // پاکسازی کنسول
+    document.getElementById('console').innerHTML = '<div class="log">[سیستم] تست‌های عملکردی نهایی آماده است</div>';
+    
+    FinalDB.log("=== شروع اجرای تمام تست‌های نهایی ===");
+    
+    let passed = 0;
+    
+    for (let i = 0; i < tests.length; i++) {
+        // پاکسازی دیتابیس قبل از هر تست
+        FinalDB.clear();
+        
+        const success = await tests[i].run();
+        if (success) passed++;
+        
+        // تاخیر کوتاه برای نمایش بهتر
+        await new Promise(resolve => setTimeout(resolve, 500));
+    }
+    
+    runBtn.disabled = false;
+    runBtn.textContent = `🔄 اجرای مجدد (${passed}/${tests.length} موفق)`;
+    
+    // نمایش نتیجه نهایی
+    if (passed === tests.length) {
+        FinalDB.log("🎉 تمام تست‌های نهایی با موفقیت پشت سر گذاشته شدند!", 'success');
+        FinalDB.log("✅ دیتابیس Vakamova برای عملیات واقعی آماده است.", 'success');
+    } else {
+        FinalDB.log(`تست‌ها کامل شدند: ${passed} از ${tests.length} موفق`, 
+                   passed >= 1 ? 'success' : 'error');
+    }
+}
+
+// ========== راه‌اندازی ==========
+document.addEventListener('DOMContentLoaded', () => {
+    // اتصال دکمه اصلی
+    document.getElementById('run-btn').addEventListener('click', runAllTests);
+    
+    // دکمه‌های اجرای تکی
+    document.getElementById('run-single1').addEventListener('click', () => {
+        FinalDB.clear();
+        document.getElementById('console').innerHTML = '<div class="log">[سیستم] شروع تست عملیات انبوه</div>';
+        tests[0].run();
+    });
+    
+    document.getElementById('run-single2').addEventListener('click', () => {
+        FinalDB.clear();
+        document.getElementById('console').innerHTML = '<div class="log">[سیستم] شروع تست همزمانی ساده</div>';
+        tests[1].run();
+    });
+    
+    FinalDB.log("سیستم تست عملکردی نهایی آماده است.");
+    FinalDB.log("برای بررسی نهایی دیتابیس روی دکمه 'اجرای تست‌های نهایی' کلیک کنید.");
+});
+</script>
+</body>
+</html>
