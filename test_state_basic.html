@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>State Manager Test</title>
+    <style>
+        body { font-family: Arial; padding: 20px; }
+        .test { margin: 10px 0; padding: 10px; border: 1px solid #ccc; }
+        .pass { background: #d4edda; }
+        .fail { background: #f8d7da; }
+        button { padding: 10px; margin: 5px; }
+    </style>
+</head>
+<body>
+    <h1>State Manager Test</h1>
+    
+    <div id="test1" class="test">
+        <h3>Test 1: Create State Manager</h3>
+        <div id="result1">Pending...</div>
+    </div>
+    
+    <div id="test2" class="test">
+        <h3>Test 2: Set/Get State</h3>
+        <div id="result2">Pending...</div>
+    </div>
+    
+    <div id="test3" class="test">
+        <h3>Test 3: Undo/Redo</h3>
+        <div id="result3">Pending...</div>
+    </div>
+    
+    <div id="test4" class="test">
+        <h3>Test 4: Persistence</h3>
+        <div id="result4">Pending...</div>
+    </div>
+    
+    <button onclick="runAllTests()">Run All Tests</button>
+    
+    <div id="log" style="margin-top:20px; padding:10px; background:#f0f0f0; height:200px; overflow:auto;"></div>
+
+<script>
+// Simple State Manager
+class StateManager {
+    constructor() {
+        this.state = {};
+        this.history = [];
+        this.future = [];
+    }
+    
+    set(key, value) {
+        this.history.push({...this.state});
+        this.future = [];
+        this.state[key] = value;
+        this.log(`Set: ${key} = ${JSON.stringify(value)}`);
+        return true;
+    }
+    
+    get(key) {
+        return this.state[key];
+    }
+    
+    undo() {
+        if (this.history.length === 0) return false;
+        this.future.push({...this.state});
+        this.state = this.history.pop();
+        this.log("Undo performed");
+        return true;
+    }
+    
+    redo() {
+        if (this.future.length === 0) return false;
+        this.history.push({...this.state});
+        this.state = this.future.pop();
+        this.log("Redo performed");
+        return true;
+    }
+    
+    save() {
+        localStorage.setItem('app_state', JSON.stringify(this.state));
+        this.log("Saved to localStorage");
+        return true;
+    }
+    
+    load() {
+        const saved = localStorage.getItem('app_state');
+        if (saved) {
+            this.state = JSON.parse(saved);
+            this.log("Loaded from localStorage");
+            return true;
+        }
+        return false;
+    }
+    
+    log(msg) {
+        const logDiv = document.getElementById('log');
+        logDiv.innerHTML += `<div>${new Date().toLocaleTimeString()}: ${msg}</div>`;
+        logDiv.scrollTop = logDiv.scrollHeight;
+        console.log(msg);
+    }
+    
+    clear() {
+        this.state = {};
+        this.history = [];
+        this.future = [];
+        localStorage.removeItem('app_state');
+        this.log("Cleared all state");
+    }
+}
+
+// Tests
+const tests = [
+    {
+        name: "Create State Manager",
+        run: () => {
+            const sm = new StateManager();
+            if (!sm) throw new Error("Failed to create StateManager");
+            if (!sm.state) throw new Error("State not initialized");
+            return "✓ State Manager created successfully";
+        }
+    },
+    {
+        name: "Set/Get State",
+        run: () => {
+            const sm = new StateManager();
+            sm.set("user", {name: "John", age: 30});
+            sm.set("settings", {theme: "dark"});
+            
+            const user = sm.get("user");
+            const settings = sm.get("settings");
+            
+            if (!user || user.name !== "John") throw new Error("User state not correct");
+            if (!settings || settings.theme !== "dark") throw new Error("Settings state not correct");
+            
+            return "✓ Set/Get operations work correctly";
+        }
+    },
+    {
+        name: "Undo/Redo",
+        run: () => {
+            const sm = new StateManager();
+            sm.set("step", 1);
+            sm.set("step", 2);
+            sm.set("step", 3);
+            
+            if (sm.get("step") !== 3) throw new Error("Initial state wrong");
+            
+            sm.undo();
+            if (sm.get("step") !== 2) throw new Error("Undo failed");
+            
+            sm.undo();
+            if (sm.get("step") !== 1) throw new Error("Second undo failed");
+            
+            sm.redo();
+            if (sm.get("step") !== 2) throw new Error("Redo failed");
+            
+            return "✓ Undo/Redo work correctly";
+        }
+    },
+    {
+        name: "Persistence",
+        run: () => {
+            const sm1 = new StateManager();
+            sm1.set("data", "test123");
+            sm1.save();
+            
+            const sm2 = new StateManager();
+            const loaded = sm2.load();
+            
+            if (!loaded) throw new Error("Failed to load from storage");
+            if (sm2.get("data") !== "test123") throw new Error("Data not persisted correctly");
+            
+            return "✓ Persistence works correctly";
+        }
+    }
+];
+
+// Run tests
+function runAllTests() {
+    document.getElementById('log').innerHTML = "Starting tests...<br>";
+    
+    tests.forEach((test, index) => {
+        const testDiv = document.getElementById(`test${index + 1}`);
+        const resultDiv = document.getElementById(`result${index + 1}`);
+        
+        try {
+            const result = test.run();
+            testDiv.className = "test pass";
+            resultDiv.innerHTML = `<span style="color:green">${result}</span>`;
+            console.log(`✓ ${test.name}: PASS`);
+        } catch (error) {
+            testDiv.className = "test fail";
+            resultDiv.innerHTML = `<span style="color:red">FAIL: ${error.message}</span>`;
+            console.log(`✗ ${test.name}: ${error.message}`);
+        }
+    });
+}
+
+// Initialize
+console.log("State Manager Test loaded");
+document.getElementById('log').innerHTML = "Ready to run tests...<br>";
+</script>
+</body>
+</html>
